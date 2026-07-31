@@ -1,0 +1,14 @@
+.git/
+.lattice/
+node_modules/
+dist/
+build/
+out/
+coverage/
+.cache/
+*.log
+*.tmp
+*.bak
+*.tgz
+.env
+.env.*

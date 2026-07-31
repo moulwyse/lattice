@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+out/
+coverage/
+.lattice/
+*.log
+*.tmp
+*.bak
+*.tgz
+.cache/
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db

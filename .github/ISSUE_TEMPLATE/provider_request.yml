@@ -1,0 +1,33 @@
+name: Provider adapter proposal
+description: Propose or help design a new coding-agent provider adapter.
+title: "[Provider]: "
+labels: ["provider", "proposal"]
+body:
+  - type: input
+    id: provider
+    attributes:
+      label: Provider and official SDK
+      description: Link to current official documentation; do not paste credentials.
+    validations:
+      required: true
+  - type: textarea
+    id: lifecycle
+    attributes:
+      label: Required lifecycle mapping
+      description: Explain model selection, context input, tools, usage accounting, cancellation, and errors.
+    validations:
+      required: true
+  - type: textarea
+    id: testing
+    attributes:
+      label: Credential-free test strategy
+      description: Describe mocked contract tests and an optional capped live test.
+    validations:
+      required: true
+  - type: checkboxes
+    id: independence
+    attributes:
+      label: Project status
+      options:
+        - label: I will not describe this adapter as supported until it has implementation, tests, documentation, and a disclosed live validation status.
+          required: true

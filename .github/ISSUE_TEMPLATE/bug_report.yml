@@ -1,0 +1,44 @@
+name: Bug report
+description: Report a reproducible Lattice defect without private data.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include credentials, private source, personal paths, model transcripts, provider sessions, or `.lattice/` artifacts. Security reports follow SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Lattice version
+      placeholder: "0.1.0 or commit SHA"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the expected and actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal sanitized reproduction
+      description: Include exact commands using a synthetic repository if possible.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Node.js version, operating system, Git version, provider mode.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed secrets, personal paths, private code, transcripts, and provider session data.
+          required: true

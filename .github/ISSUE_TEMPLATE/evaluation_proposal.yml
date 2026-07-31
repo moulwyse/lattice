@@ -1,0 +1,26 @@
+name: Evaluation proposal
+description: Propose an evaluator-owned paired test.
+title: "[Evaluation]: "
+labels: ["evaluation", "proposal"]
+body:
+  - type: textarea
+    id: task
+    attributes:
+      label: Evaluator-owned task design
+      description: Describe the public or synthetic repository, task family, and acceptance tests. Do not disclose a hidden task publicly.
+    validations:
+      required: true
+  - type: textarea
+    id: controls
+    attributes:
+      label: Pairing and controls
+      description: Specify model, effort, environment isolation, order randomization, budget, retries, and usage accounting.
+    validations:
+      required: true
+  - type: textarea
+    id: disclosure
+    attributes:
+      label: Publication plan
+      description: State how failures and sanitized aggregate results will be disclosed without raw transcripts or secrets.
+    validations:
+      required: true

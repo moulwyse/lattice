@@ -1,0 +1,7 @@
+{
+  "name": "lattice-v2-reset-token-fixture",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/reset-token.test.js"
+  }
+}
