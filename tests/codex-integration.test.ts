@@ -2,6 +2,7 @@ import {
   existsSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   readdirSync,
   rmSync,
   writeFileSync,
@@ -985,7 +986,9 @@ describe('transparent native Codex launcher', () => {
   });
 
   function launcherFixture() {
-    const root = mkdtempSync(join(tmpdir(), 'lattice-codex-launcher-'));
+    const root = realpathSync(
+      mkdtempSync(join(tmpdir(), 'lattice-codex-launcher-')),
+    );
     cleanups.push(() => removeDirectoryWithRetry(root));
     const script = join(root, 'fake-native-codex.mjs');
     const artifact = join(root, 'invocation.json');

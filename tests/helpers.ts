@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { execa } from 'execa';
@@ -13,7 +13,7 @@ export async function repository(
   files: Record<string, string | Buffer>,
   options: { autocrlf?: 'true' | 'false' | 'input'; attributes?: string } = {},
 ): Promise<TestRepository> {
-  const path = mkdtempSync(join(tmpdir(), 'lattice-v2-test-'));
+  const path = realpathSync(mkdtempSync(join(tmpdir(), 'lattice-v2-test-')));
   writeFileSync(join(path, '.gitignore'), '.lattice/\nnode_modules/\n');
   if (options.attributes !== undefined) {
     writeFileSync(join(path, '.gitattributes'), options.attributes);
