@@ -13,7 +13,9 @@ export async function repository(
   files: Record<string, string | Buffer>,
   options: { autocrlf?: 'true' | 'false' | 'input'; attributes?: string } = {},
 ): Promise<TestRepository> {
-  const path = realpathSync(mkdtempSync(join(tmpdir(), 'lattice-v2-test-')));
+  const path = realpathSync.native(
+    mkdtempSync(join(tmpdir(), 'lattice-v2-test-')),
+  );
   writeFileSync(join(path, '.gitignore'), '.lattice/\nnode_modules/\n');
   if (options.attributes !== undefined) {
     writeFileSync(join(path, '.gitattributes'), options.attributes);

@@ -986,7 +986,7 @@ describe('transparent native Codex launcher', () => {
   });
 
   function launcherFixture() {
-    const root = realpathSync(
+    const root = realpathSync.native(
       mkdtempSync(join(tmpdir(), 'lattice-codex-launcher-')),
     );
     cleanups.push(() => removeDirectoryWithRetry(root));
