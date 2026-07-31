@@ -11,3 +11,14 @@ service-level agreement, guaranteed response time, or private support channel.
 Please include the Lattice version, Node.js version, operating system, exact
 command, and a minimal reproduction. Remove credentials, personal paths, model
 transcripts, and repository-private material before posting.
+
+## Funding and sponsorship
+
+Lattice is independently built and maintained. To support continued
+development, discuss sponsorship, or offer access to testing infrastructure,
+contact [ptech1500@gmail.com](mailto:ptech1500@gmail.com?subject=Lattice%20support).
+
+Do not send payment credentials, API keys, account passwords, private source
+code, or provider session data by email. A verified public funding page can be
+added to the repository Sponsor button after its payment and identity
+onboarding is complete.

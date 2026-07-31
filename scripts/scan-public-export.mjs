@@ -96,6 +96,11 @@ const syntheticEmailAllowlist = new Map([
   ['src/benchmark.ts', new Set([syntheticBenchmarkEmail])],
   ['tests/helpers.ts', new Set([syntheticTestEmail])],
 ]);
+const publicContactEmail = 'ptech1500@' + 'gmail.com';
+const reviewedPublicEmailAllowlist = new Map([
+  ['README.md', new Set([publicContactEmail])],
+  ['SUPPORT.md', new Set([publicContactEmail])],
+]);
 const syntheticPathAllowlist = new Map([
   [
     'tests/mcp-server.test.ts',
@@ -157,6 +162,8 @@ function scanText(path, value) {
   for (const match of value.matchAll(emailPattern)) {
     if (syntheticEmailAllowlist.get(path)?.has(match[0].toLowerCase())) {
       addExemption(path, `synthetic reserved-domain email: ${match[0]}`);
+    } else if (reviewedPublicEmailAllowlist.get(path)?.has(match[0].toLowerCase())) {
+      addExemption(path, `owner-authorized public contact email: ${match[0]}`);
     } else {
       addFinding('email-address', path, 'email address');
     }

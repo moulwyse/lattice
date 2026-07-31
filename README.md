@@ -288,6 +288,11 @@ provider session data.
 See [SUPPORT.md](SUPPORT.md). Security vulnerabilities belong in the private
 reporting path described by [SECURITY.md](SECURITY.md), not in public issues.
 
+Lattice is independently built and maintained. To support its development,
+discuss sponsorship, or help with access to testing infrastructure, contact
+[ptech1500@gmail.com](mailto:ptech1500@gmail.com?subject=Lattice%20support).
+Please do not send credentials, API keys, or private source code by email.
+
 ## License and authorship
 
 Licensed under the [Apache License 2.0](LICENSE). Attribution and provenance are
