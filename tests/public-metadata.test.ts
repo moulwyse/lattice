@@ -1,5 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { execa } from 'execa';
 import { describe, expect, test } from 'vitest';
 
@@ -41,5 +42,21 @@ Originally created and developed by Moulwyse.
 Original author: https://github.com/moulwyse
 Canonical repository: https://github.com/moulwyse/lattice
 License: Apache-2.0`);
+  });
+
+  test('the CLI runs when npm invokes it through a linked package path', async () => {
+    const temporaryRoot = mkdtempSync(join(tmpdir(), 'lattice-linked-cli-'));
+    const linkedRoot = join(temporaryRoot, 'lattice-v2');
+    try {
+      symlinkSync(root, linkedRoot, process.platform === 'win32' ? 'junction' : 'dir');
+      const output = await execa(
+        process.execPath,
+        [resolve(linkedRoot, 'dist', 'cli.js'), '--version'],
+        { cwd: linkedRoot },
+      );
+      expect(output.stdout).toBe('Lattice 0.1.0 by Moulwyse');
+    } finally {
+      rmSync(temporaryRoot, { recursive: true, force: true });
+    }
   });
 });

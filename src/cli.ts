@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { realpathSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { resolve } from 'node:path';
@@ -50,6 +51,16 @@ License: Apache-2.0`);
   });
 
 const cliPath = fileURLToPath(import.meta.url);
+
+function isCliEntrypoint(argument: string | undefined) {
+  if (!argument) return false;
+  const candidate = resolve(argument);
+  try {
+    return realpathSync.native(candidate) === realpathSync.native(cliPath);
+  } catch {
+    return candidate === cliPath;
+  }
+}
 
 function eventStream(json: boolean) {
   const events = new Events();
@@ -503,7 +514,7 @@ async function interactive() {
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === cliPath) {
+if (isCliEntrypoint(process.argv[1])) {
   try {
     if (process.argv[2] === 'codex') {
       const forwarded = process.argv.slice(3);
