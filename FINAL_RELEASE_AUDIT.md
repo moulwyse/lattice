@@ -238,8 +238,8 @@ Every workflow under `.github/workflows` was read completely.
 - No release, npm publish, package upload, deployment, or artifact upload exists.
 - Checkout uses `persist-credentials: false`.
 - Official actions are pinned to exact reviewed commits with version comments:
-  `actions/checkout` v4.4.0,
-  `actions/setup-node` v4.4.0, and
+  `actions/checkout` v7.0.1,
+  `actions/setup-node` v7.0.0, and
   `actions/dependency-review-action` v4.9.0.
 - Pull-request builds do execute the submitted code, but receive neither secrets
   nor write credentials; this is documented risk, not an undisclosed privilege.
