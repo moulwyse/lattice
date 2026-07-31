@@ -18,7 +18,9 @@ Lattice is independently built and maintained. To support continued
 development, discuss sponsorship, or offer access to testing infrastructure,
 contact [ptech1500@gmail.com](mailto:ptech1500@gmail.com?subject=Lattice%20support).
 
+For recurring support, visit [Patreon](https://www.patreon.com/c/moulwyse).
+Support helps fund testing infrastructure, CI, reproducible evaluation work,
+and model access.
+
 Do not send payment credentials, API keys, account passwords, private source
-code, or provider session data by email. A verified public funding page can be
-added to the repository Sponsor button after its payment and identity
-onboarding is complete.
+code, or provider session data by email.

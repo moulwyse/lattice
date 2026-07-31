@@ -291,6 +291,11 @@ reporting path described by [SECURITY.md](SECURITY.md), not in public issues.
 Lattice is independently built and maintained. To support its development,
 discuss sponsorship, or help with access to testing infrastructure, contact
 [ptech1500@gmail.com](mailto:ptech1500@gmail.com?subject=Lattice%20support).
+
+You can also support the project through
+[Patreon](https://www.patreon.com/c/moulwyse). Patreon support helps cover
+cross-platform testing, CI, reproducible benchmarks, and model access.
+
 Please do not send credentials, API keys, or private source code by email.
 
 ## License and authorship
