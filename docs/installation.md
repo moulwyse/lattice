@@ -1,5 +1,21 @@
 # Installation
 
+This guide explains the source installation in detail. For most people, the
+short version is:
+
+```sh
+git clone https://github.com/moulwyse/lattice.git
+cd lattice
+npm ci
+npm run build
+npm link
+lattice benchmark --worker mock
+```
+
+The benchmark is local, deterministic, and credential-free. Passing it proves
+that the CLI, transaction path, Git worktree flow, and fixture verification can
+run on the current machine. It does not make a remote model call.
+
 ## Requirements
 
 - Node.js `^20.19.0` or `>=22.12.0`, matching the locked development toolchain;
@@ -40,6 +56,11 @@ lattice --version
 repository. Generated `node_modules/` and `dist/` directories are not source
 and must not be committed.
 
+If the shell cannot find `lattice` after `npm link`, restart the terminal and
+try `lattice --version`. If global npm links are unavailable, skip `npm link`
+and replace every `lattice` command in this guide with
+`node /absolute/path/to/lattice/dist/cli.js`.
+
 ## Verify the installation
 
 The credential-free validation path is:
@@ -73,6 +94,30 @@ The transparent integration is optional and never enabled during installation.
 Read [security](security.md) and [providers](providers.md) before running
 `lattice integration codex enable`.
 
+## Connect to Codex on Windows
+
+Run the diagnostic before making any user-level integration change:
+
+```powershell
+codex login status
+lattice integration codex doctor --workspace .
+```
+
+If the diagnostic is clean, enable and verify the integration:
+
+```powershell
+lattice integration codex enable
+lattice integration codex status --workspace .
+codex mcp list
+```
+
+Restart Codex after enabling the integration. The command registers the
+Lattice MCP server and creates Lattice-owned launcher and synchronization hook
+state. It does not copy a Codex credential into Lattice. To revert it, run
+`lattice integration codex disable` before removing the source clone.
+
+## Platform support
+
 Automatic launcher, hook, and persistent-PATH setup is currently Windows-only.
 On macOS or Linux, do not run the automatic enable command. After building, the
 read-only MCP bridge can instead be registered explicitly with the official
@@ -93,6 +138,32 @@ codex mcp remove lattice
 
 Native macOS/Linux execution still requires verification on those operating
 systems; dependency resolution alone is not a runtime test.
+
+## First repository check
+
+Open a terminal in the repository you want Lattice to inspect:
+
+```sh
+lattice doctor --workspace .
+```
+
+Healthy output should identify the intended repository and report the expected
+Codex and integration state. A missing Codex login is normal when you only want
+the local mock workflow. Do not continue if the reported repository root or
+integration paths point somewhere unexpected.
+
+The simplest no-model functional check remains:
+
+```sh
+lattice benchmark --worker mock
+```
+
+For a real Codex-backed transaction, read the repository's configuration and
+security documentation first, then use:
+
+```sh
+lattice run "describe the bounded repository task" --worker codex
+```
 
 ## Uninstall
 

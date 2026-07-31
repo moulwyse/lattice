@@ -2,6 +2,11 @@
 
 An open-source context and execution layer for coding agents.
 
+[![Build and test](https://github.com/moulwyse/lattice/actions/workflows/ci.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/ci.yml)
+[![Quality](https://github.com/moulwyse/lattice/actions/workflows/quality.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/quality.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-20%20%7C%2022-339933.svg)](package.json)
+
 Created and led by **[Moulwyse](https://github.com/moulwyse)**.
 
 This repository is the original and canonical home of Lattice.
@@ -17,6 +22,105 @@ records local execution state. It is designed to reduce unnecessary context
 movement without hiding what was read, changed, or verified.
 
 Lattice was originally created and developed by Moulwyse.
+
+## Install in a few minutes
+
+You need [Git](https://git-scm.com/downloads) and a supported
+[Node.js](https://nodejs.org/en/download) version (`20.19+` or `22.12+`). You
+do not need an API key to install Lattice or run its local demo.
+
+### Windows (PowerShell)
+
+Copy and run these commands:
+
+```powershell
+git clone https://github.com/moulwyse/lattice.git
+Set-Location lattice
+npm ci
+npm run build
+npm link
+lattice --version
+lattice benchmark --worker mock
+```
+
+The final command is a credential-free self-test. A successful installation
+ends with a passed benchmark and creates no model charges.
+
+To connect Lattice to an already installed and authenticated Codex environment:
+
+```powershell
+codex login status
+lattice integration codex doctor --workspace .
+lattice integration codex enable
+lattice integration codex status --workspace .
+```
+
+The Windows integration registers the Lattice MCP server and installs its
+Lattice-owned launcher and synchronization hooks. Restart Codex after enabling
+it. Lattice never asks you to paste a Codex API key into its configuration.
+
+### macOS or Linux
+
+Install and run the same local self-test:
+
+```sh
+git clone https://github.com/moulwyse/lattice.git
+cd lattice
+npm ci
+npm run build
+npm link
+lattice --version
+lattice benchmark --worker mock
+```
+
+Then register the read-only MCP bridge with Codex manually:
+
+```sh
+codex login status
+codex mcp add lattice -- node "$(pwd)/dist/cli.js" mcp-server
+codex mcp list
+```
+
+The full automatic launcher and hook lifecycle is currently Windows-only.
+macOS and Linux receive the three bounded repository-context MCP tools through
+the manual registration above. Native runtime verification on those systems is
+still welcome; see [platform support](docs/installation.md#platform-support).
+
+If `npm link` is unavailable or requires global permissions, skip it and run
+the CLI from the cloned directory as `node dist/cli.js <command>`.
+
+### Use it on a repository
+
+Open a terminal in the repository you want to work on and run:
+
+```sh
+lattice doctor --workspace .
+```
+
+Resolve any reported error, then open that repository in Codex. On Windows,
+the enabled integration keeps the Codex model and reasoning selection in sync
+and exposes Lattice automatically. On macOS and Linux, Codex can use the
+manually registered Lattice MCP tools.
+
+### Undo the integration
+
+Windows:
+
+```powershell
+lattice integration codex disable
+npm unlink --global lattice-v2
+```
+
+macOS or Linux:
+
+```sh
+codex mcp remove lattice
+npm unlink --global lattice-v2
+```
+
+The disable command removes only integration state that Lattice recognizes as
+its own. Full installation, troubleshooting, and safety notes are in the
+[installation guide](docs/installation.md).
 
 ## What is included
 
@@ -43,44 +147,11 @@ boundary.
 - Windows, macOS, or Linux with a filesystem accessible to Node.js;
 - Codex authentication only when using the Codex worker.
 
-The final local release audit ran on Windows. Linux is represented by the
-checked-in CI definitions, and the CI matrix now includes Ubuntu, Windows, and
-macOS on Node.js 20 and 22. Those hosted jobs cannot be claimed as passing until
-the repository exists and a human enables GitHub Actions. Dependency resolution
-was checked locally for Linux x64 and Darwin ARM64, but native Linux and macOS
-execution was not run during this audit.
-
-## Install from source
-
-```sh
-git clone https://github.com/moulwyse/lattice.git
-cd lattice
-npm ci
-npm run build
-npm link
-```
-
-The repository has not been published to npm. `npm link` is optional; every
-example can instead use `node dist/cli.js`.
-
-## Credential-free quick start
-
-```sh
-npm ci
-npm run build
-node dist/cli.js --version
-node dist/cli.js --about
-node dist/cli.js benchmark --worker mock
-```
-
-To inspect a repository without making a model call:
-
-```sh
-node dist/cli.js doctor --workspace /path/to/repository
-```
-
-`doctor` reports environment state. A missing Codex login is expected if only
-the local or mock workflows are used.
+The final local release audit ran on Windows. GitHub Actions now builds and
+tests the public repository on Ubuntu, Windows, and macOS with Node.js 20 and
+22. Dependency resolution was also checked for Linux x64 and Darwin ARM64.
+Hosted CI is valuable compatibility evidence, but it is not the same as a full
+interactive Codex integration test on every platform.
 
 ## Core commands
 
