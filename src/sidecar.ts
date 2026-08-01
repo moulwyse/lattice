@@ -49,6 +49,7 @@ const ShutdownRequestSchema = SidecarAttachRequestSchema;
 const MAX_REQUEST_BYTES = 128 * 1024;
 const DEFAULT_LEASE_TTL_MS = 15_000;
 const DEFAULT_IDLE_SHUTDOWN_MS = 30_000;
+const MIN_STARTUP_LEASE_GRACE_MS = 1_000;
 
 export type SidecarPaths = {
   directory: string;
@@ -697,10 +698,10 @@ export async function startSidecarServer(
     }
   });
 
-  const scheduleIdle = () => {
+  const scheduleIdle = (delayMs = idleShutdownMs) => {
     if (closing || leases.size > 0 || !Number.isFinite(idleShutdownMs)) return;
     if (idleTimer) return;
-    idleTimer = setTimeout(() => void close(), Math.max(0, idleShutdownMs));
+    idleTimer = setTimeout(() => void close(), Math.max(0, delayMs));
     idleTimer.unref();
   };
 
@@ -844,7 +845,12 @@ export async function startSidecarServer(
       if (leases.size === 0) scheduleIdle();
     }, Math.min(1_000, Math.max(100, Math.floor(leaseTtlMs / 3))));
     reaper.unref();
-    scheduleIdle();
+    // Publishing the state file makes the newborn sidecar discoverable before
+    // a client owns a lease. On slower hosts, an aggressively small test/dev
+    // idle window can otherwise expire between the health check and the first
+    // authenticated attach. Preserve the configured post-detach idle behavior,
+    // but give the initial owner a small, bounded attach grace period.
+    scheduleIdle(Math.max(idleShutdownMs, MIN_STARTUP_LEASE_GRACE_MS));
 
     const initialIndexStarted = Date.now();
     void buildIndex(root)
