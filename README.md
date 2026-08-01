@@ -1,7 +1,10 @@
-# Lattice
+<p align="center">
+  <img src="docs/assets/lattice-mark.png" alt="Lattice mark: a bounded repository slice ending in a verified result" width="128">
+</p>
 
-**Bounded, auditable repository context and verified patch execution for coding
-agents.**
+<h1 align="center">Lattice</h1>
+
+<p align="center"><strong>Bounded, auditable repository context and verified patch execution for coding agents.</strong></p>
 
 ![Lattice: don't send the repo, send what matters](docs/assets/brand-hero.jpg)
 
@@ -25,7 +28,7 @@ coordinates an agent run, validates edits against repository fingerprints, and
 records local execution state. It is designed to reduce unnecessary context
 movement without hiding what was read, changed, or verified.
 
-![How Lattice handles a coding-agent task](docs/assets/lattice-flow.svg)
+![How Lattice bounds context and verifies a patch](docs/assets/lattice-flow.svg)
 
 ## Why Lattice
 

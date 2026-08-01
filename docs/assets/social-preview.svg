@@ -1,42 +1,49 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
   <title id="title">Lattice social preview</title>
-  <desc id="desc">Lattice: bounded context and verified patches for coding agents.</desc>
+  <desc id="desc">Lattice keeps coding-agent context bounded and patch verification visible.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#07101e"/>
-      <stop offset="0.52" stop-color="#0d1a31"/>
-      <stop offset="1" stop-color="#14132b"/>
-    </linearGradient>
-    <linearGradient id="word" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#67e8f9"/>
-      <stop offset="0.55" stop-color="#818cf8"/>
-      <stop offset="1" stop-color="#c084fc"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
-      <stop offset="0" stop-color="#6366f1" stop-opacity="0.34"/>
-      <stop offset="1" stop-color="#6366f1" stop-opacity="0"/>
-    </radialGradient>
-    <filter id="blur"><feGaussianBlur stdDeviation="18"/></filter>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.84" numOctaves="2" seed="31" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .09 0"/>
+      <feBlend in="SourceGraphic" mode="screen"/>
+    </filter>
   </defs>
-  <rect width="1280" height="640" fill="url(#bg)"/>
-  <circle cx="1080" cy="100" r="330" fill="url(#glow)"/>
-  <circle cx="160" cy="610" r="250" fill="#0ea5e9" opacity="0.08" filter="url(#blur)"/>
-  <g transform="translate(86 78)">
-    <g stroke="url(#word)" stroke-width="5" fill="none" opacity="0.9">
-      <path d="M8 92H178M8 122H178M8 152H178"/>
-      <path d="M38 66V178M78 66V178M118 66V178M158 66V178"/>
+  <rect width="1280" height="640" fill="#070707"/>
+  <rect width="1280" height="640" fill="#070707" filter="url(#grain)" opacity=".75"/>
+
+  <g font-family="Arial,Helvetica,sans-serif">
+    <text x="58" y="62" fill="#f1f0ea" font-size="24" font-weight="900" letter-spacing="1">LATTICE</text>
+    <path d="M184 52H770" stroke="#f1f0ea" stroke-width="4"/>
+    <text x="1222" y="60" fill="#8b8b86" font-size="12" text-anchor="end" letter-spacing="2">OPEN SOURCE / APACHE-2.0</text>
+
+    <text x="58" y="176" fill="#f1f0ea" font-family="Impact,Arial Black,Arial,sans-serif" font-size="84" letter-spacing="-1">DON'T SEND THE REPO.</text>
+    <text x="58" y="266" fill="#f1f0ea" font-family="Impact,Arial Black,Arial,sans-serif" font-size="84" letter-spacing="-1">SEND WHAT MATTERS.</text>
+    <text x="62" y="320" fill="#8b8b86" font-size="21">Bounded repository context and verified patch execution for coding agents.</text>
+
+    <g transform="translate(820 108)">
+      <rect x="0" y="46" width="38" height="270" fill="#292927"/>
+      <rect x="58" y="18" width="38" height="326" fill="#343431"/>
+      <rect x="116" y="18" width="38" height="326" fill="#f1f0ea"/>
+      <rect x="174" y="18" width="38" height="326" fill="#f1f0ea"/>
+      <rect x="232" y="18" width="38" height="326" fill="#343431"/>
+      <rect x="290" y="46" width="38" height="270" fill="#292927"/>
+      <rect x="104" y="0" width="120" height="362" fill="none" stroke="#0b57ff" stroke-width="8"/>
+      <path d="M144 362V397H184V362" fill="none" stroke="#0b57ff" stroke-width="8"/>
+      <rect x="128" y="397" width="72" height="72" fill="#ff5a00"/>
+      <path d="M145 433L159 447 185 419" fill="none" stroke="#070707" stroke-width="10"/>
     </g>
-    <text x="230" y="158" fill="url(#word)" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="112" font-weight="850" letter-spacing="-4">Lattice</text>
-    <text x="4" y="270" fill="#f8fafc" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="46" font-weight="750">Bounded context. Verified patches.</text>
-    <text x="4" y="332" fill="#a8b6cc" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="28">An open-source execution layer for coding agents.</text>
-    <g transform="translate(4 400)" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="22">
-      <rect width="242" height="58" rx="29" fill="#13243f" stroke="#38bdf8" stroke-opacity="0.55"/>
-      <text x="121" y="37" fill="#bae6fd" text-anchor="middle" font-weight="700">Local repository index</text>
-      <rect x="264" width="254" height="58" rx="29" fill="#17213e" stroke="#818cf8" stroke-opacity="0.55"/>
-      <text x="391" y="37" fill="#c7d2fe" text-anchor="middle" font-weight="700">Fingerprint checks</text>
-      <rect x="540" width="244" height="58" rx="29" fill="#221b3d" stroke="#c084fc" stroke-opacity="0.55"/>
-      <text x="662" y="37" fill="#e9d5ff" text-anchor="middle" font-weight="700">Auditable run state</text>
+
+    <path d="M58 376H760" stroke="#2d2d2a" stroke-width="2"/>
+    <g font-size="15" font-weight="800" letter-spacing="1">
+      <rect x="58" y="412" width="196" height="42" fill="#f1f0ea"/>
+      <text x="75" y="439" fill="#070707">LOCAL INDEX</text>
+      <rect x="266" y="412" width="216" height="42" fill="#0b57ff"/>
+      <text x="283" y="439" fill="#f1f0ea">BOUNDED CONTEXT</text>
+      <rect x="494" y="412" width="210" height="42" fill="#ff5a00"/>
+      <text x="511" y="439" fill="#070707">VERIFIED PATCH</text>
     </g>
-    <text x="4" y="512" fill="#64748b" font-family="Consolas,SFMono-Regular,Menlo,monospace" font-size="21">github.com/moulwyse/lattice · Apache-2.0</text>
+    <text x="58" y="548" fill="#f1f0ea" font-size="18" font-weight="700">github.com/moulwyse/lattice</text>
+    <text x="58" y="580" fill="#64645f" font-family="Consolas,SFMono-Regular,Menlo,monospace" font-size="14">VISIBLE SCOPE / EXPLICIT GRANTS / AUDITABLE STATE</text>
+    <path d="M58 608H1222" stroke="#f1f0ea" stroke-width="2"/>
   </g>
 </svg>

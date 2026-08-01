@@ -1,53 +1,62 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="360" viewBox="0 0 1120 360" role="img" aria-labelledby="title desc">
-  <title id="title">How Lattice handles a coding-agent task</title>
-  <desc id="desc">A six-step flow from repository discovery through bounded context, agent work, patch validation, isolated application, and verification.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="430" viewBox="0 0 1120 430" role="img" aria-labelledby="title desc">
+  <title id="title">From repository noise to a verified patch</title>
+  <desc id="desc">Lattice discovers and indexes a repository, selects bounded context, coordinates an agent patch, and verifies the result.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#09111f"/>
-      <stop offset="1" stop-color="#101d33"/>
-    </linearGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#6ee7f9"/>
-      <stop offset="1" stop-color="#a78bfa"/>
-    </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#020617" flood-opacity="0.45"/>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.76" numOctaves="3" seed="41" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .13 0"/>
+      <feBlend in="SourceGraphic" mode="screen"/>
     </filter>
   </defs>
-  <rect width="1120" height="360" rx="28" fill="url(#bg)"/>
-  <path d="M90 180H1030" stroke="#334155" stroke-width="3" stroke-dasharray="7 9"/>
-  <g font-family="Inter,Segoe UI,Arial,sans-serif" text-anchor="middle">
-    <g transform="translate(95 180)" filter="url(#shadow)">
-      <circle r="54" fill="#13233d" stroke="#38bdf8" stroke-width="2"/>
-      <text y="-5" fill="#e2e8f0" font-size="15" font-weight="700">DISCOVER</text>
-      <text y="18" fill="#94a3b8" font-size="12">safe repo root</text>
+
+  <rect width="1120" height="430" fill="#050505"/>
+  <rect width="1120" height="430" fill="#050505" filter="url(#grain)" opacity=".9"/>
+
+  <g font-family="Arial,Helvetica,sans-serif">
+    <path d="M18 18H38M28 8V28M1082 38H1102M1092 28V48" stroke="#f1f0ea" stroke-width="1.5"/>
+    <text x="48" y="34" fill="#f1f0ea" font-size="17" font-weight="900" letter-spacing="1.4">LATTICE</text>
+    <path d="M144 29H892" stroke="#f1f0ea" stroke-width="2"/>
+    <text x="1072" y="34" fill="#b4b3ad" font-family="Consolas,SFMono-Regular,monospace" font-size="10" text-anchor="end">X: 1120 / Y: 430</text>
+
+    <text x="46" y="119" fill="#f1f0ea" font-family="Impact,Arial Narrow,Arial Black,sans-serif" font-size="82" letter-spacing="-.5">REPO NOISE IN.</text>
+    <text x="46" y="204" fill="#f1f0ea" font-family="Impact,Arial Narrow,Arial Black,sans-serif" font-size="82" letter-spacing="-.5">VERIFIED PATCH OUT.</text>
+
+    <g fill="#7a7974" opacity=".62" font-family="Consolas,SFMono-Regular,monospace" font-size="9">
+      <text x="48" y="237">/src/core/runtime.ts     /src/context/index.ts     /pkg/repository/root.ts     /tests/integration/context.test.ts</text>
+      <text x="78" y="252">interface TaskPlan { goal: string; acceptance: Rule[] }     async function compile(goal)     return boundedPages</text>
+      <text x="28" y="267">/internal/fingerprint/check.ts     /src/worker/agent.ts     /pkg/patch/apply.ts     /scripts/verify.mjs</text>
+      <text x="142" y="282">index.discover(root)     context.select(task)     grant.validate(diff)     transaction.verify(result)</text>
+      <text x="58" y="297">/src/sidecar/server.ts     /src/providers/codex/prompt.ts     /tests/runtime.test.ts     /docs/protocol.md</text>
+      <text x="686" y="237">state := visible     scope := explicit</text>
+      <text x="816" y="252">fingerprint(old) == expected</text>
+      <text x="906" y="267">acceptance := passed</text>
     </g>
-    <g transform="translate(281 180)" filter="url(#shadow)">
-      <circle r="54" fill="#13233d" stroke="#5eead4" stroke-width="2"/>
-      <text y="-5" fill="#e2e8f0" font-size="15" font-weight="700">INDEX</text>
-      <text y="18" fill="#94a3b8" font-size="12">local structure</text>
+
+    <path d="M94 332H282V310H474V348H674V320H866V354H1018" fill="none" stroke="#0b57ff" stroke-width="5"/>
+    <rect x="276" y="304" width="12" height="12" fill="#ff5a00"/>
+    <rect x="468" y="342" width="12" height="12" fill="#ff5a00"/>
+    <rect x="668" y="314" width="12" height="12" fill="#ff5a00"/>
+    <rect x="1010" y="346" width="16" height="16" fill="#0b57ff"/>
+
+    <g font-family="Consolas,SFMono-Regular,monospace" font-size="12" font-weight="700">
+      <rect x="58" y="310" width="120" height="28" fill="#0b57ff"/>
+      <text x="72" y="329" fill="#f1f0ea">01 / INDEX</text>
+      <rect x="306" y="288" width="136" height="28" fill="#0b57ff"/>
+      <text x="320" y="307" fill="#f1f0ea">02 / BOUND</text>
+      <rect x="500" y="326" width="148" height="28" fill="#0b57ff"/>
+      <text x="514" y="345" fill="#f1f0ea">03 / AGENT</text>
+      <rect x="704" y="298" width="176" height="28" fill="#ff5a00"/>
+      <text x="718" y="317" fill="#050505">04 / VERIFY</text>
     </g>
-    <g transform="translate(467 180)" filter="url(#shadow)">
-      <circle r="54" fill="#13233d" stroke="#818cf8" stroke-width="2"/>
-      <text y="-5" fill="#e2e8f0" font-size="15" font-weight="700">BOUND</text>
-      <text y="18" fill="#94a3b8" font-size="12">task context</text>
+
+    <g fill="#b4b3ad" font-family="Consolas,SFMono-Regular,monospace" font-size="9">
+      <text x="58" y="378">safe root + local structure</text>
+      <text x="306" y="378">task pages + edit grants</text>
+      <text x="500" y="378">fingerprinted proposal</text>
+      <text x="704" y="378">isolated apply + evidence</text>
     </g>
-    <g transform="translate(653 180)" filter="url(#shadow)">
-      <circle r="54" fill="#13233d" stroke="#a78bfa" stroke-width="2"/>
-      <text y="-5" fill="#e2e8f0" font-size="15" font-weight="700">AGENT</text>
-      <text y="18" fill="#94a3b8" font-size="12">proposes edits</text>
-    </g>
-    <g transform="translate(839 180)" filter="url(#shadow)">
-      <circle r="54" fill="#13233d" stroke="#f0abfc" stroke-width="2"/>
-      <text y="-5" fill="#e2e8f0" font-size="15" font-weight="700">CHECK</text>
-      <text y="18" fill="#94a3b8" font-size="12">fingerprints</text>
-    </g>
-    <g transform="translate(1025 180)" filter="url(#shadow)">
-      <circle r="54" fill="#13233d" stroke="#4ade80" stroke-width="2"/>
-      <text y="-5" fill="#e2e8f0" font-size="15" font-weight="700">VERIFY</text>
-      <text y="18" fill="#94a3b8" font-size="12">tests + evidence</text>
-    </g>
-    <text x="560" y="58" fill="url(#accent)" font-size="24" font-weight="800">BOUNDED CONTEXT. VERIFIED PATCHES. VISIBLE STATE.</text>
-    <text x="560" y="316" fill="#94a3b8" font-size="15">Lattice keeps repository context selection and edit verification explicit.</text>
+
+    <path d="M46 398H1074" stroke="#f1f0ea" stroke-width="1.5"/>
+    <text x="48" y="418" fill="#f1f0ea" font-family="Consolas,SFMono-Regular,monospace" font-size="11" letter-spacing="1.7">LOCAL CONTEXT  •  EXPLICIT SCOPE  •  VERIFIED RESULT</text>
   </g>
 </svg>
