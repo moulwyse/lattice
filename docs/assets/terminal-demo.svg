@@ -1,32 +1,56 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="560" viewBox="0 0 1120 560" role="img" aria-labelledby="title desc">
-  <title id="title">Lattice credential-free benchmark demonstration</title>
-  <desc id="desc">A terminal window showing a Lattice mock benchmark loading bounded context, applying a patch, running verification, and passing.</desc>
+  <title id="title">Lattice credential-free local benchmark</title>
+  <desc id="desc">A terminal-style panel showing repository indexing, bounded context selection, patch validation, isolated application, and a passed verification result.</desc>
   <defs>
-    <linearGradient id="frame" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0b1220"/>
-      <stop offset="1" stop-color="#111c31"/>
-    </linearGradient>
-    <filter id="shadow" x="-10%" y="-20%" width="120%" height="150%">
-      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#020617" flood-opacity="0.5"/>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.78" numOctaves="2" seed="23" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .075 0"/>
+      <feBlend in="SourceGraphic" mode="screen"/>
     </filter>
   </defs>
-  <rect width="1120" height="560" rx="30" fill="#070c16"/>
-  <g transform="translate(55 45)" filter="url(#shadow)">
-    <rect width="1010" height="470" rx="18" fill="url(#frame)" stroke="#26364f" stroke-width="2"/>
-    <path d="M0 64H1010" stroke="#26364f" stroke-width="2"/>
-    <circle cx="30" cy="32" r="8" fill="#fb7185"/>
-    <circle cx="56" cy="32" r="8" fill="#fbbf24"/>
-    <circle cx="82" cy="32" r="8" fill="#4ade80"/>
-    <text x="505" y="39" fill="#94a3b8" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15" text-anchor="middle">Lattice local smoke test · no model account required</text>
-    <g font-family="Consolas,SFMono-Regular,Menlo,monospace" font-size="20">
-      <text x="38" y="110" fill="#6ee7f9">$ lattice benchmark --worker mock</text>
-      <text x="38" y="156" fill="#cbd5e1">[task.compiled]</text><text x="245" y="156" fill="#94a3b8">Compiled task</text>
-      <text x="38" y="196" fill="#cbd5e1">[index.completed]</text><text x="245" y="196" fill="#94a3b8">Indexed 6 synthetic files</text>
-      <text x="38" y="236" fill="#cbd5e1">[context.initial]</text><text x="245" y="236" fill="#94a3b8">Loaded 5 bounded pages</text>
-      <text x="38" y="276" fill="#cbd5e1">[patch.checked]</text><text x="245" y="276" fill="#94a3b8">Resolved 2 fingerprinted edit grants</text>
-      <text x="38" y="316" fill="#cbd5e1">[verification]</text><text x="245" y="316" fill="#94a3b8">Applied 2 changes in an isolated worktree</text>
-      <text x="38" y="356" fill="#cbd5e1">[task.passed]</text><text x="245" y="356" fill="#4ade80">Verification and acceptance evidence passed</text>
-      <text x="38" y="412" fill="#f8fafc" font-weight="700">Status: </text><text x="132" y="412" fill="#4ade80" font-weight="700">passed</text>
+  <rect width="1120" height="560" fill="#070707"/>
+  <rect width="1120" height="560" fill="#070707" filter="url(#grain)" opacity="0.7"/>
+
+  <g font-family="Consolas,SFMono-Regular,Menlo,monospace">
+    <rect x="42" y="38" width="1036" height="484" fill="#0b0b0b" stroke="#f1f0ea" stroke-width="2"/>
+    <path d="M42 98H1078" stroke="#30302d" stroke-width="2"/>
+    <rect x="64" y="60" width="16" height="16" fill="#ff5a00"/>
+    <rect x="90" y="60" width="16" height="16" fill="#f1f0ea"/>
+    <rect x="116" y="60" width="16" height="16" fill="#0b57ff"/>
+    <text x="160" y="75" fill="#8b8b86" font-size="14" letter-spacing="1.2">LOCAL SMOKE TEST / NO MODEL ACCOUNT REQUIRED</text>
+    <text x="1048" y="75" fill="#64645f" font-size="12" text-anchor="end">LATTICE 0.1.0</text>
+
+    <text x="72" y="142" fill="#0b57ff" font-size="20" font-weight="700">$ lattice benchmark --worker mock</text>
+    <path d="M72 168H1048" stroke="#232321" stroke-width="2"/>
+
+    <g font-size="17">
+      <g fill="#ff5a00" font-weight="700">
+        <text x="72" y="208">01</text><text x="72" y="250">02</text><text x="72" y="292">03</text>
+        <text x="72" y="334">04</text><text x="72" y="376">05</text><text x="72" y="418">06</text>
+      </g>
+      <g fill="#f1f0ea">
+        <text x="118" y="208">task.compiled</text>
+        <text x="118" y="250">index.completed</text>
+        <text x="118" y="292">context.initial</text>
+        <text x="118" y="334">patch.checked</text>
+        <text x="118" y="376">verification</text>
+        <text x="118" y="418">task.passed</text>
+      </g>
+      <g fill="#8b8b86">
+        <text x="355" y="208">Compiled task</text>
+        <text x="355" y="250">Indexed 6 synthetic files</text>
+        <text x="355" y="292">Loaded 5 bounded pages</text>
+        <text x="355" y="334">Resolved 2 fingerprinted edit grants</text>
+        <text x="355" y="376">Applied 2 changes in an isolated worktree</text>
+        <text x="355" y="418">Verification and acceptance evidence passed</text>
+      </g>
+      <path d="M331 190V428" stroke="#0b57ff" stroke-width="3"/>
     </g>
+
+    <rect x="72" y="458" width="976" height="42" fill="#f1f0ea"/>
+    <text x="92" y="485" fill="#070707" font-size="18" font-weight="700">STATUS</text>
+    <rect x="884" y="458" width="164" height="42" fill="#ff5a00"/>
+    <path d="M902 479L916 491 936 469" fill="none" stroke="#070707" stroke-width="7"/>
+    <text x="952" y="485" fill="#070707" font-size="18" font-weight="900">PASSED</text>
   </g>
 </svg>
