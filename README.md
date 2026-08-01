@@ -3,7 +3,7 @@
 **Bounded, auditable repository context and verified patch execution for coding
 agents.**
 
-![Lattice: less context, verified patches](docs/assets/brand-hero.jpg)
+![Lattice: don't send the repo, send what matters](docs/assets/brand-hero.jpg)
 
 [![Build and test](https://github.com/moulwyse/lattice/actions/workflows/ci.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/ci.yml)
 [![Quality](https://github.com/moulwyse/lattice/actions/workflows/quality.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/quality.yml)

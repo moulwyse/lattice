@@ -125,6 +125,34 @@ describe('managed sidecar process lifecycle', () => {
   );
 
   test(
+    'keeps a newborn sidecar alive long enough for its first authenticated attach',
+    async () => {
+      const fixture = await fixtureRepository('startup-grace');
+      repositories.push(fixture);
+      const lease = await ensureSidecar(fixture.path, {
+        cliPath,
+        env: {
+          ...sidecarEnvironment,
+          LATTICE_SIDECAR_IDLE_MS: '1',
+        },
+        heartbeat: false,
+        startupTimeoutMs: 8_000,
+      });
+      leases.push(lease);
+      childPids.add(lease.state.pid);
+
+      expect(isProcessAlive(lease.state.pid)).toBe(true);
+      expect((await sidecarStatus(fixture.path)).running).toBe(true);
+
+      await lease.detach();
+      await eventually(() => {
+        expect(isProcessAlive(lease.state.pid)).toBe(false);
+      });
+    },
+    30_000,
+  );
+
+  test(
     'keeps sidecars for different repositories isolated',
     async () => {
       const firstRepository = await fixtureRepository('first');
