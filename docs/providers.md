@@ -74,10 +74,21 @@ against Codex CLI `0.145.0` in an isolated `CODEX_HOME`. On macOS and Linux,
 manual stdio MCP registration is documented, but native runtime behavior has
 not been executed and transparent auto-enable is not supported.
 
-## Not included
+## Claude Code adapter — planned
 
-No Claude Code, Gemini, Cursor, Grok, or other provider adapter is present in
-this export. Those providers are unsupported until a contribution includes:
+Claude Code is the next planned provider adapter. No adapter is present yet,
+and the project does not claim Claude Code compatibility. The maintainer does
+not currently have the Claude Code tooling and sustained usage allowance
+needed for implementation and live validation.
+
+The implementation plan, required contract work, evidence standard, and
+current access blocker are documented in the
+[Claude Code adapter roadmap](claude-code.md).
+
+## Other providers not included
+
+No Gemini, Cursor, Grok, or other provider adapter is present in this export.
+Those providers are unsupported until a contribution includes:
 
 - an official SDK or documented local interface;
 - model and effort mapping without invented identifiers;

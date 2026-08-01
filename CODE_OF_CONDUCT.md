@@ -53,10 +53,10 @@ is officially representing the community in public spaces.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported through the private conduct contact that must be configured in the
-canonical repository before launch. **Maintainer action required:** replace
-this sentence with a tested private contact or reporting form; do not publish a
-personal address without consent.
+reported privately to
+[ptech1500@gmail.com](mailto:ptech1500@gmail.com?subject=Lattice%20Code%20of%20Conduct).
+Do not include credentials, private source, model transcripts, or unrelated
+personal information in a conduct report.
 
 All complaints will be reviewed and investigated promptly and fairly.
 Community leaders are obligated to respect the privacy and security of the

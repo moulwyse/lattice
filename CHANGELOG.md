@@ -20,7 +20,7 @@ intends to use semantic versioning after the first public release.
 
 - None.
 
-## [0.1.0] - Unreleased draft
+## [0.1.0] - 2026-08-01
 
 ### Added
 

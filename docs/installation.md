@@ -1,7 +1,15 @@
 # Installation
 
-This guide explains the source installation in detail. For most people, the
-short version is:
+This guide covers the GitHub release package and source installation. For most
+people, the short version is:
+
+```sh
+npm install --global https://github.com/moulwyse/lattice/releases/download/v0.1.0/lattice-v2-0.1.0.tgz
+lattice benchmark --worker mock
+```
+
+The package is hosted as a GitHub release asset while npm registry publication
+remains intentionally disabled. To build directly from the canonical source:
 
 ```sh
 git clone https://github.com/moulwyse/lattice.git
@@ -26,9 +34,27 @@ run on the current machine. It does not make a remote model call.
 Codex is optional. It is needed only for `--worker codex` or the optional Codex
 integration.
 
+## GitHub release installation
+
+The release tarball is produced by `npm pack` from the tagged commit and
+attached to the matching GitHub release. Install or upgrade it with:
+
+```sh
+npm install --global https://github.com/moulwyse/lattice/releases/download/v0.1.0/lattice-v2-0.1.0.tgz
+```
+
+Verify the command and run the no-model smoke test:
+
+```sh
+lattice --version
+lattice benchmark --worker mock
+```
+
+Uninstall with `npm uninstall --global lattice-v2`.
+
 ## Source installation
 
-The initial public export is intentionally not published to npm.
+The package is intentionally not published to the npm registry yet.
 
 ```sh
 git clone https://github.com/moulwyse/lattice.git
