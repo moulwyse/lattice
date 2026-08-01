@@ -1,72 +1,62 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="430" viewBox="0 0 1120 430" role="img" aria-labelledby="title desc">
-  <title id="title">How Lattice bounds repository context and verifies a patch</title>
-  <desc id="desc">A four-stage flow: index the repository, select bounded context, let the agent propose edits, then verify the patch and record the result.</desc>
+  <title id="title">From repository noise to a verified patch</title>
+  <desc id="desc">Lattice discovers and indexes a repository, selects bounded context, coordinates an agent patch, and verifies the result.</desc>
   <defs>
     <filter id="grain" x="0" y="0" width="100%" height="100%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="2" seed="17" result="noise"/>
-      <feColorMatrix in="noise" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .09 0"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.76" numOctaves="3" seed="41" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .13 0"/>
       <feBlend in="SourceGraphic" mode="screen"/>
     </filter>
   </defs>
-  <rect width="1120" height="430" fill="#070707"/>
-  <rect width="1120" height="430" fill="#070707" filter="url(#grain)" opacity="0.72"/>
+
+  <rect width="1120" height="430" fill="#050505"/>
+  <rect width="1120" height="430" fill="#050505" filter="url(#grain)" opacity=".9"/>
 
   <g font-family="Arial,Helvetica,sans-serif">
-    <text x="48" y="55" fill="#f1f0ea" font-size="28" font-weight="900" letter-spacing="-.5">BOUND THE CONTEXT. VERIFY THE PATCH.</text>
-    <text x="1072" y="53" fill="#8b8b86" font-size="12" text-anchor="end" letter-spacing="2">LATTICE / FLOW 01</text>
-    <path d="M48 78H1072" stroke="#2d2d2a" stroke-width="2"/>
+    <path d="M18 18H38M28 8V28M1082 38H1102M1092 28V48" stroke="#f1f0ea" stroke-width="1.5"/>
+    <text x="48" y="34" fill="#f1f0ea" font-size="17" font-weight="900" letter-spacing="1.4">LATTICE</text>
+    <path d="M144 29H892" stroke="#f1f0ea" stroke-width="2"/>
+    <text x="1072" y="34" fill="#b4b3ad" font-family="Consolas,SFMono-Regular,monospace" font-size="10" text-anchor="end">X: 1120 / Y: 430</text>
 
-    <path d="M244 205H374M494 205H624M744 205H874" stroke="#0b57ff" stroke-width="6"/>
-    <path d="M356 194L374 205 356 216M606 194L624 205 606 216M856 194L874 205 856 216" fill="none" stroke="#0b57ff" stroke-width="6"/>
+    <text x="46" y="119" fill="#f1f0ea" font-family="Impact,Arial Narrow,Arial Black,sans-serif" font-size="82" letter-spacing="-.5">REPO NOISE IN.</text>
+    <text x="46" y="204" fill="#f1f0ea" font-family="Impact,Arial Narrow,Arial Black,sans-serif" font-size="82" letter-spacing="-.5">VERIFIED PATCH OUT.</text>
 
-    <g transform="translate(62 112)">
-      <rect x="0" y="18" width="22" height="150" fill="#292927"/>
-      <rect x="34" y="0" width="22" height="186" fill="#343431"/>
-      <rect x="68" y="10" width="22" height="166" fill="#f1f0ea"/>
-      <rect x="102" y="10" width="22" height="166" fill="#f1f0ea"/>
-      <rect x="136" y="0" width="22" height="186" fill="#343431"/>
-      <rect x="170" y="24" width="22" height="138" fill="#292927"/>
-      <rect x="60" y="0" width="72" height="186" fill="none" stroke="#0b57ff" stroke-width="5"/>
+    <g fill="#7a7974" opacity=".62" font-family="Consolas,SFMono-Regular,monospace" font-size="9">
+      <text x="48" y="237">/src/core/runtime.ts     /src/context/index.ts     /pkg/repository/root.ts     /tests/integration/context.test.ts</text>
+      <text x="78" y="252">interface TaskPlan { goal: string; acceptance: Rule[] }     async function compile(goal)     return boundedPages</text>
+      <text x="28" y="267">/internal/fingerprint/check.ts     /src/worker/agent.ts     /pkg/patch/apply.ts     /scripts/verify.mjs</text>
+      <text x="142" y="282">index.discover(root)     context.select(task)     grant.validate(diff)     transaction.verify(result)</text>
+      <text x="58" y="297">/src/sidecar/server.ts     /src/providers/codex/prompt.ts     /tests/runtime.test.ts     /docs/protocol.md</text>
+      <text x="686" y="237">state := visible     scope := explicit</text>
+      <text x="816" y="252">fingerprint(old) == expected</text>
+      <text x="906" y="267">acceptance := passed</text>
     </g>
 
-    <g transform="translate(386 126)">
-      <rect x="0" y="26" width="32" height="124" fill="#f1f0ea"/>
-      <rect x="48" y="0" width="32" height="176" fill="#f1f0ea"/>
-      <rect x="96" y="38" width="32" height="100" fill="#f1f0ea"/>
-      <path d="M-12 0H20M-12 0V34M140 176H108M140 176V142" fill="none" stroke="#0b57ff" stroke-width="5"/>
+    <path d="M94 332H282V310H474V348H674V320H866V354H1018" fill="none" stroke="#0b57ff" stroke-width="5"/>
+    <rect x="276" y="304" width="12" height="12" fill="#ff5a00"/>
+    <rect x="468" y="342" width="12" height="12" fill="#ff5a00"/>
+    <rect x="668" y="314" width="12" height="12" fill="#ff5a00"/>
+    <rect x="1010" y="346" width="16" height="16" fill="#0b57ff"/>
+
+    <g font-family="Consolas,SFMono-Regular,monospace" font-size="12" font-weight="700">
+      <rect x="58" y="310" width="120" height="28" fill="#0b57ff"/>
+      <text x="72" y="329" fill="#f1f0ea">01 / INDEX</text>
+      <rect x="306" y="288" width="136" height="28" fill="#0b57ff"/>
+      <text x="320" y="307" fill="#f1f0ea">02 / BOUND</text>
+      <rect x="500" y="326" width="148" height="28" fill="#0b57ff"/>
+      <text x="514" y="345" fill="#f1f0ea">03 / AGENT</text>
+      <rect x="704" y="298" width="176" height="28" fill="#ff5a00"/>
+      <text x="718" y="317" fill="#050505">04 / VERIFY</text>
     </g>
 
-    <g transform="translate(636 126)">
-      <rect width="118" height="176" fill="#f1f0ea"/>
-      <rect x="19" y="22" width="80" height="18" fill="#070707"/>
-      <rect x="19" y="55" width="58" height="18" fill="#070707"/>
-      <rect x="19" y="88" width="72" height="18" fill="#070707"/>
-      <rect x="19" y="121" width="45" height="18" fill="#070707"/>
-      <rect x="84" y="121" width="15" height="18" fill="#0b57ff"/>
+    <g fill="#b4b3ad" font-family="Consolas,SFMono-Regular,monospace" font-size="9">
+      <text x="58" y="378">safe root + local structure</text>
+      <text x="306" y="378">task pages + edit grants</text>
+      <text x="500" y="378">fingerprinted proposal</text>
+      <text x="704" y="378">isolated apply + evidence</text>
     </g>
 
-    <g transform="translate(886 126)">
-      <rect x="0" y="0" width="32" height="176" fill="#343431"/>
-      <rect x="48" y="0" width="32" height="176" fill="#f1f0ea"/>
-      <rect x="96" y="0" width="32" height="176" fill="#343431"/>
-      <rect x="39" y="-10" width="50" height="196" fill="none" stroke="#0b57ff" stroke-width="5"/>
-      <rect x="118" y="116" width="62" height="62" fill="#ff5a00"/>
-      <path d="M134 147L149 161 169 137" fill="none" stroke="#070707" stroke-width="8" stroke-linecap="square" stroke-linejoin="miter"/>
-    </g>
-
-    <g fill="#f1f0ea" font-size="17" font-weight="900" letter-spacing=".5">
-      <text x="62" y="342">01 / INDEX</text>
-      <text x="386" y="342">02 / BOUND</text>
-      <text x="636" y="342">03 / ACT</text>
-      <text x="886" y="342">04 / VERIFY</text>
-    </g>
-    <g fill="#8b8b86" font-size="13">
-      <text x="62" y="369">Safe repository root + local structure</text>
-      <text x="386" y="369">Task-relevant pages + edit grants</text>
-      <text x="636" y="369">Agent proposes a fingerprinted patch</text>
-      <text x="886" y="369">Checks, isolated apply + visible state</text>
-    </g>
-    <path d="M48 400H1072" stroke="#2d2d2a" stroke-width="2"/>
-    <text x="48" y="419" fill="#64645f" font-size="11" letter-spacing="1.6">LOCAL REPOSITORY CONTEXT / EXPLICIT SCOPE / VERIFIED RESULT</text>
+    <path d="M46 398H1074" stroke="#f1f0ea" stroke-width="1.5"/>
+    <text x="48" y="418" fill="#f1f0ea" font-family="Consolas,SFMono-Regular,monospace" font-size="11" letter-spacing="1.7">LOCAL CONTEXT  •  EXPLICIT SCOPE  •  VERIFIED RESULT</text>
   </g>
 </svg>
