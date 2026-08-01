@@ -54,7 +54,7 @@ function requireFixture() {
 }
 
 function fakeNativeSource() {
-  return `import { appendFileSync, writeFileSync } from 'node:fs';
+  return `import { appendFileSync, existsSync, writeFileSync } from 'node:fs';
 
 const chunks = [];
 for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk));
@@ -74,6 +74,14 @@ if (process.env.FAKE_CODEX_ECHO_STDIN !== '0') {
 }
 if (process.env.FAKE_CODEX_STDERR) {
   process.stderr.write(process.env.FAKE_CODEX_STDERR);
+}
+const waitForFile = process.env.FAKE_CODEX_WAIT_FOR_FILE;
+if (waitForFile) {
+  const waitDeadline =
+    Date.now() + Number(process.env.FAKE_CODEX_WAIT_FOR_FILE_TIMEOUT_MS || '20000');
+  while (!existsSync(waitForFile) && Date.now() < waitDeadline) {
+    await new Promise((resolveWait) => setTimeout(resolveWait, 25));
+  }
 }
 const delayMs = Number(process.env.FAKE_CODEX_DELAY_MS || '0');
 if (Number.isFinite(delayMs) && delayMs > 0) {
@@ -553,7 +561,8 @@ describe('transparent Codex CLI passthrough', () => {
       );
       const sharedEnvironment = {
         FAKE_CODEX_ECHO_STDIN: '0',
-        FAKE_CODEX_DELAY_MS: '5000',
+        FAKE_CODEX_WAIT_FOR_FILE: join(value.root, 'release-native-sessions'),
+        FAKE_CODEX_WAIT_FOR_FILE_TIMEOUT_MS: '20000',
         LATTICE_SIDECAR_IDLE_MS: '3000',
         LATTICE_SIDECAR_LEASE_TTL_MS: '5000',
       };
@@ -571,20 +580,24 @@ describe('transparent Codex CLI passthrough', () => {
       let observed:
         | { pid: number; activeLeases: number; repositoryId: string }
         | undefined;
-      while (Date.now() < deadline) {
-        if (existsSync(paths.state)) {
-          try {
-            observed = JSON.parse(readFileSync(paths.state, 'utf8')) as {
-              pid: number;
-              activeLeases: number;
-              repositoryId: string;
-            };
-            if (observed.activeLeases === 2) break;
-          } catch {
-            // Atomic state replacement can briefly race this diagnostic read.
+      try {
+        while (Date.now() < deadline) {
+          if (existsSync(paths.state)) {
+            try {
+              observed = JSON.parse(readFileSync(paths.state, 'utf8')) as {
+                pid: number;
+                activeLeases: number;
+                repositoryId: string;
+              };
+              if (observed.activeLeases === 2) break;
+            } catch {
+              // Atomic state replacement can briefly race this diagnostic read.
+            }
           }
+          await new Promise((resolveWait) => setTimeout(resolveWait, 25));
         }
-        await new Promise((resolveWait) => setTimeout(resolveWait, 25));
+      } finally {
+        writeFileSync(sharedEnvironment.FAKE_CODEX_WAIT_FOR_FILE, '', 'utf8');
       }
 
       expect(observed?.activeLeases).toBe(2);
