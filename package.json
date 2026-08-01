@@ -2,7 +2,7 @@
   "name": "lattice-v2",
   "version": "0.1.0",
   "private": true,
-  "description": "An open-source context and execution layer for coding agents.",
+  "description": "Bounded, auditable repository context and verified patch execution for coding agents.",
   "type": "module",
   "license": "Apache-2.0",
   "author": {

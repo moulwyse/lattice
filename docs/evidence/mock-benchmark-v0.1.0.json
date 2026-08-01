@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "release": "0.1.0",
+  "runDate": "2026-08-01",
+  "command": "lattice benchmark --worker mock",
+  "fixture": "reset-token-v2",
+  "modelCall": false,
+  "status": "passed",
+  "indexedFileCount": 6,
+  "loadedPageCount": 5,
+  "changedFileCount": 2,
+  "pageFaults": 0,
+  "protocolRepairTurns": 0,
+  "terminalStateReason": "verification and acceptance evidence passed",
+  "limitations": [
+    "This is a deterministic functional smoke test.",
+    "It is not an independent evaluation.",
+    "It does not establish token, latency, cost, or model-quality savings."
+  ]
+}

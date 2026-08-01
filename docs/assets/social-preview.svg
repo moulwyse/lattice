@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">Lattice social preview</title>
+  <desc id="desc">Lattice: bounded context and verified patches for coding agents.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07101e"/>
+      <stop offset="0.52" stop-color="#0d1a31"/>
+      <stop offset="1" stop-color="#14132b"/>
+    </linearGradient>
+    <linearGradient id="word" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#67e8f9"/>
+      <stop offset="0.55" stop-color="#818cf8"/>
+      <stop offset="1" stop-color="#c084fc"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#6366f1" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="18"/></filter>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <circle cx="1080" cy="100" r="330" fill="url(#glow)"/>
+  <circle cx="160" cy="610" r="250" fill="#0ea5e9" opacity="0.08" filter="url(#blur)"/>
+  <g transform="translate(86 78)">
+    <g stroke="url(#word)" stroke-width="5" fill="none" opacity="0.9">
+      <path d="M8 92H178M8 122H178M8 152H178"/>
+      <path d="M38 66V178M78 66V178M118 66V178M158 66V178"/>
+    </g>
+    <text x="230" y="158" fill="url(#word)" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="112" font-weight="850" letter-spacing="-4">Lattice</text>
+    <text x="4" y="270" fill="#f8fafc" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="46" font-weight="750">Bounded context. Verified patches.</text>
+    <text x="4" y="332" fill="#a8b6cc" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="28">An open-source execution layer for coding agents.</text>
+    <g transform="translate(4 400)" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="22">
+      <rect width="242" height="58" rx="29" fill="#13243f" stroke="#38bdf8" stroke-opacity="0.55"/>
+      <text x="121" y="37" fill="#bae6fd" text-anchor="middle" font-weight="700">Local repository index</text>
+      <rect x="264" width="254" height="58" rx="29" fill="#17213e" stroke="#818cf8" stroke-opacity="0.55"/>
+      <text x="391" y="37" fill="#c7d2fe" text-anchor="middle" font-weight="700">Fingerprint checks</text>
+      <rect x="540" width="244" height="58" rx="29" fill="#221b3d" stroke="#c084fc" stroke-opacity="0.55"/>
+      <text x="662" y="37" fill="#e9d5ff" text-anchor="middle" font-weight="700">Auditable run state</text>
+    </g>
+    <text x="4" y="512" fill="#64748b" font-family="Consolas,SFMono-Regular,Menlo,monospace" font-size="21">github.com/moulwyse/lattice · Apache-2.0</text>
+  </g>
+</svg>

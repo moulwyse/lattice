@@ -1,11 +1,15 @@
 # Lattice
 
-An open-source context and execution layer for coding agents.
+**Bounded, auditable repository context and verified patch execution for coding
+agents.**
+
+![Lattice: bounded context and verified patches for coding agents](docs/assets/social-preview.png)
 
 [![Build and test](https://github.com/moulwyse/lattice/actions/workflows/ci.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/ci.yml)
 [![Quality](https://github.com/moulwyse/lattice/actions/workflows/quality.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/quality.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-20%20%7C%2022-339933.svg)](package.json)
+[![Release](https://img.shields.io/github/v/release/moulwyse/lattice?display_name=tag)](https://github.com/moulwyse/lattice/releases)
 
 Created and led by **[Moulwyse](https://github.com/moulwyse)**.
 
@@ -13,23 +17,55 @@ This repository is the original and canonical home of Lattice.
 
 > **Early public release:** review the [limitations](docs/limitations.md) and
 > [security model](SECURITY.md) before using Lattice on a sensitive repository.
-> The package is intentionally marked private until the release checklist is
-> completed; install it from source rather than from npm.
+> The npm package is not published yet; install the signed-off release tarball
+> from GitHub or build from source.
 
 Lattice indexes a local repository, selects bounded task-relevant context,
 coordinates an agent run, validates edits against repository fingerprints, and
 records local execution state. It is designed to reduce unnecessary context
 movement without hiding what was read, changed, or verified.
 
+![How Lattice handles a coding-agent task](docs/assets/lattice-flow.svg)
+
+## Why Lattice
+
+- **Bounded context:** the agent receives explicit task-relevant pages instead
+  of an unrestricted repository dump.
+- **Verified edits:** stale or out-of-scope patches are rejected against edit
+  grants and repository fingerprints.
+- **Visible state:** local artifacts record what was selected, changed, and
+  verified without hiding the execution path.
+- **Provider-aware:** Codex works today; provider adapters have explicit support
+  labels rather than implied compatibility.
+
 Lattice was originally created and developed by Moulwyse.
 
-## Install in a few minutes
+## Try it in a few minutes
 
 You need [Git](https://git-scm.com/downloads) and a supported
 [Node.js](https://nodejs.org/en/download) version (`20.19+` or `22.12+`). You
 do not need an API key to install Lattice or run its local demo.
 
-### Windows (PowerShell)
+### Install the v0.1.0 GitHub release
+
+The release tarball gives Windows, macOS, and Linux users one npm-managed
+installation command without requiring an npm registry publication:
+
+```sh
+npm install --global https://github.com/moulwyse/lattice/releases/download/v0.1.0/lattice-v2-0.1.0.tgz
+lattice --version
+lattice benchmark --worker mock
+```
+
+The benchmark is local, deterministic, credential-free, and makes no model
+call. It is a functional smoke test, not evidence of general quality or token
+savings.
+
+![Credential-free Lattice benchmark demonstration](docs/assets/terminal-demo.svg)
+
+### Build from source
+
+#### Windows (PowerShell)
 
 Copy and run these commands:
 
@@ -59,7 +95,7 @@ The Windows integration registers the Lattice MCP server and installs its
 Lattice-owned launcher and synchronization hooks. Restart Codex after enabling
 it. Lattice never asks you to paste a Codex API key into its configuration.
 
-### macOS or Linux
+#### macOS or Linux
 
 Install and run the same local self-test:
 
@@ -134,7 +170,8 @@ its own. Full installation, troubleshooting, and safety notes are in the
 | Direct Codex SDK worker | Beta | Requires a separately installed/authenticated Codex environment; not live-tested during this export. |
 | Transparent Codex launcher, hooks, sidecar, and MCP bridge | Experimental | Alters user-level integration state when explicitly enabled; inspect before use. |
 | Adaptive model selection and verified-patch cache | Experimental | Opt-in; exact behavior and limits are documented. |
-| Claude Code, Gemini, Cursor, Grok, or other providers | Not implemented | No adapter for these providers is included in this repository. |
+| Claude Code | [Planned](docs/claude-code.md) | The provider lifecycle and adapter contract still need implementation, tests, tool access, and a disclosed live validation. Contributions are welcome. |
+| Gemini, Cursor, Grok, or other providers | Not implemented | No adapter for these providers is included in this repository. |
 
 “Available” describes implemented and locally tested behavior, not a production
 support guarantee. See [provider status](docs/providers.md) for the precise
@@ -275,6 +312,9 @@ A separate evidence repository is intended at
 but it is **not yet public and should be treated as unavailable**. This source
 export contains no raw model transcripts, raw telemetry, private
 configurations, or unreviewed recordings.
+
+The release includes a sanitized, reproducible
+[credential-free smoke-test result](docs/evidence/mock-benchmark-v0.1.0.json).
 
 ## Contributing
 

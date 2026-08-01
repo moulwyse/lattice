@@ -98,6 +98,7 @@ const syntheticEmailAllowlist = new Map([
 ]);
 const publicContactEmail = 'ptech1500@' + 'gmail.com';
 const reviewedPublicEmailAllowlist = new Map([
+  ['CODE_OF_CONDUCT.md', new Set([publicContactEmail])],
   ['README.md', new Set([publicContactEmail])],
   ['SUPPORT.md', new Set([publicContactEmail])],
 ]);

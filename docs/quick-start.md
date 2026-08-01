@@ -2,7 +2,13 @@
 
 This path exercises Lattice without a model account or private repository.
 
-## 1. Install and build
+## 1. Install the release
+
+```sh
+npm install --global https://github.com/moulwyse/lattice/releases/download/v0.1.0/lattice-v2-0.1.0.tgz
+```
+
+Or clone the repository and build the exact source:
 
 ```sh
 npm ci
@@ -12,9 +18,9 @@ npm run build
 ## 2. Inspect identity and environment
 
 ```sh
-node dist/cli.js --version
-node dist/cli.js --about
-node dist/cli.js doctor --workspace .
+lattice --version
+lattice --about
+lattice doctor --workspace .
 ```
 
 `doctor` can report that Codex authentication is unavailable. That does not
@@ -23,7 +29,7 @@ block the mock benchmark.
 ## 3. Run the deterministic benchmark
 
 ```sh
-node dist/cli.js benchmark --worker mock --workspace .
+lattice benchmark --worker mock --workspace .
 ```
 
 Expected behavior:

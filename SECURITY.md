@@ -13,14 +13,11 @@ Do not open a public issue and do not paste exploit details, credentials,
 private source code, model conversations, provider session data, or `.lattice/`
 artifacts into a public channel.
 
-The intended reporting channel is **GitHub private vulnerability reporting** on
-the canonical repository. That feature must be enabled by the maintainer before
-the repository is announced. If the “Report a vulnerability” button is absent,
-do not disclose the report publicly; contact the maintainer through a private
-channel already published on the maintainer's verified GitHub profile.
-
-No security email address is invented in this export. Configuring and testing a
-private reporting channel is a blocking manual release-checklist item.
+The reporting channel is **GitHub private vulnerability reporting** on the
+canonical repository. Use the “Report a vulnerability” action in the Security
+tab. If that action is temporarily unavailable, do not disclose the report
+publicly; contact the maintainer through a private channel already published on
+the maintainer's verified GitHub profile.
 
 Include:
 
