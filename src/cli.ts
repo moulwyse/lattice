@@ -31,18 +31,19 @@ import {
   runSidecarCommand,
   stopSidecarCommand,
 } from './sidecar-command.js';
+import { LATTICE_VERSION } from './version.js';
 
 const program = new Command()
   .name('lattice')
   .description('Lattice repository context and execution layer')
-  .version('Lattice 0.1.0 by Moulwyse')
+  .version(`Lattice ${LATTICE_VERSION} by Moulwyse`)
   .option('--about', 'show project authorship, repository, and license')
   .action((options) => {
     if (!options.about) {
       program.help();
       return;
     }
-    console.log(`Lattice 0.1.0
+    console.log(`Lattice ${LATTICE_VERSION}
 
 Originally created and developed by Moulwyse.
 Original author: https://github.com/moulwyse
