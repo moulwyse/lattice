@@ -4,7 +4,7 @@ This guide covers the GitHub release package and source installation. For most
 people, the short version is:
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v0.1.0/lattice-v2-0.1.0.tgz
+npm install --global https://github.com/moulwyse/lattice/releases/download/v0.1.1/lattice-v2-0.1.1.tgz
 lattice benchmark --worker mock
 ```
 
@@ -40,7 +40,7 @@ The release tarball is produced by `npm pack` from the tagged commit and
 attached to the matching GitHub release. Install or upgrade it with:
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v0.1.0/lattice-v2-0.1.0.tgz
+npm install --global https://github.com/moulwyse/lattice/releases/download/v0.1.1/lattice-v2-0.1.1.tgz
 ```
 
 Verify the command and run the no-model smoke test:

@@ -30,4 +30,9 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
-      - run: npm test
+      - name: Run tests
+        if: runner.os != 'Windows'
+        run: npm test
+      - name: Run process-heavy tests serially on Windows
+        if: runner.os == 'Windows'
+        run: npm test -- --maxWorkers=1 --no-file-parallelism
