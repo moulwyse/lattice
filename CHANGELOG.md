@@ -11,10 +11,13 @@ intends to use semantic versioning after the first public release.
 ### Added
 
 - Public contribution, security, support, evaluation, and release processes.
+- Reproducible, CI-checked public evidence for 240 deterministic safety-frontier
+  cases.
 
 ### Changed
 
-- None.
+- Clarified the boundary between local safety evidence and live-model
+  performance claims.
 
 ### Security
 

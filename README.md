@@ -318,6 +318,12 @@ configurations, or unreviewed recordings.
 
 The release includes a sanitized, reproducible
 [credential-free smoke-test result](docs/evidence/mock-benchmark-v0.1.0.json).
+The current source also publishes a CI-checked
+[240-case safety-frontier result](docs/evidence/economy-frontier.json) covering
+risk classification, fail-closed protocol handling, path confinement, exact
+patch lowering, and the live-evaluation budget guard. Reproduce it with
+`npm run evidence:frontier`. These are deterministic local checks, not live
+model results or evidence of token savings.
 
 ## Contributing
 
