@@ -10,18 +10,33 @@ intends to use semantic versioning after the first public release.
 
 ### Added
 
-- Public contribution, security, support, evaluation, and release processes.
+- None.
+
+### Changed
+
+- None.
+
+### Security
+
+- None.
+
+## [0.1.1] - 2026-08-02
+
+### Added
+
 - Reproducible, CI-checked public evidence for 240 deterministic safety-frontier
   cases.
+- Regression coverage for simultaneous sidecar bootstrap attempts.
 
 ### Changed
 
 - Clarified the boundary between local safety evidence and live-model
   performance claims.
 
-### Security
+### Fixed
 
-- None.
+- Concurrent launchers now attach to the healthy repository sidecar after a
+  competing bootstrap process loses the exclusive lock.
 
 ## [0.1.0] - 2026-08-01
 
@@ -49,5 +64,6 @@ intends to use semantic versioning after the first public release.
 - Other provider adapters are not included.
 - Public CLI, MCP, and persistence compatibility is not stable before 1.0.
 
-[Unreleased]: https://github.com/moulwyse/lattice/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/moulwyse/lattice/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/moulwyse/lattice/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/moulwyse/lattice/releases/tag/v0.1.0

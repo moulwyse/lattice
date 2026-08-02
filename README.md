@@ -49,13 +49,13 @@ You need [Git](https://git-scm.com/downloads) and a supported
 [Node.js](https://nodejs.org/en/download) version (`20.19+` or `22.12+`). You
 do not need an API key to install Lattice or run its local demo.
 
-### Install the v0.1.0 GitHub release
+### Install the v0.1.1 GitHub release
 
 The release tarball gives Windows, macOS, and Linux users one npm-managed
 installation command without requiring an npm registry publication:
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v0.1.0/lattice-v2-0.1.0.tgz
+npm install --global https://github.com/moulwyse/lattice/releases/download/v0.1.1/lattice-v2-0.1.1.tgz
 lattice --version
 lattice benchmark --worker mock
 ```

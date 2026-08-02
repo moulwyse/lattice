@@ -5,7 +5,7 @@ This path exercises Lattice without a model account or private repository.
 ## 1. Install the release
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v0.1.0/lattice-v2-0.1.0.tgz
+npm install --global https://github.com/moulwyse/lattice/releases/download/v0.1.1/lattice-v2-0.1.1.tgz
 ```
 
 Or clone the repository and build the exact source:
