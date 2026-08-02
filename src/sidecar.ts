@@ -1154,6 +1154,27 @@ export async function ensureSidecar(
       signal: options.signal,
     });
   } catch (error) {
+    options.signal?.throwIfAborted();
+    // Two launchers can observe an empty repository state and spawn at the
+    // same time. The child that loses the exclusive lock exits, so attach its
+    // parent to the healthy winner instead of degrading that native session.
+    if (existsSync(paths.lock) && lockOwnerIsAlive(paths.lock)) {
+      try {
+        const state = await waitForSidecar(
+          paths,
+          startupTimeoutMs,
+          binding,
+          options.signal,
+        );
+        return await attachSidecar(state, {
+          heartbeat: options.heartbeat,
+          clientKind: options.clientKind,
+          signal: options.signal,
+        });
+      } catch {
+        options.signal?.throwIfAborted();
+      }
+    }
     // Launcher cancellation is expected when a short native command exits.
     // The detached service owns its bounded idle shutdown; waiting on taskkill
     // here would make `codex --version` wait for optional infrastructure.

@@ -125,6 +125,28 @@ describe('managed sidecar process lifecycle', () => {
   );
 
   test(
+    'attaches concurrent bootstrappers to the same winning sidecar',
+    async () => {
+      const fixture = await fixtureRepository('concurrent-bootstrap');
+      repositories.push(fixture);
+
+      const [first, second] = await Promise.all([
+        managedLease(fixture),
+        managedLease(fixture),
+      ]);
+
+      expect(first.state.pid).toBe(second.state.pid);
+      expect(first.state.repositoryId).toBe(second.state.repositoryId);
+      await eventually(async () => {
+        const status = await sidecarStatus(fixture.path);
+        expect(status.running).toBe(true);
+        expect(status.state?.activeLeases).toBe(2);
+      });
+    },
+    30_000,
+  );
+
+  test(
     'keeps a newborn sidecar alive long enough for its first authenticated attach',
     async () => {
       const fixture = await fixtureRepository('startup-grace');
