@@ -263,8 +263,11 @@ npm run package:check
 ```
 
 `npm test` builds the project before running the Vitest suite. The public-export
-scanner reports suspicious artifacts and exits non-zero; it never deletes
-files. The scanner is defense in depth, not proof that a repository is safe.
+scanner checks source files while ignoring expected generated directories in a
+working clone (`.git`, `node_modules`, `dist`, and `.lattice`). CI and release
+preparation invoke the scanner directly in strict export mode. Both modes
+report suspicious artifacts and exit non-zero; neither deletes files. The
+scanner is defense in depth, not proof that a repository is safe.
 
 ## Security and privacy
 

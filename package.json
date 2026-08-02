@@ -53,7 +53,7 @@
     "benchmark": "node dist/cli.js benchmark --worker mock",
     "lint": "tsc --noEmit",
     "format:check": "node scripts/check-format.mjs",
-    "scan:public": "node scripts/scan-public-export.mjs",
+    "scan:public": "node scripts/scan-public-export.mjs --source-checkout",
     "package:check": "npm pack --dry-run"
   },
   "dependencies": {
