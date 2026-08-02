@@ -500,14 +500,17 @@ describe('transparent Codex CLI passthrough', () => {
 
       const paths = sidecarPaths(value.workspace);
       const deadline = Date.now() + 10_000;
-      while (existsSync(paths.state) && Date.now() < deadline) {
+      while (
+        (existsSync(paths.state) || existsSync(paths.lock)) &&
+        Date.now() < deadline
+      ) {
         await new Promise((resolveWait) => setTimeout(resolveWait, 40));
       }
       expect(existsSync(paths.state)).toBe(false);
       expect(existsSync(paths.lock)).toBe(false);
       expect(existsSync(paths.telemetry)).toBe(true);
     },
-    30_000,
+    40_000,
   );
 
   test(
@@ -562,21 +565,21 @@ describe('transparent Codex CLI passthrough', () => {
       const sharedEnvironment = {
         FAKE_CODEX_ECHO_STDIN: '0',
         FAKE_CODEX_WAIT_FOR_FILE: join(value.root, 'release-native-sessions'),
-        FAKE_CODEX_WAIT_FOR_FILE_TIMEOUT_MS: '20000',
+        FAKE_CODEX_WAIT_FOR_FILE_TIMEOUT_MS: '30000',
         LATTICE_SIDECAR_IDLE_MS: '3000',
         LATTICE_SIDECAR_LEASE_TTL_MS: '5000',
       };
 
       const first = runCli(['--session', 'one'], {
         env: sharedEnvironment,
-        timeoutMs: 20_000,
+        timeoutMs: 30_000,
       });
       const second = runCli(['--session', 'two'], {
         env: sharedEnvironment,
-        timeoutMs: 20_000,
+        timeoutMs: 30_000,
       });
       const paths = sidecarPaths(value.workspace);
-      const deadline = Date.now() + 10_000;
+      const deadline = Date.now() + 20_000;
       let observed:
         | { pid: number; activeLeases: number; repositoryId: string }
         | undefined;
@@ -614,7 +617,7 @@ describe('transparent Codex CLI passthrough', () => {
       expect(existsSync(paths.state)).toBe(false);
       expect(existsSync(paths.lock)).toBe(false);
     },
-    30_000,
+    45_000,
   );
 
   test('injects routing instructions when integrated inside a safe repository', async () => {

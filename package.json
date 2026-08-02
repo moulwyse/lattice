@@ -44,6 +44,7 @@
     "build": "tsc",
     "test": "vitest run",
     "test:frontier": "vitest run tests/economy-frontier.test.ts",
+    "evidence:frontier": "node scripts/generate-frontier-evidence.mjs",
     "eval:quota": "npm run build --silent && node dist/eval-budget-cli.js snapshot",
     "eval:budget:init": "npm run build --silent && node dist/eval-budget-cli.js init",
     "eval:budget:status": "npm run build --silent && node dist/eval-budget-cli.js status",

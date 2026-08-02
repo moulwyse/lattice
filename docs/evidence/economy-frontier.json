@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "credential-free-safety-frontier",
+  "command": "npm run evidence:frontier",
+  "source": "tests/economy-frontier.test.ts",
+  "modelCall": false,
+  "status": "passed",
+  "totals": {
+    "cases": 240,
+    "passed": 240,
+    "failed": 0,
+    "skipped": 0
+  },
+  "groups": [
+    {
+      "name": "economy frontier: task risk never silently downgrades",
+      "total": 48,
+      "passed": 48,
+      "failed": 0
+    },
+    {
+      "name": "economy frontier: provider protocol remains fail-closed",
+      "total": 48,
+      "passed": 48,
+      "failed": 0
+    },
+    {
+      "name": "economy frontier: repository path confinement",
+      "total": 48,
+      "passed": 48,
+      "failed": 0
+    },
+    {
+      "name": "economy frontier: exact patch lowering",
+      "total": 48,
+      "passed": 48,
+      "failed": 0
+    },
+    {
+      "name": "economy frontier: ten-percent live budget is fail-closed",
+      "total": 48,
+      "passed": 48,
+      "failed": 0
+    }
+  ],
+  "limitations": [
+    "These are deterministic unit and contract cases, not live model runs.",
+    "This is project-maintainer evidence, not an independent evaluation.",
+    "The result does not establish model quality, token, latency, or cost savings."
+  ]
+}

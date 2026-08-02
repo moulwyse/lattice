@@ -24,6 +24,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: npm run evidence:frontier
+      - run: git diff --exit-code -- docs/evidence/economy-frontier.json
       - run: npm run format:check
       - run: npm run lint
       - run: npm run build
