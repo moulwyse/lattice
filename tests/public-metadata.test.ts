@@ -7,6 +7,12 @@ import { describe, expect, test } from 'vitest';
 const root = resolve(import.meta.dirname, '..');
 const cli = resolve(root, 'dist', 'cli.js');
 
+function packageVersion() {
+  return (JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as {
+    version: string;
+  }).version;
+}
+
 describe('public release metadata', () => {
   test('package metadata preserves authorship and disables publication', () => {
     const packageJson = JSON.parse(
@@ -31,12 +37,12 @@ describe('public release metadata', () => {
 
   test('--version identifies Lattice and its original author', async () => {
     const output = await execa(process.execPath, [cli, '--version'], { cwd: root });
-    expect(output.stdout).toBe('Lattice 0.1.0 by Moulwyse');
+    expect(output.stdout).toBe(`Lattice ${packageVersion()} by Moulwyse`);
   });
 
   test('--about prints the canonical provenance block', async () => {
     const output = await execa(process.execPath, [cli, '--about'], { cwd: root });
-    expect(output.stdout).toBe(`Lattice 0.1.0
+    expect(output.stdout).toBe(`Lattice ${packageVersion()}
 
 Originally created and developed by Moulwyse.
 Original author: https://github.com/moulwyse
@@ -54,7 +60,7 @@ License: Apache-2.0`);
         [resolve(linkedRoot, 'dist', 'cli.js'), '--version'],
         { cwd: linkedRoot },
       );
-      expect(output.stdout).toBe('Lattice 0.1.0 by Moulwyse');
+      expect(output.stdout).toBe(`Lattice ${packageVersion()} by Moulwyse`);
     } finally {
       rmSync(temporaryRoot, { recursive: true, force: true });
     }

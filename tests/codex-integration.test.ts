@@ -1116,8 +1116,10 @@ process.exit(Number(process.env.FAKE_CODEX_EXIT_CODE || 0));
   test('aborts unfinished infrastructure when a short native command exits', async () => {
     const fixture = launcherFixture();
     const onInfrastructureError = vi.fn();
+    let infrastructureSignal: AbortSignal | undefined;
     const attachInfrastructure = vi.fn(
       async (_cwd: string, signal: AbortSignal) => {
+        infrastructureSignal = signal;
         signal.throwIfAborted();
         await new Promise<never>((_resolve, reject) => {
           signal.addEventListener(
@@ -1128,7 +1130,6 @@ process.exit(Number(process.env.FAKE_CODEX_EXIT_CODE || 0));
         });
       },
     );
-    const startedAt = performance.now();
 
     const result = await launchNativeCodex(['--version'], {
       target: {
@@ -1141,10 +1142,10 @@ process.exit(Number(process.env.FAKE_CODEX_EXIT_CODE || 0));
       onInfrastructureError,
     });
 
-    expect(performance.now() - startedAt).toBeLessThan(1_000);
     expect(result.exitCode).toBe(0);
     expect(result.infrastructureError).toBeNull();
     expect(onInfrastructureError).not.toHaveBeenCalled();
+    expect(infrastructureSignal?.aborted).toBe(true);
     expect(attachInfrastructure).toHaveBeenCalledWith(
       resolve(fixture.root),
       expect.any(AbortSignal),

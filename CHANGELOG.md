@@ -37,6 +37,7 @@ intends to use semantic versioning after the first public release.
 
 - Concurrent launchers now attach to the healthy repository sidecar after a
   competing bootstrap process loses the exclusive lock.
+- CLI and MCP server version output now share the public package version.
 
 ## [0.1.0] - 2026-08-01
 
