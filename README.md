@@ -6,7 +6,22 @@
 
 <p align="center"><strong>Bounded, auditable repository context and verified patch execution for coding agents.</strong></p>
 
-![Lattice: don't send the repo, send what matters](docs/assets/brand-hero.jpg)
+<!-- TL;DR / Quickstart added to improve discoverability -->
+
+## TL;DR
+
+Lattice provides a lightweight, auditable way to give coding agents (LLM workers) only the repository context they need, apply verified patches, and record what was changed. It is intended for maintainers building safe agent integrations and toolchains.
+
+Try in 30s (no API keys required):
+
+```sh
+# install the signed release tarball and run a local smoke test
+npm install --global https://github.com/moulwyse/lattice/releases/download/v0.1.1/lattice-v2-0.1.1.tgz
+lattice --version
+lattice benchmark --worker mock
+```
+
+Why this matters: smaller context = lower leakage and cost; verification = fewer stale/unsafe edits; visible state = auditable agent runs.
 
 [![Build and test](https://github.com/moulwyse/lattice/actions/workflows/ci.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/ci.yml)
 [![Quality](https://github.com/moulwyse/lattice/actions/workflows/quality.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/quality.yml)
@@ -173,8 +188,7 @@ its own. Full installation, troubleshooting, and safety notes are in the
 | Direct Codex SDK worker | Beta | Requires a separately installed/authenticated Codex environment; not live-tested during this export. |
 | Transparent Codex launcher, hooks, sidecar, and MCP bridge | Experimental | Alters user-level integration state when explicitly enabled; inspect before use. |
 | Adaptive model selection and verified-patch cache | Experimental | Opt-in; exact behavior and limits are documented. |
-| Claude Code | [Planned](docs/claude-code.md) | The provider lifecycle and adapter contract still need implementation, tests, tool access, and a disclosed live validation. Contributions are welcome. |
-| Gemini, Cursor, Grok, or other providers | Not implemented | No adapter for these providers is included in this repository. |
+| Claude Code | [Planned](docs/claude-code.md) | The provider lifecycle and adapter contract still need implementation, tests, tool access, and a disclosed live validation. Contributions are welc[...]
 
 “Available” describes implemented and locally tested behavior, not a production
 support guarantee. See [provider status](docs/providers.md) for the precise
@@ -326,6 +340,16 @@ patch lowering, and the live-evaluation budget guard. Reproduce it with
 model results or evidence of token savings.
 
 ## Contributing
+
+We welcome contributors! If you'd like to get involved, start with these easy
+ways to help:
+
+- Run the benchmark and smoke tests locally and open issues for any failures.
+- Review the architecture docs and suggest improvements or missing tests.
+- Add provider adapters or platform support for macOS/Linux where feasible.
+
+Good first issues are specially labelled to help new contributors — see
+`.github/ISSUE_TEMPLATE/good_first_issue.md` and the issue list.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) and the
 [Code of Conduct](CODE_OF_CONDUCT.md). Bug reports and pull requests must not
