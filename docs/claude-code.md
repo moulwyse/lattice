@@ -15,13 +15,16 @@ used by Codex, and Codex remains the default worker.
   passed.
 - Verified dependency pair: Claude Agent SDK `0.3.220`, with bundled Claude
   Code `2.1.220`.
-- Live Claude inference benchmark: **not yet run**.
-- Claude savings claim: **none**.
+- Community-run live Claude pair: **passed in both arms**.
+- Observed on one Opus 5 fixture pair: **81.44% less fresh input + output**,
+  **82.77% lower provider-reported cost**, and **70.83% lower end-to-end time**.
 
-Codex benchmark figures do not transfer to Claude. Any future Claude claim must
-come from reproducible paired RAW and Lattice runs with equal model, effort,
-task, repository state, limits, complete usage accounting, and independent
-acceptance checks.
+Codex benchmark figures do not transfer to Claude. The published Claude result
+comes from its own reproducible paired RAW and Lattice run with equal model,
+effort, task, repository state, limits, usage accounting, and independent
+pristine-test verification. It remains one fixed-task community reproduction,
+not a universal claim. See the
+[sanitized Opus 5 record](evidence/community-run-claude-opus-5.md).
 
 ## Install the unified Beta package
 
@@ -33,8 +36,9 @@ npm install --global https://github.com/moulwyse/lattice/releases/download/v0.2.
 lattice --version
 ```
 
-This installs only `lattice` and its compatibility alias `lattice-v2`.
-There are no separate Claude-specific global commands.
+This installs `lattice` and its compatibility alias `lattice-v2`. There are no
+separate Claude-specific global packages: the single installation contains
+both the Codex and Claude Code adapters, while integrations remain opt-in.
 
 Alternatively, build the same package from source:
 
@@ -139,5 +143,7 @@ Claude quality, token savings, latency savings, or cost savings.
 Further reading:
 
 - [Trust boundary and compatibility](claude-code-integration.md)
-- [Future live-evaluation protocol](claude-code-live-evaluation.md)
+- [Community-run Opus 5 evidence](evidence/community-run-claude-opus-5.md)
+- [Broader live-evaluation protocol](claude-code-live-evaluation.md)
+- [Claude Code OSS project brief](claude-for-oss.md)
 - [Prerelease notes and release gate](claude-code-beta-release.md)
