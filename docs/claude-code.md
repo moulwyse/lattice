@@ -32,7 +32,7 @@ The package is hosted as a GitHub Release asset. npm is only the local package
 installer; no npm account or login is required.
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v0.2.0-claude-beta.1/lattice-v2-0.2.0-claude-beta.1.tgz
+npm install --global github:moulwyse/lattice#v0.2.0-claude-beta.1
 lattice --version
 ```
 
