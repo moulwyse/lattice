@@ -106,7 +106,10 @@ const textExtensions = new Set([
   '.yml',
 ]);
 const structuredExtensions = new Set(['.json', '.jsonl', '.yaml', '.yml']);
-const implementationVocabularyRoots = ['src/', 'tests/'];
+const implementationVocabularyRoots = [
+  'src/',
+  'tests/',
+];
 const implementationVocabularyFiles = new Set([
   'scripts/scan-public-export.mjs',
 ]);
@@ -129,6 +132,12 @@ const syntheticPathAllowlist = new Map([
   [
     'tests/mcp-server.test.ts',
     new Set([syntheticWindowsUserPath, syntheticUnixUserSubpath]),
+  ],
+]);
+const structuredFieldAllowlist = new Map([
+  [
+    'package-lock.json',
+    new Set(['cookie']),
   ],
 ]);
 
@@ -167,7 +176,11 @@ function inspectStructuredKeys(value, path) {
   if (!value || typeof value !== 'object') return;
   for (const [key, entry] of Object.entries(value)) {
     if (rawFields.includes(key.toLowerCase())) {
-      addFinding('raw-structured-field', path, `forbidden key: ${key}`);
+      if (structuredFieldAllowlist.get(path)?.has(key.toLowerCase())) {
+        addExemption(path, `dependency name in package lock: ${key}`);
+      } else {
+        addFinding('raw-structured-field', path, `forbidden key: ${key}`);
+      }
     }
     inspectStructuredKeys(entry, path);
   }
