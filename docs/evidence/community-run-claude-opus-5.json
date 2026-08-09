@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-08-09T08:48:23.601Z",
+  "classification": "community-run paired smoke test",
+  "model": "claude-opus-5",
+  "reasoningEffort": "high",
+  "maxBudgetUsdPerArm": 1,
+  "repetitionsPerArm": 1,
+  "controls": {
+    "sameTask": true,
+    "freshRepositoryPerArm": true,
+    "strictEmptyMcpForRaw": true,
+    "verifiedPatchCache": false,
+    "independentVerificationWithPristineTests": true
+  },
+  "rawClaudeCode": {
+    "accepted": true,
+    "freshInputTokens": 19251,
+    "outputTokens": 1769,
+    "freshInputPlusOutputTokens": 21020,
+    "cachedInputTokens": 85949,
+    "totalInputTokens": 105200,
+    "providerCostUsd": 0.2802955,
+    "modelElapsedMs": 35242,
+    "endToEndElapsedMs": 46624
+  },
+  "lattice": {
+    "accepted": true,
+    "freshInputTokens": 3282,
+    "outputTokens": 619,
+    "freshInputPlusOutputTokens": 3901,
+    "cachedInputTokens": 0,
+    "totalInputTokens": 3282,
+    "providerCostUsd": 0.048285,
+    "modelElapsedMs": 8710,
+    "endToEndElapsedMs": 13598
+  },
+  "latticeReductionPercent": {
+    "freshInputTokens": 82.95153498519558,
+    "outputTokens": 65.00847936687394,
+    "freshInputPlusOutputTokens": 81.44148430066603,
+    "cachedInputTokens": 100,
+    "totalInputTokens": 96.88022813688212,
+    "providerCostUsd": 82.77353721340515,
+    "modelElapsedMs": 75.2851711026616,
+    "endToEndElapsedMs": 70.83476321207962
+  },
+  "verification": {
+    "rawStatus": "passed",
+    "latticeStatus": "passed",
+    "pristineTestsUsed": true,
+    "testCountsAvailable": false,
+    "patchIdentityAvailable": false,
+    "note": "The legacy report parser did not extract TAP test counts. Both independent verification commands exited successfully; no per-test count or patch identity is claimed."
+  },
+  "limitations": [
+    "This is one community-operated reproduction on a maintainer-supplied fixed fixture, not an independent task-selection study.",
+    "Per-test acceptance counts and patch identity were not available in the shared sanitized output.",
+    "The result must not be generalized to other tasks, repositories, Claude versions, or service conditions.",
+    "Provider-reported token and cost metadata are used; local compute cost was not separately measured."
+  ]
+}
