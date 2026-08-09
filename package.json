@@ -56,6 +56,83 @@
     "doctor": "node dist/cli.js doctor",
     "benchmark": "node dist/cli.js benchmark --worker mock",
     "benchmark:paired": "npm run build --silent && node benchmarks/paired-reset-token.mjs",
+    "benchmark:claude": "npm run build --silent && node benchmarks/paired-claude-reset-token.mjs",
+    "lint": "tsc --noEmit",
+    "format:check": "node scripts/check-format.mjs",
+    "scan:public": "node scripts/scan-public-export.mjs --source-checkout",
+    "package:check": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.220",
+    "@openai/codex-sdk": "^0.144.5",
+    "commander": "^13.0.0",
+    "execa": "^9.5.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
+  }
+}
+{
+  "name": "lattice-v2",
+  "version": "0.2.0-claude-beta.1",
+  "description": "Optimized, auditable execution for repository-scale coding agents.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Moulwyse",
+    "url": "https://github.com/moulwyse"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/moulwyse/lattice.git"
+  },
+  "homepage": "https://github.com/moulwyse/lattice#readme",
+  "bugs": {
+    "url": "https://github.com/moulwyse/lattice/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "beta"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "files": [
+    "dist",
+    "benchmarks",
+    "docs",
+    "examples",
+    "fixtures",
+    "AUTHORS.md",
+    "CHANGELOG.md",
+    "CITATION.cff",
+    "DEPENDENCIES.md",
+    "NOTICE",
+    "SECURITY.md",
+    "SUPPORT.md",
+    "THIRD_PARTY_NOTICES.md",
+    "TRADEMARKS.md"
+  ],
+  "bin": {
+    "lattice": "./dist/cli.js",
+    "lattice-v2": "./dist/cli.js"
+  },
+  "scripts": {
+    "pretest": "npm run build",
+    "build": "tsc",
+    "test": "vitest run",
+    "test:frontier": "vitest run tests/economy-frontier.test.ts",
+    "evidence:frontier": "node scripts/generate-frontier-evidence.mjs",
+    "eval:quota": "npm run build --silent && node dist/eval-budget-cli.js snapshot",
+    "eval:budget:init": "npm run build --silent && node dist/eval-budget-cli.js init",
+    "eval:budget:status": "npm run build --silent && node dist/eval-budget-cli.js status",
+    "eval:budget:guard": "npm run build --silent && node dist/eval-budget-cli.js guard",
+    "doctor": "node dist/cli.js doctor",
+    "benchmark": "node dist/cli.js benchmark --worker mock",
+    "benchmark:paired": "npm run build --silent && node benchmarks/paired-reset-token.mjs",
     "lint": "tsc --noEmit",
     "format:check": "node scripts/check-format.mjs",
     "scan:public": "node scripts/scan-public-export.mjs --source-checkout",
