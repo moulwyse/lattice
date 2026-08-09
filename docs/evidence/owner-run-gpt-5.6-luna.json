@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-07-31T04:50:25.425Z",
+  "classification": "owner-run paired smoke test",
+  "model": "gpt-5.6-luna",
+  "reasoningEffort": "medium",
+  "modelRerouteDetected": false,
+  "repetitionsPerArm": 1,
+  "controls": {
+    "sameTask": true,
+    "freshRepositoryPerArm": true,
+    "sameBaselineCommit": true,
+    "sameModelAndReasoning": true,
+    "agentNetworkAccess": false,
+    "webSearch": false,
+    "verifiedPatchCache": false,
+    "independentVerificationWithPristineTests": true,
+    "providerTurnsPerArm": 1
+  },
+  "rawCodex": {
+    "accepted": true,
+    "freshInputTokens": 70686,
+    "outputTokens": 2708,
+    "freshInputPlusOutputTokens": 73394,
+    "cachedInputTokens": 342016,
+    "totalInputTokens": 412702,
+    "reasoningTokens": 742,
+    "modelElapsedMs": 100142,
+    "endToEndElapsedMs": 100768,
+    "acceptanceTestsPassed": 4,
+    "acceptanceTestsTotal": 4
+  },
+  "lattice": {
+    "accepted": true,
+    "freshInputTokens": 9936,
+    "outputTokens": 605,
+    "freshInputPlusOutputTokens": 10541,
+    "cachedInputTokens": 40192,
+    "totalInputTokens": 50128,
+    "reasoningTokens": 198,
+    "modelElapsedMs": 18641,
+    "endToEndElapsedMs": 22296,
+    "acceptanceTestsPassed": 4,
+    "acceptanceTestsTotal": 4
+  },
+  "latticeReductionPercent": {
+    "freshInputTokens": 85.94346829640948,
+    "outputTokens": 77.65878877400296,
+    "freshInputPlusOutputTokens": 85.63779055508624,
+    "cachedInputTokens": 88.24850299401199,
+    "totalInputTokens": 87.85370557932842,
+    "reasoningTokens": 73.31536388140162,
+    "modelElapsedMs": 81.38543268558647,
+    "endToEndElapsedMs": 77.87392823118451
+  },
+  "verification": {
+    "baselineTestsPassed": 2,
+    "baselineTestsTotal": 4,
+    "rawTestsPassed": 4,
+    "rawTestsTotal": 4,
+    "latticeTestsPassed": 4,
+    "latticeTestsTotal": 4,
+    "pristineTestsUsed": true,
+    "changedFilesPerArm": 2,
+    "byteIdenticalPatches": true,
+    "patchSha256": "ab85bad70e46d638503b96fcf885f28f1d2c3aca8f19e883c06fa28621d9b616"
+  },
+  "limitations": [
+    "This is one owner-run pair, not an independent validation.",
+    "The result applies to one fixed task and must not be generalized to all coding tasks.",
+    "Provider usage counters are used for token measurements.",
+    "Local CPU, memory, and disk usage were not separately measured."
+  ]
+}
