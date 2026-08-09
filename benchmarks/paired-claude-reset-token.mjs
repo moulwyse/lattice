@@ -8,6 +8,11 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execa } from 'execa';
+import { benchmarkNetworkPreflightError } from '../dist/benchmark-failure.js';
+import {
+  formatAcceptance,
+  parseNodeTestCounts,
+} from '../dist/benchmark-output.js';
 import { removeDirectoryWithRetry } from '../dist/cleanup.js';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
@@ -44,6 +49,12 @@ if (!Number.isFinite(maxBudgetUsd) || maxBudgetUsd <= 0) {
   throw new Error('BENCH_MAX_BUDGET_USD must be a positive finite number');
 }
 
+const networkPreflightError = benchmarkNetworkPreflightError();
+if (networkPreflightError) {
+  process.stderr.write(`${networkPreflightError}. No benchmark arm was started.\n`);
+  process.exit(2);
+}
+
 function assertTemporaryDirectory(path, prefix) {
   const resolvedPath = resolve(path);
   const resolvedTemporaryRoot = resolve(tmpdir());
@@ -70,18 +81,6 @@ async function command(workspace, file, args, options = {}) {
     reject: false,
     ...options,
   });
-}
-
-function parseTestCounts(output) {
-  const value = (label) => {
-    const match = output.match(new RegExp(`^(?:#|â„¹) ${label} (\\d+)$`, 'm'));
-    return match ? Number.parseInt(match[1], 10) : null;
-  };
-  return {
-    tests: value('tests'),
-    passed: value('pass'),
-    failed: value('fail'),
-  };
 }
 
 async function createWorkspace(system) {
@@ -121,7 +120,7 @@ async function createWorkspace(system) {
     baseline: {
       status: baseline.exitCode === 0 ? 'passed' : 'failed',
       exitCode: baseline.exitCode,
-      counts: parseTestCounts(`${baseline.stdout}\n${baseline.stderr}`),
+      counts: parseNodeTestCounts(`${baseline.stdout}\n${baseline.stderr}`),
       stdout: baseline.stdout,
       stderr: baseline.stderr,
     },
@@ -144,7 +143,7 @@ async function independentlyVerify(sourceWorkspace, system) {
       status: verification.exitCode === 0 ? 'passed' : 'failed',
       exitCode: verification.exitCode,
       elapsedMs: Date.now() - started,
-      counts: parseTestCounts(combined),
+      counts: parseNodeTestCounts(combined),
       stdout: verification.stdout,
       stderr: verification.stderr,
       pristineTests: true,
@@ -437,7 +436,7 @@ function buildReport(artifact) {
     `${row('Provider cost', 'costUsd', 4, ' USD')}\n` +
     `| Model execution time | ${number(raw.modelElapsedMs)} ms | ${number(lattice.modelElapsedMs)} ms | ${percent(artifact.comparison.modelElapsedMs.latticeSavingPercent)} |\n` +
     `| End-to-end time | ${number(raw.elapsedMs)} ms | ${number(lattice.elapsedMs)} ms | ${percent(artifact.comparison.elapsedMs.latticeSavingPercent)} |\n` +
-    `| Acceptance | ${raw.independentVerification?.counts?.passed ?? 'n/a'}/${raw.independentVerification?.counts?.tests ?? 'n/a'} | ${lattice.independentVerification?.counts?.passed ?? 'n/a'}/${lattice.independentVerification?.counts?.tests ?? 'n/a'} | — |\n\n` +
+    `| Acceptance | ${formatAcceptance(raw.independentVerification)} | ${formatAcceptance(lattice.independentVerification)} | — |\n\n` +
     `RAW status: **${raw.status}**. Lattice status: **${lattice.status}**. Publish both failures and successes.\n`;
 }
 
