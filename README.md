@@ -4,15 +4,50 @@
 
 <h1 align="center">Lattice</h1>
 
-<p align="center"><strong>Bounded, auditable repository context and verified patch execution for coding agents.</strong></p>
+<p align="center"><strong>An optimized execution system for repository-scale coding tasks.</strong></p>
 
-![Lattice: don't send the repo, send what matters](docs/assets/brand-hero.jpg)
+<p align="center">
+  Lattice moves deterministic repository work out of the model loop so strong
+  coding models can focus on solving the task.
+</p>
+
+![Owner-run paired result: 85.6% less fresh input plus output and 77.9% less end-to-end time](docs/assets/owner-run-luna-result.svg)
+
+In a controlled, owner-run paired smoke test, the same model and reasoning
+level solved the same task from fresh repository snapshots:
+
+| Result | RAW Codex | Lattice | Reduction |
+| --- | ---: | ---: | ---: |
+| Fresh input + output | 73,394 tokens | 10,541 tokens | **85.6%** |
+| End-to-end elapsed time | 100.768 s | 22.296 s | **77.9%** |
+| Pristine acceptance tests | 4/4 | 4/4 | Same result |
+| Final patch | SHA-256 `ab85bad7...d9b616` | Same SHA-256 | Byte-identical |
+
+> **Evidence boundary:** this is one fixed task, one owner-run pair, and not an
+> independent or universal benchmark. Read the exact controls, metric
+> definitions, sanitized data, task, and limitations in the
+> [complete evidence record](docs/evidence/owner-run-gpt-5.6-luna.md).
 
 [![Build and test](https://github.com/moulwyse/lattice/actions/workflows/ci.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/ci.yml)
 [![Quality](https://github.com/moulwyse/lattice/actions/workflows/quality.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/quality.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-20%20%7C%2022-339933.svg)](package.json)
 [![Release](https://img.shields.io/github/v/release/moulwyse/lattice?display_name=tag)](https://github.com/moulwyse/lattice/releases)
+
+## Install and verify in 30 seconds
+
+You need [Git](https://git-scm.com/downloads) and Node.js `20.19+` or `22.12+`.
+The local verification below needs no model account and makes no model call.
+Run it from the Git repository where you want to use Lattice.
+
+```sh
+npm install --global https://github.com/moulwyse/lattice/releases/download/v0.1.1/lattice-v2-0.1.1.tgz
+lattice doctor --workspace .
+lattice benchmark --worker mock
+```
+
+A healthy installation ends with `Status: passed`. To connect Codex, continue
+with the [platform-specific setup](docs/quick-start.md).
 
 Created and led by **[Moulwyse](https://github.com/moulwyse)**.
 
@@ -23,10 +58,15 @@ This repository is the original and canonical home of Lattice.
 > The npm package is not published yet; install the signed-off release tarball
 > from GitHub or build from source.
 
+## How it works
+
 Lattice indexes a local repository, selects bounded task-relevant context,
 coordinates an agent run, validates edits against repository fingerprints, and
-records local execution state. It is designed to reduce unnecessary context
-movement without hiding what was read, changed, or verified.
+records local execution state. The optimization comes from moving deterministic
+repository operations outside the model loop while keeping context selection,
+edit authority, and verification visible.
+
+![Lattice: don't send the repo, send what matters](docs/assets/brand-hero.jpg)
 
 ![How Lattice bounds context and verifies a patch](docs/assets/lattice-flow.svg)
 
@@ -43,7 +83,7 @@ movement without hiding what was read, changed, or verified.
 
 Lattice was originally created and developed by Moulwyse.
 
-## Try it in a few minutes
+## Full installation and Codex setup
 
 You need [Git](https://git-scm.com/downloads) and a supported
 [Node.js](https://nodejs.org/en/download) version (`20.19+` or `22.12+`). You
@@ -173,19 +213,57 @@ its own. Full installation, troubleshooting, and safety notes are in the
 | Direct Codex SDK worker | Beta | Requires a separately installed/authenticated Codex environment; not live-tested during this export. |
 | Transparent Codex launcher, hooks, sidecar, and MCP bridge | Experimental | Alters user-level integration state when explicitly enabled; inspect before use. |
 | Adaptive model selection and verified-patch cache | Experimental | Opt-in; exact behavior and limits are documented. |
-| Claude Code | [Planned](docs/claude-code.md) | The provider lifecycle and adapter contract still need implementation, tests, tool access, and a disclosed live validation. Contributions are welcome. |
+| Claude Code | [Beta](docs/claude-code.md) | Included as an opt-in integration in the same `lattice-v2` package; locally tested and not yet live-benchmarked. |
 | Gemini, Cursor, Grok, or other providers | Not implemented | No adapter for these providers is included in this repository. |
 
 “Available” describes implemented and locally tested behavior, not a production
 support guarantee. See [provider status](docs/providers.md) for the precise
 boundary.
 
+## Claude Code Beta
+
+Claude Code is an opt-in Beta integration inside the main Lattice package.
+There is one package, one installation, and one CLI: `lattice`. Existing Codex
+commands and defaults remain unchanged.
+
+Install the prerelease directly from GitHub Releases. Neither the maintainer
+nor the installer needs an npm account:
+
+```sh
+npm install --global https://github.com/moulwyse/lattice/releases/download/v0.2.0-claude-beta.1/lattice-v2-0.2.0-claude-beta.1.tgz
+lattice --version
+```
+
+Enable it only in the repository where you want Claude Code to use Lattice:
+
+```sh
+lattice integration claude enable --workspace .
+lattice integration claude status --workspace .
+lattice claude
+```
+
+Use `lattice claude --raw` to launch the same bundled Claude Code while
+bypassing Lattice for that child process. Undo only the project integration
+with `lattice integration claude disable --workspace .`; uninstall the unified
+package with `npm uninstall --global lattice-v2`.
+
+The Beta has passed local build and contract tests with Claude Agent SDK
+`0.3.220` and its bundled Claude Code `2.1.220`. No live Claude inference
+benchmark has been completed, so this repository makes no Claude token, cost,
+latency, or quality-savings claim. Claude Code, Agent SDK, hook, and MCP behavior
+may change.
+
+Read the [Beta install, RAW bypass, and removal guide](docs/claude-code.md)
+before enabling it.
+
 ## Requirements
 
 - Node.js `^20.19.0` or `>=22.12.0`, matching the locked development toolchain;
 - Git for repository and worktree features;
 - Windows, macOS, or Linux with a filesystem accessible to Node.js;
-- Codex authentication only when using the Codex worker.
+- Codex authentication only when using the Codex worker;
+- Claude authentication or API access only when using Claude Code or the
+  direct Claude worker.
 
 The final local release audit ran on Windows. GitHub Actions now builds and
 tests the public repository on Ubuntu, Windows, and macOS with Node.js 20 and
@@ -200,12 +278,15 @@ lattice
 lattice run "<task>" --worker mock
 lattice run "<task>" --worker manual
 lattice run "<task>" --worker codex
+lattice run "<task>" --worker claude
 lattice continue <task-id>
 lattice handoff validate <task-id>
 lattice session new|show|reset
 lattice doctor
 lattice benchmark --worker mock
 lattice integration codex status|doctor|enable|disable
+lattice integration claude status|enable|disable
+lattice claude [--raw]
 lattice sidecar status|stop
 lattice --version
 lattice --about
@@ -301,8 +382,10 @@ Read [SECURITY.md](SECURITY.md) and
 - Token and latency savings vary by task, repository, model, cache state, and
   provider accounting.
 - Local integration tests do not substitute for a live provider evaluation.
-- The included reset-token benchmark is a deterministic functional fixture,
-  not independent evidence of general model quality or cost reduction.
+- The credential-free reset-token benchmark is a deterministic functional
+  fixture, not evidence of model quality or savings.
+- The live GPT-5.6 Luna result is one owner-run pair on that fixed fixture, not
+  independent validation or evidence of a universal reduction.
 
 The complete list is in [`docs/limitations.md`](docs/limitations.md).
 
@@ -313,12 +396,6 @@ usage, evaluator-owned tasks, disclosed failures, and a predeclared acceptance
 rule. The proposed protocol is documented in
 [`docs/evaluation.md`](docs/evaluation.md).
 
-A separate evidence repository is intended at
-[moulwyse/lattice-evaluation](https://github.com/moulwyse/lattice-evaluation),
-but it is **not yet public and should be treated as unavailable**. This source
-export contains no raw model transcripts, raw telemetry, private
-configurations, or unreviewed recordings.
-
 The release includes a sanitized, reproducible
 [credential-free smoke-test result](docs/evidence/mock-benchmark-v0.1.0.json).
 The current source also publishes a CI-checked
@@ -327,6 +404,14 @@ risk classification, fail-closed protocol handling, path confinement, exact
 patch lowering, and the live-evaluation budget guard. Reproduce it with
 `npm run evidence:frontier`. These are deterministic local checks, not live
 model results or evidence of token savings.
+
+The source now also includes a sanitized
+[owner-run GPT-5.6 Luna paired record](docs/evidence/owner-run-gpt-5.6-luna.md)
+and the [spend-gated paired driver](benchmarks/README.md) used to reproduce or
+challenge the task. That record is one RAW run and one Lattice run on one fixed
+fixture. It is not independent validation and must not be generalized to other
+tasks. Raw provider sessions, private configuration, and unreviewed transcripts
+remain excluded from the repository.
 
 ## Contributing
 
