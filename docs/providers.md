@@ -94,13 +94,17 @@ The Claude Code Beta is included as an opt-in provider inside the main
 Codex commands, integration state, and default worker are not replaced.
 
 The local build and contract suite is verified with Claude Agent SDK `0.3.220`
-and bundled Claude Code `2.1.220`. No paid live Claude inference benchmark has
-been run for this Beta. Codex results do not transfer to Claude, and no Claude
-token, cost, latency, or quality-savings claim is made.
+and bundled Claude Code `2.1.220`. A separate community-operated Opus 5 pair on
+the public reset-token fixture passed both independent verification commands
+and observed 81.44% less fresh input plus output, 82.77% lower
+provider-reported cost, and 70.83% lower end-to-end time. The legacy report did
+not preserve per-test counts or patch identity. This is one task-specific
+reproduction, not a general Claude performance claim.
 
-Installation, removal, RAW bypass, version boundaries, and the future paired
+Installation, removal, RAW bypass, version boundaries, and the broader paired
 evaluation protocol are documented in the
-[Claude Code Beta overview](claude-code.md).
+[Claude Code Beta overview](claude-code.md) and the
+[sanitized community-run record](evidence/community-run-claude-opus-5.md).
 
 ## Other providers not included
 
