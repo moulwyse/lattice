@@ -47,6 +47,19 @@ tokens and 770 output tokens. These figures describe only connectivity tests
 and support no general cost, quality, or latency claim. The model was inherited
 from the authenticated Codex configuration rather than hard-coded by Lattice.
 
+### Owner-run paired performance smoke test
+
+A separate 2026-07-31 owner-run pair compared RAW Codex with Lattice on the
+public reset-token fixture using `gpt-5.6-luna` at `medium` reasoning. Both arms
+passed 4/4 pristine tests and produced a byte-identical patch. In that pair,
+Lattice used 85.64% less fresh input plus output and completed 77.87% faster end
+to end.
+
+The complete controls, metric definitions, sanitized data, public driver, and
+limitations are in the
+[paired evidence record](evidence/owner-run-gpt-5.6-luna.md). It is one fixed,
+owner-run pair, not independent validation or a general performance claim.
+
 ## Optional Codex integration — experimental
 
 The integration can create a Lattice-owned launcher shim, register the local MCP
@@ -74,16 +87,20 @@ against Codex CLI `0.145.0` in an isolated `CODEX_HOME`. On macOS and Linux,
 manual stdio MCP registration is documented, but native runtime behavior has
 not been executed and transparent auto-enable is not supported.
 
-## Claude Code adapter — planned
+## Claude Code adapter — beta
 
-Claude Code is the next planned provider adapter. No adapter is present yet,
-and the project does not claim Claude Code compatibility. The maintainer does
-not currently have the Claude Code tooling and sustained usage allowance
-needed for implementation and live validation.
+The Claude Code Beta is included as an opt-in provider inside the main
+`lattice-v2` prerelease package. It uses the same `lattice` CLI. The stable
+Codex commands, integration state, and default worker are not replaced.
 
-The implementation plan, required contract work, evidence standard, and
-current access blocker are documented in the
-[Claude Code adapter roadmap](claude-code.md).
+The local build and contract suite is verified with Claude Agent SDK `0.3.220`
+and bundled Claude Code `2.1.220`. No paid live Claude inference benchmark has
+been run for this Beta. Codex results do not transfer to Claude, and no Claude
+token, cost, latency, or quality-savings claim is made.
+
+Installation, removal, RAW bypass, version boundaries, and the future paired
+evaluation protocol are documented in the
+[Claude Code Beta overview](claude-code.md).
 
 ## Other providers not included
 
