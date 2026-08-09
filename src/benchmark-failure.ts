@@ -9,6 +9,29 @@ export interface ClassifiedBenchmarkRun {
   failureClass?: string | null;
 }
 
+const ENABLED_ENVIRONMENT_VALUES = new Set(['1', 'true', 'yes', 'on']);
+
+/**
+ * Detects a host-level network boundary before a live benchmark spends time
+ * starting an arm. Codex sets this marker for commands spawned from a task
+ * whose permission profile denies network access.
+ */
+export function benchmarkNetworkPreflightError(
+  environment: NodeJS.ProcessEnv = process.env,
+): string | null {
+  const disabled = environment.CODEX_SANDBOX_NETWORK_DISABLED
+    ?.trim()
+    .toLowerCase();
+  if (!disabled || !ENABLED_ENVIRONMENT_VALUES.has(disabled)) return null;
+
+  return (
+    'live benchmark blocked before any model request: the current Codex ' +
+    'permission profile disables network access for spawned commands ' +
+    '(CODEX_SANDBOX_NETWORK_DISABLED=1). Run the benchmark from a normal ' +
+    'terminal, or switch the Codex task to Full access, then retry'
+  );
+}
+
 export function classifyBenchmarkFailure(message: unknown): BenchmarkFailureClass {
   const normalized = String(message ?? '').toLowerCase();
   if (
