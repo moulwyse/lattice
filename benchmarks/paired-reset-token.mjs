@@ -10,9 +10,14 @@ import { fileURLToPath } from 'node:url';
 import { Codex } from '@openai/codex-sdk';
 import { execa } from 'execa';
 import {
+  benchmarkNetworkPreflightError,
   classifyBenchmarkFailure,
   isBenchmarkInfrastructureFailure,
 } from '../dist/benchmark-failure.js';
+import {
+  formatAcceptance,
+  parseNodeTestCounts,
+} from '../dist/benchmark-output.js';
 import { removeDirectoryWithRetry } from '../dist/cleanup.js';
 import { runTask } from '../dist/runtime.js';
 
@@ -46,6 +51,13 @@ if (!Number.isInteger(repetitions) || repetitions < 1 || repetitions > 10) {
   throw new Error('BENCH_REPETITIONS must be an integer from 1 through 10');
 }
 
+const networkPreflightError = benchmarkNetworkPreflightError();
+if (networkPreflightError) {
+  process.stderr.write(`${networkPreflightError}. No benchmark arm was started.\n`);
+  process.exitCode = 2;
+  process.exit();
+}
+
 function assertTemporaryDirectory(path, prefix) {
   const resolvedPath = resolve(path);
   const resolvedTemporaryRoot = resolve(tmpdir());
@@ -72,18 +84,6 @@ async function command(workspace, file, args, options = {}) {
     reject: false,
     ...options,
   });
-}
-
-function parseTestCounts(output) {
-  const value = (label) => {
-    const match = output.match(new RegExp(`^(?:#|ℹ) ${label} (\\d+)$`, 'm'));
-    return match ? Number.parseInt(match[1], 10) : null;
-  };
-  return {
-    tests: value('tests'),
-    passed: value('pass'),
-    failed: value('fail'),
-  };
 }
 
 function itemCounts(items = []) {
@@ -132,7 +132,7 @@ async function createWorkspace(system, repetition) {
     baseline: {
       status: baseline.exitCode === 0 ? 'passed' : 'failed',
       exitCode: baseline.exitCode,
-      counts: parseTestCounts(`${baseline.stdout}\n${baseline.stderr}`),
+      counts: parseNodeTestCounts(`${baseline.stdout}\n${baseline.stderr}`),
       stdout: baseline.stdout,
       stderr: baseline.stderr,
     },
@@ -155,7 +155,7 @@ async function independentlyVerify(sourceWorkspace, system, repetition) {
       status: verification.exitCode === 0 ? 'passed' : 'failed',
       exitCode: verification.exitCode,
       elapsedMs: Date.now() - started,
-      counts: parseTestCounts(combined),
+      counts: parseNodeTestCounts(combined),
       stdout: verification.stdout,
       stderr: verification.stderr,
       pristineTests: true,
@@ -467,7 +467,7 @@ function buildReport(artifact) {
     return `| ${label} | ${number(rawValue, 1)}${unit} | ${number(latticeValue, 1)}${unit} | ${percent(saving)} |`;
   };
   const runRows = artifact.runs.map((run) =>
-    `| ${run.repetition} | ${run.system === 'raw_codex' ? 'RAW Codex' : 'Lattice'} | ${run.status} | ${number(run.usage?.freshInputTokens)} | ${number(run.usage?.cachedInputTokens)} | ${number(run.usage?.outputTokens)} | ${number(run.usage?.freshPlusOutputTokens)} | ${number(run.elapsedMs)} ms | ${run.independentVerification?.counts?.passed ?? 'n/a'}/${run.independentVerification?.counts?.tests ?? 'n/a'} |`,
+    `| ${run.repetition} | ${run.system === 'raw_codex' ? 'RAW Codex' : 'Lattice'} | ${run.status} | ${number(run.usage?.freshInputTokens)} | ${number(run.usage?.cachedInputTokens)} | ${number(run.usage?.outputTokens)} | ${number(run.usage?.freshPlusOutputTokens)} | ${number(run.elapsedMs)} ms | ${formatAcceptance(run.independentVerification)} |`,
   );
   const validityWarning = artifact.validity.valid
     ? ''
