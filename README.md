@@ -11,22 +11,23 @@
   coding models can focus on solving the task.
 </p>
 
-![Owner-run paired result: 85.6% less fresh input plus output and 77.9% less end-to-end time](docs/assets/owner-run-luna-result.svg)
+![Lattice paired live results on GPT-5.6 Sol and Claude Opus 5](docs/assets/cross-provider-live-results.svg)
 
-In a controlled, owner-run paired smoke test, the same model and reasoning
-level solved the same task from fresh repository snapshots:
+One package now includes both the **Codex** and **Claude Code Beta** adapters.
+Two task-specific live pairs have exercised the same public fixture through
+different providers:
 
-| Result | RAW Codex | Lattice | Reduction |
-| --- | ---: | ---: | ---: |
-| Fresh input + output | 73,394 tokens | 10,541 tokens | **85.6%** |
-| End-to-end elapsed time | 100.768 s | 22.296 s | **77.9%** |
-| Pristine acceptance tests | 4/4 | 4/4 | Same result |
-| Final patch | SHA-256 `ab85bad7...d9b616` | Same SHA-256 | Byte-identical |
+| Pair | Fresh input + output | End-to-end time | Cost | Acceptance |
+| --- | ---: | ---: | ---: | --- |
+| GPT-5.6 Sol, owner-run | **57.75% less** | **51.65% faster** | Not reported | 4/4 on both arms |
+| Claude Opus 5, community-run | **81.44% less** | **70.83% faster** | **82.77% less** | Both verification commands passed; counts unavailable |
 
-> **Evidence boundary:** this is one fixed task, one owner-run pair, and not an
-> independent or universal benchmark. Read the exact controls, metric
-> definitions, sanitized data, task, and limitations in the
-> [complete evidence record](docs/evidence/owner-run-gpt-5.6-luna.md).
+> **Evidence boundary:** these are one-pair smoke tests on one fixed task, not
+> independent task selection, population-level non-inferiority, or universal
+> savings. Read the sanitized [Sol record](docs/evidence/owner-run-gpt-5.6-sol.md),
+> [Opus 5 record](docs/evidence/community-run-claude-opus-5.md), controls, and
+> limitations. The historical [Luna record](docs/evidence/owner-run-gpt-5.6-luna.md)
+> remains published rather than being replaced.
 
 [![Build and test](https://github.com/moulwyse/lattice/actions/workflows/ci.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/ci.yml)
 [![Quality](https://github.com/moulwyse/lattice/actions/workflows/quality.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/quality.yml)
@@ -34,20 +35,22 @@ level solved the same task from fresh repository snapshots:
 [![Node.js](https://img.shields.io/badge/Node.js-20%20%7C%2022-339933.svg)](package.json)
 [![Release](https://img.shields.io/github/v/release/moulwyse/lattice?display_name=tag)](https://github.com/moulwyse/lattice/releases)
 
-## Install and verify in 30 seconds
+## Install both integrations and verify in 30 seconds
 
 You need [Git](https://git-scm.com/downloads) and Node.js `20.19+` or `22.12+`.
 The local verification below needs no model account and makes no model call.
 Run it from the Git repository where you want to use Lattice.
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v0.1.1/lattice-v2-0.1.1.tgz
+npm install --global https://github.com/moulwyse/lattice/releases/download/v0.2.0-claude-beta.1/lattice-v2-0.2.0-claude-beta.1.tgz
 lattice doctor --workspace .
 lattice benchmark --worker mock
 ```
 
-A healthy installation ends with `Status: passed`. To connect Codex, continue
-with the [platform-specific setup](docs/quick-start.md).
+A healthy installation ends with `Status: passed`. This single command installs
+the Codex and Claude Code adapters; each integration remains opt-in so Lattice
+does not silently change either agent. Continue with the
+[Codex setup](docs/quick-start.md) or [Claude Code Beta setup](docs/claude-code.md).
 
 Created and led by **[Moulwyse](https://github.com/moulwyse)**.
 
@@ -78,27 +81,31 @@ edit authority, and verification visible.
   grants and repository fingerprints.
 - **Visible state:** local artifacts record what was selected, changed, and
   verified without hiding the execution path.
-- **Provider-aware:** Codex works today; provider adapters have explicit support
-  labels rather than implied compatibility.
+- **Cross-provider:** one installation includes tested Codex and Claude Code
+  paths with explicit stability labels, RAW bypasses, and separate evidence.
 
 Lattice was originally created and developed by Moulwyse.
 
-## Full installation and Codex setup
+## Unified installation: Codex + Claude Code
 
 You need [Git](https://git-scm.com/downloads) and a supported
 [Node.js](https://nodejs.org/en/download) version (`20.19+` or `22.12+`). You
 do not need an API key to install Lattice or run its local demo.
 
-### Install the v0.1.1 GitHub release
+### Install the unified v0.2.0 Claude Beta release
 
 The release tarball gives Windows, macOS, and Linux users one npm-managed
 installation command without requiring an npm registry publication:
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v0.1.1/lattice-v2-0.1.1.tgz
+npm install --global https://github.com/moulwyse/lattice/releases/download/v0.2.0-claude-beta.1/lattice-v2-0.2.0-claude-beta.1.tgz
 lattice --version
 lattice benchmark --worker mock
 ```
+
+The package contains both provider adapters. Codex remains stable-by-default;
+Claude Code remains explicitly labeled Beta. Installing the package enables
+neither integration until you choose it for your environment or repository.
 
 The benchmark is local, deterministic, credential-free, and makes no model
 call. It is a functional smoke test, not evidence of general quality or token
@@ -210,10 +217,10 @@ its own. Full installation, troubleshooting, and safety notes are in the
 | Fingerprint-checked patch application | Available | Rejects stale or out-of-scope edits. |
 | Mock worker and deterministic fixture benchmark | Available | Runs without a model account or API credential. |
 | Manual handoff workflow | Available | The operator transfers a bounded request and response. |
-| Direct Codex SDK worker | Beta | Requires a separately installed/authenticated Codex environment; not live-tested during this export. |
+| Direct Codex SDK worker | Beta | Requires an authenticated Codex environment; exercised by published owner-run paired smoke tests. |
 | Transparent Codex launcher, hooks, sidecar, and MCP bridge | Experimental | Alters user-level integration state when explicitly enabled; inspect before use. |
 | Adaptive model selection and verified-patch cache | Experimental | Opt-in; exact behavior and limits are documented. |
-| Claude Code | [Beta](docs/claude-code.md) | Included as an opt-in integration in the same `lattice-v2` package; locally tested and not yet live-benchmarked. |
+| Claude Code | [Beta](docs/claude-code.md) | Included in the same package; locally tested and exercised by a published community-run Opus 5 pair. |
 | Gemini, Cursor, Grok, or other providers | Not implemented | No adapter for these providers is included in this repository. |
 
 “Available” describes implemented and locally tested behavior, not a production
@@ -248,13 +255,16 @@ with `lattice integration claude disable --workspace .`; uninstall the unified
 package with `npm uninstall --global lattice-v2`.
 
 The Beta has passed local build and contract tests with Claude Agent SDK
-`0.3.220` and its bundled Claude Code `2.1.220`. No live Claude inference
-benchmark has been completed, so this repository makes no Claude token, cost,
-latency, or quality-savings claim. Claude Code, Agent SDK, hook, and MCP behavior
-may change.
+`0.3.220` and its bundled Claude Code `2.1.220`. A community-operated Opus 5
+pair on the public fixture observed 81.44% less fresh input plus output, 82.77%
+lower provider-reported cost, and 70.83% lower end-to-end time. Both independent
+verification commands passed, but the legacy report did not preserve per-test
+counts or patch identity. This is one task-specific signal, not a universal
+Claude claim. Claude Code, Agent SDK, hook, and MCP behavior may change.
 
 Read the [Beta install, RAW bypass, and removal guide](docs/claude-code.md)
-before enabling it.
+before enabling it. Maintainers and reviewers can use the concise
+[Claude Code OSS project brief](docs/claude-for-oss.md).
 
 ## Requirements
 
@@ -384,8 +394,9 @@ Read [SECURITY.md](SECURITY.md) and
 - Local integration tests do not substitute for a live provider evaluation.
 - The credential-free reset-token benchmark is a deterministic functional
   fixture, not evidence of model quality or savings.
-- The live GPT-5.6 Luna result is one owner-run pair on that fixed fixture, not
-  independent validation or evidence of a universal reduction.
+- The Luna and Sol results are single owner-run pairs on one fixed fixture.
+- The Opus 5 result is one community-operated reproduction on the same
+  maintainer-supplied fixture; it is not independent task selection.
 
 The complete list is in [`docs/limitations.md`](docs/limitations.md).
 
@@ -405,25 +416,16 @@ patch lowering, and the live-evaluation budget guard. Reproduce it with
 `npm run evidence:frontier`. These are deterministic local checks, not live
 model results or evidence of token savings.
 
-The source now also includes a sanitized
-[owner-run GPT-5.6 Luna paired record](docs/evidence/owner-run-gpt-5.6-luna.md)
-and the [spend-gated paired driver](benchmarks/README.md) used to reproduce or
-challenge the task. That record is one RAW run and one Lattice run on one fixed
-fixture. It is not independent validation and must not be generalized to other
-tasks. Raw provider sessions, private configuration, and unreviewed transcripts
-remain excluded from the repository.
+The source also includes sanitized paired records for
+[GPT-5.6 Luna](docs/evidence/owner-run-gpt-5.6-luna.md),
+[GPT-5.6 Sol](docs/evidence/owner-run-gpt-5.6-sol.md), and a
+[community-run Claude Opus 5 reproduction](docs/evidence/community-run-claude-opus-5.md),
+plus the [spend-gated public drivers](benchmarks/README.md). Each record is one
+RAW run and one Lattice run on one fixed fixture. None is population-level or
+independent task-selection evidence. Raw provider sessions, private
+configuration, local paths, and unreviewed transcripts remain excluded.
 
 ## Contributing
-
-We welcome contributors! If you'd like to get involved, start with these easy
-ways to help:
-
-- Run the benchmark and smoke tests locally and open issues for any failures.
-- Review the architecture docs and suggest improvements or missing tests.
-- Add provider adapters or platform support for macOS/Linux where feasible.
-
-Good first issues are specially labelled to help new contributors — see
-`.github/ISSUE_TEMPLATE/good_first_issue.md` and the issue list.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) and the
 [Code of Conduct](CODE_OF_CONDUCT.md). Bug reports and pull requests must not
