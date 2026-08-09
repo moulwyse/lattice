@@ -1,6 +1,9 @@
 # Claude Code Beta live-evaluation protocol
 
-This is a protocol for a future paid evaluation, not a benchmark result.
+This protocol remains the standard for broader paid evaluation. A single
+community-run Opus 5 pair is now published separately as
+[task-specific evidence](evidence/community-run-claude-opus-5.md); it does not
+satisfy the population-level evaluation described below.
 
 ## Required controls
 
@@ -34,4 +37,3 @@ Do not publish a Claude savings percentage until artifacts make the paired
 result reproducible and acceptance is independent of either agent. Label
 owner-run evidence honestly; call it independent only when an external
 evaluator controlled the run.
-
