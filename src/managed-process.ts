@@ -64,8 +64,9 @@ async function waitForExit(pid: number, timeoutMs: number) {
   return !isProcessAlive(pid);
 }
 
-async function runTaskkill(pid: number) {
+async function runTaskkill(pid: number, timeoutMs = 2_000) {
   await new Promise<void>((resolve, reject) => {
+    let settled = false;
     const killer = spawn(
       'taskkill',
       ['/PID', String(pid), '/T', '/F'],
@@ -75,8 +76,27 @@ async function runTaskkill(pid: number) {
         stdio: 'ignore',
       },
     );
-    killer.once('error', reject);
-    killer.once('close', () => resolve());
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (error) reject(error);
+      else resolve();
+    };
+    const timeout = setTimeout(() => {
+      try {
+        killer.kill();
+      } catch {
+        // The taskkill process can close between the timeout and kill call.
+      }
+      finish(new Error(`taskkill timed out while terminating process tree: ${pid}`));
+    }, timeoutMs);
+    timeout.unref();
+    killer.once('error', (error) => finish(error));
+    killer.once('close', (code) => {
+      if (code === 0 || code === 128) finish();
+      else finish(new Error(`taskkill exited with code ${String(code)} for process tree: ${pid}`));
+    });
   });
 }
 
@@ -157,7 +177,19 @@ function executable(
 export async function terminateProcessTree(pid: number) {
   if (!isProcessAlive(pid)) return;
   if (process.platform === 'win32') {
-    await runTaskkill(pid);
+    try {
+      await runTaskkill(pid);
+    } catch {
+      // Some restricted Windows hosts can start taskkill but prevent it from
+      // completing. Fall back to the exact process so cancellation never
+      // leaves the foreground launcher waiting forever. Normal hosts still
+      // take the taskkill /T path above and terminate the complete tree.
+      try {
+        process.kill(pid, 'SIGTERM');
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error;
+      }
+    }
   } else {
     const tree = await posixProcessTree(pid);
     for (const processId of tree) {
