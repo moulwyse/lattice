@@ -15,11 +15,10 @@ const contextRequestSchema = {
     kind: { type: 'string', enum: ['context_request'] },
     requests: {
       type: 'array',
-      minItems: 1,
       items: {
         type: 'object',
         properties: {
-          reason: { type: 'string', minLength: 1 },
+          reason: { type: 'string' },
           pathHint: { type: 'string' },
           symbol: { type: 'string' },
         },
@@ -35,7 +34,7 @@ const contextRequestSchema = {
 const replaceFileSchema = {
   type: 'object',
   properties: {
-    editHandle: { type: 'string', pattern: '^E[1-9]\\d*$' },
+    editHandle: { type: 'string' },
     operation: { type: 'string', enum: ['replace_file'] },
     replacementContent: { type: 'string' },
   },
@@ -46,15 +45,14 @@ const replaceFileSchema = {
 const replaceTextSchema = {
   type: 'object',
   properties: {
-    editHandle: { type: 'string', pattern: '^E[1-9]\\d*$' },
+    editHandle: { type: 'string' },
     operation: { type: 'string', enum: ['replace_text'] },
     replacements: {
       type: 'array',
-      minItems: 1,
       items: {
         type: 'object',
         properties: {
-          oldContent: { type: 'string', minLength: 1 },
+          oldContent: { type: 'string' },
           newContent: { type: 'string' },
         },
         required: ['oldContent', 'newContent'],
@@ -73,16 +71,14 @@ const patchSchema = {
     patch: {
       type: 'object',
       properties: {
-        summary: { type: 'string', minLength: 1 },
+        summary: { type: 'string' },
         changes: {
           type: 'array',
-          minItems: 1,
           items: { oneOf: [replaceFileSchema, replaceTextSchema] },
         },
         verificationCommands: {
           type: 'array',
-          minItems: 1,
-          items: { type: 'string', minLength: 1 },
+          items: { type: 'string' },
         },
       },
       required: ['summary', 'changes', 'verificationCommands'],
@@ -93,10 +89,22 @@ const patchSchema = {
   additionalProperties: false,
 } as const;
 
-/** The current Claude Agent SDK accepts a single root JSON Schema object. */
+/**
+ * Anthropic structured-output tools require an object at the schema root and
+ * reject top-level oneOf/anyOf/allOf. Unsupported string/array constraints are
+ * also omitted from this wire schema. Keep the variant fields optional here;
+ * the canonical protocol parser below enforces every semantic constraint and
+ * triggers the existing repair turn for incomplete responses.
+ */
 export const CLAUDE_WORKER_OUTPUT_SCHEMA = {
   type: 'object',
-  oneOf: [contextRequestSchema, patchSchema],
+  properties: {
+    kind: { type: 'string', enum: ['context_request', 'patch'] },
+    requests: contextRequestSchema.properties.requests,
+    patch: patchSchema.properties.patch,
+  },
+  required: ['kind'],
+  additionalProperties: false,
 } as const;
 
 function describe(error: { issues: readonly { path: PropertyKey[]; message: string }[] }) {
@@ -202,4 +210,3 @@ export function parseClaudeResponse(
   finish(null);
   return response;
 }
-
