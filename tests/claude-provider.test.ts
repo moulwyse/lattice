@@ -31,7 +31,10 @@ import {
   disableClaudeIntegration,
   enableClaudeIntegration,
 } from '../src/claude-integration.js';
-import { parseClaudeResponse } from '../src/providers/claude/protocol.js';
+import {
+  CLAUDE_WORKER_OUTPUT_SCHEMA,
+  parseClaudeResponse,
+} from '../src/providers/claude/protocol.js';
 import { runManagedProcess } from '../src/managed-process.js';
 
 const temporaryDirectories: string[] = [];
@@ -49,6 +52,26 @@ afterEach(() => {
 });
 
 describe('Claude provider protocol', () => {
+  it('uses an Anthropic-compatible object schema without a root union', () => {
+    expect(CLAUDE_WORKER_OUTPUT_SCHEMA).toMatchObject({
+      type: 'object',
+      required: ['kind'],
+      additionalProperties: false,
+      properties: {
+        kind: { enum: ['context_request', 'patch'] },
+        requests: { type: 'array' },
+        patch: { type: 'object' },
+      },
+    });
+    expect(CLAUDE_WORKER_OUTPUT_SCHEMA).not.toHaveProperty('oneOf');
+    expect(CLAUDE_WORKER_OUTPUT_SCHEMA).not.toHaveProperty('anyOf');
+    expect(CLAUDE_WORKER_OUTPUT_SCHEMA).not.toHaveProperty('allOf');
+    const wireSchema = JSON.stringify(CLAUDE_WORKER_OUTPUT_SCHEMA);
+    expect(wireSchema).not.toContain('minLength');
+    expect(wireSchema).not.toContain('minItems');
+    expect(wireSchema).not.toContain('pattern');
+  });
+
   it('accepts canonical handle-only patches', () => {
     const response = parseClaudeResponse(JSON.stringify({
       kind: 'patch',
@@ -469,4 +492,3 @@ describe('Claude Lattice-first hooks', () => {
     });
   });
 });
-
