@@ -415,6 +415,16 @@ remain excluded from the repository.
 
 ## Contributing
 
+We welcome contributors! If you'd like to get involved, start with these easy
+ways to help:
+
+- Run the benchmark and smoke tests locally and open issues for any failures.
+- Review the architecture docs and suggest improvements or missing tests.
+- Add provider adapters or platform support for macOS/Linux where feasible.
+
+Good first issues are specially labelled to help new contributors — see
+`.github/ISSUE_TEMPLATE/good_first_issue.md` and the issue list.
+
 Read [CONTRIBUTING.md](CONTRIBUTING.md) and the
 [Code of Conduct](CODE_OF_CONDUCT.md). Bug reports and pull requests must not
 contain secrets, personal paths, private source, model transcripts, or
