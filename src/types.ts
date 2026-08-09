@@ -166,6 +166,7 @@ export type Usage = {
   outputTokens: number | null;
   reasoningTokens: number | null;
   totalTokens: number | null;
+  costUsd: number | null;
 };
 
 export type TurnKind = 'initial' | 'context_fault' | 'protocol_repair';
@@ -185,6 +186,7 @@ export type TurnUsage = {
   nonCachedInputTokens: number | null;
   outputTokens: number | null;
   reasoningTokens: number | null;
+  costUsd: number | null;
   elapsedMs: number;
 } & ProtocolTurnDiagnostics;
 

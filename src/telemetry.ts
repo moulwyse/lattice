@@ -10,6 +10,7 @@ export type ProviderUsage = {
   cached_input_tokens: number;
   output_tokens: number;
   reasoning_output_tokens: number;
+  cost_usd?: number;
 };
 
 export const emptyUsage = (): Usage => ({
@@ -18,6 +19,7 @@ export const emptyUsage = (): Usage => ({
   outputTokens: null,
   reasoningTokens: null,
   totalTokens: null,
+  costUsd: null,
 });
 
 export function telemetry(): Telemetry {
@@ -81,6 +83,7 @@ export function recordTurnUsage(
     nonCachedInputTokens,
     outputTokens: usage?.output_tokens ?? null,
     reasoningTokens: usage?.reasoning_output_tokens ?? null,
+    costUsd: usage?.cost_usd ?? null,
     elapsedMs,
     rawResponseSha256: null,
     detectedEnvelopeShape: null,
@@ -94,6 +97,9 @@ export function recordTurnUsage(
   metrics.cachedInputTokens = add(metrics.cachedInputTokens, usage.cached_input_tokens);
   metrics.outputTokens = add(metrics.outputTokens, usage.output_tokens);
   metrics.reasoningTokens = add(metrics.reasoningTokens, usage.reasoning_output_tokens);
+  if (usage.cost_usd !== undefined) {
+    metrics.costUsd = add(metrics.costUsd, usage.cost_usd);
+  }
   metrics.totalTokens = null;
   metrics.nonCachedInputTokens = Math.max(
     0,

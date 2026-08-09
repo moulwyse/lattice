@@ -6,6 +6,16 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
 import { runResetTokenBenchmark } from './benchmark.js';
+import { runClaudeCommand } from './claude-command.js';
+import {
+  claudeIntegrationStatus,
+  disableClaudeIntegration,
+  enableClaudeIntegration,
+} from './claude-integration.js';
+import {
+  parseClaudeReasoningEffort,
+} from './claude-model-settings.js';
+import { runClaudeSessionSync } from './claude-session-sync.js';
 import { runCodexCommand } from './codex-command.js';
 import { runCodexSessionSync } from './codex-session-sync.js';
 import {
@@ -62,6 +72,13 @@ function isCliEntrypoint(argument: string | undefined) {
     return candidate === cliPath;
   }
 }
+function positiveUsd(value: string) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error('--max-budget-usd must be a positive finite number');
+  }
+  return parsed;
+}
 
 function eventStream(json: boolean) {
   const events = new Events();
@@ -101,7 +118,7 @@ function printResult(result: Awaited<ReturnType<typeof runTask>>, json: boolean)
 export async function executeRun(
   goal: string,
   options: {
-    worker: 'codex' | 'mock' | 'manual';
+    worker: 'codex' | 'claude' | 'mock' | 'manual';
     json?: boolean;
     workspace?: string;
     retainWorktree?: boolean;
@@ -109,6 +126,7 @@ export async function executeRun(
     model?: string;
     reasoningEffort?: string;
     modelPolicy?: string;
+    maxBudgetUsd?: number;
     verifiedCache?: boolean;
   },
 ) {
@@ -152,10 +170,14 @@ export async function executeRun(
       signal: controller.signal,
       retainWorktree: options.retainWorktree,
       model: options.model,
-      reasoningEffort: parseReasoningEffort(options.reasoningEffort),
+      reasoningEffort:
+        options.worker === 'claude'
+          ? parseClaudeReasoningEffort(options.reasoningEffort)
+          : parseReasoningEffort(options.reasoningEffort),
       modelPolicy: options.modelPolicy
         ? parseModelPolicy(options.modelPolicy, '--model-policy')
         : undefined,
+      maxBudgetUsd: options.maxBudgetUsd,
       useVerifiedCache: options.verifiedCache,
       events,
     });
@@ -171,21 +193,26 @@ export async function executeRun(
 
 program
   .command('run')
-  .description('Run a task')
+  .description('Run a task through Codex, Claude Code Beta, mock, or manual handoff')
   .argument('<goal>', 'task goal')
-  .option('--worker <worker>', 'codex, mock, or manual', 'codex')
+  .option('--worker <worker>', 'codex, claude, mock, or manual', 'codex')
   .option('--workspace <path>', 'repository workspace', process.cwd())
-  .option('--model <model>', 'override Codex model; omit to inherit Codex config')
+  .option('--model <model>', 'override provider model; omit to inherit provider config')
   .option(
     '--reasoning-effort <effort>',
-    'minimal, low, medium, high, or xhigh; omit to inherit Codex config',
+    'provider effort; Claude supports low, medium, high, xhigh, and max',
   )
   .option('--model-policy <policy>', 'inherit or adaptive')
+  .option(
+    '--max-budget-usd <usd>',
+    'hard Claude API spend cap across the complete Lattice run',
+    positiveUsd,
+  )
   .option('--json', 'emit one JSON result to stdout')
   .option('--retain-worktree', 'retain the isolated worktree for debugging')
   .option('--no-verified-cache', 'disable exact verified-patch reuse')
   .action(async (goal, options) => {
-    if (!['codex', 'mock', 'manual'].includes(options.worker)) {
+    if (!['claude', 'codex', 'mock', 'manual'].includes(options.worker)) {
       throw new Error(`unsupported worker: ${options.worker}`);
     }
     await executeRun(goal, options);
@@ -304,8 +331,23 @@ program
   });
 
 program
+  .command('claude-session-sync', { hidden: true })
+  .description('Synchronize active Claude Code session settings into Lattice')
+  .action(async () => {
+    await runClaudeSessionSync(stdin).catch(() => undefined);
+  });
+
+program
   .command('codex')
   .description('Launch the official Codex CLI with transparent Lattice infrastructure')
+  .allowUnknownOption(true)
+  .allowExcessArguments(true);
+
+program
+  .command('claude')
+  .description(
+    'Launch Claude Code through the Beta integration; --raw bypasses only Lattice for this process',
+  )
   .allowUnknownOption(true)
   .allowExcessArguments(true);
 
@@ -461,20 +503,80 @@ codexIntegration
     }
   });
 
-program
-  .command('benchmark')
-  .description('Run the deterministic reset-token benchmark')
-  .option('--worker <worker>', 'mock or codex', 'mock')
-  .option('--workspace <path>', 'artifact workspace', process.cwd())
-  .option('--model <model>', 'override Codex model; omit to inherit Codex config')
-  .option(
-    '--reasoning-effort <effort>',
-    'minimal, low, medium, high, or xhigh; omit to inherit Codex config',
-  )
-  .option('--model-policy <policy>', 'inherit or adaptive')
+const claudeIntegration = integration
+  .command('claude')
+  .description('Manage the project-scoped Claude Code Beta MCP and hooks');
+claudeIntegration
+  .command('enable')
+  .description('Enable the Beta Lattice MCP and Lattice-first hooks for this Claude project')
+  .option('--workspace <path>', 'Claude project', process.cwd())
+  .action(async (options) => {
+    const result = await enableClaudeIntegration({
+      workspace: resolve(options.workspace),
+      cliPath,
+    });
+    console.log(
+      result.changed
+        ? 'Claude Code Beta integration enabled for this project.'
+        : 'Claude Code Beta integration is already enabled for this project.',
+    );
+    console.log(`MCP: ${result.state.mcpPath}`);
+    console.log(`Hooks: ${result.state.settingsPath}`);
+    console.log(
+      'Raw bypass: lattice claude --raw',
+    );
+    console.log('Claude Code may ask you to trust this workspace once.');
+  });
+claudeIntegration
+  .command('disable')
+  .description('Remove only the project entries owned by the Claude Code Beta')
+  .option('--workspace <path>', 'Claude project', process.cwd())
+  .action(async (options) => {
+    const result = await disableClaudeIntegration(resolve(options.workspace));
+    console.log(
+      result.changed
+        ? 'Claude Code Beta integration disabled for this project.'
+        : 'Claude Code Beta integration is not configured for this project.',
+    );
+    for (const warning of result.warnings) console.log(`Cleanup warning: ${warning}`);
+  });
+claudeIntegration
+  .command('status')
+  .option('--workspace <path>', 'Claude project', process.cwd())
   .option('--json')
   .action(async (options) => {
-    if (!['mock', 'codex'].includes(options.worker)) throw new Error('worker must be mock or codex');
+    const status = await claudeIntegrationStatus(resolve(options.workspace));
+    if (options.json) console.log(JSON.stringify(status));
+    else {
+      console.log(
+        `Claude Code Beta integration: ${status.enabled ? 'enabled' : 'disabled'}`,
+      );
+      console.log(`MCP definition: ${status.mcpMatched ? 'matched' : 'missing or changed'}`);
+      console.log(`Hooks: ${status.hooksMatched ? 'matched' : 'missing or changed'}`);
+    }
+  });
+
+program
+  .command('benchmark')
+  .description('Run a Beta benchmark (mock is local and makes no model call)')
+  .option('--worker <worker>', 'mock, claude, or codex', 'mock')
+  .option('--workspace <path>', 'artifact workspace', process.cwd())
+  .option('--model <model>', 'override provider model; omit to inherit provider config')
+  .option(
+    '--reasoning-effort <effort>',
+    'provider effort; Claude supports low, medium, high, xhigh, and max',
+  )
+  .option('--model-policy <policy>', 'inherit or adaptive')
+  .option(
+    '--max-budget-usd <usd>',
+    'hard Claude API spend cap for this benchmark run',
+    positiveUsd,
+  )
+  .option('--json')
+  .action(async (options) => {
+    if (!['mock', 'claude', 'codex'].includes(options.worker)) {
+      throw new Error('worker must be mock, claude, or codex');
+    }
     const output = await runResetTokenBenchmark(
       resolve(options.workspace),
       options.worker,
@@ -482,10 +584,14 @@ program
       undefined,
       {
         model: options.model,
-        reasoningEffort: parseReasoningEffort(options.reasoningEffort),
+        reasoningEffort:
+          options.worker === 'claude'
+            ? parseClaudeReasoningEffort(options.reasoningEffort)
+            : parseReasoningEffort(options.reasoningEffort),
         modelPolicy: options.modelPolicy
           ? parseModelPolicy(options.modelPolicy, '--model-policy')
           : undefined,
+        maxBudgetUsd: options.maxBudgetUsd,
       },
     );
     if (options.json) console.log(JSON.stringify(output));
@@ -522,6 +628,11 @@ if (isCliEntrypoint(process.argv[1])) {
       const raw = forwarded[0] === '--raw';
       if (raw) forwarded.shift();
       await runCodexCommand(forwarded, { raw });
+    } else if (process.argv[2] === 'claude') {
+      const forwarded = process.argv.slice(3);
+      const raw = forwarded[0] === '--raw';
+      if (raw) forwarded.shift();
+      await runClaudeCommand(forwarded, { raw });
     } else if (process.argv.length === 2) {
       await interactive();
     } else {

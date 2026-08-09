@@ -97,6 +97,11 @@ npm run scan:public
 node dist/cli.js benchmark --worker mock
 ```
 
+The npm scan command is intended for a normal source checkout: it ignores
+expected generated directories such as `.git`, `node_modules`, `dist`, and
+`.lattice`, while still scanning source and documentation for private or raw
+artifacts. CI and release preparation use the scanner's strict export mode.
+
 The mock benchmark creates a temporary synthetic Git repository, applies a
 known fix through the normal Lattice transaction path, runs its tests, and
 writes an artifact below `.lattice/` in the selected artifact workspace. Do not

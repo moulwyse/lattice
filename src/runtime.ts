@@ -1,4 +1,6 @@
 import { join } from 'node:path';
+import { resolveClaudeModelSettings } from './claude-model-settings.js';
+import { ClaudeWorker } from './claude-worker.js';
 import { ContextKernel } from './context.js';
 import { metadata, writeJson } from './core.js';
 import {
@@ -11,7 +13,7 @@ import { buildIndex } from './indexer.js';
 import { lowerProviderPatch } from './patch-lowerer.js';
 import {
   resolveCodexModelSettings,
-  type CodexModelOverrides,
+  type ModelPolicy,
 } from './model-settings.js';
 import { newSession, saveSession, saveTask, type TaskResult } from './persistence.js';
 import { WorkerProtocolError } from './protocol.js';
@@ -32,8 +34,12 @@ import type {
   TaskIR,
 } from './types.js';
 
-export type RunOptions = CodexModelOverrides & {
-  worker: 'codex' | 'mock';
+export type RunOptions = {
+  worker: 'codex' | 'claude' | 'mock';
+  model?: string;
+  reasoningEffort?: string;
+  modelPolicy?: ModelPolicy;
+  maxBudgetUsd?: number;
   json?: boolean;
   signal?: AbortSignal;
   retainWorktree?: boolean;
@@ -128,7 +134,9 @@ export async function runTask(workspace: string, goal: string, options: RunOptio
   const modelSettings =
     options.worker === 'codex'
       ? resolveCodexModelSettings(workspace, options, task.risk)
-      : undefined;
+      : options.worker === 'claude'
+        ? resolveClaudeModelSettings(workspace, options, task.risk)
+        : undefined;
   const metrics = telemetry();
   const machine = new RuntimeStateMachine(metrics);
   machine.transition('COMPILED');
@@ -156,6 +164,9 @@ export async function runTask(workspace: string, goal: string, options: RunOptio
             modelPolicy: modelSettings.modelPolicy,
             modelPolicySource: modelSettings.modelPolicySource,
             policyRisk: modelSettings.policyRisk,
+            ...('maxBudgetUsd' in modelSettings && modelSettings.maxBudgetUsd
+              ? { maxBudgetUsd: modelSettings.maxBudgetUsd }
+              : {}),
           },
   };
   saveTask(workspace, result);
@@ -241,7 +252,16 @@ export async function runTask(workspace: string, goal: string, options: RunOptio
     }
 
     if (!transaction) {
-      worker = options.worker === 'mock' ? new MockWorker() : new CodexWorker(modelSettings);
+      worker =
+        options.worker === 'mock'
+          ? new MockWorker()
+          : options.worker === 'claude'
+            ? new ClaudeWorker(
+                modelSettings as ReturnType<typeof resolveClaudeModelSettings>,
+              )
+            : new CodexWorker(
+                modelSettings as ReturnType<typeof resolveCodexModelSettings>,
+              );
       const input = () => ({
         workspace,
         task,

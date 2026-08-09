@@ -24,7 +24,9 @@ explicit; they do not guarantee correct code, lower cost, or safe execution.
 
 ## Provider behavior
 
-- Only the Codex SDK adapter is included, and its public status is beta.
+- The unified prerelease package includes the stable Codex path and an opt-in
+  Claude Code Beta. Enabling Claude changes only project-scoped configuration;
+  it does not replace Codex commands or defaults.
 - Live Codex inference was not run during the initial export validation. Two
   later owner-run, capped Windows compatibility smoke tests passed; they do not
   establish general performance or independent validation.
@@ -33,6 +35,11 @@ explicit; they do not guarantee correct code, lower cost, or safe execution.
   versions.
 - Retries, tool-mediated calls, subagents, and failed requests must be counted
   explicitly in any evaluation; Lattice cannot infer undisclosed external work.
+- Claude Code, Agent SDK, hook input, MCP startup, model identifiers, and effort
+  behavior may change independently of Lattice. The Beta is locally verified
+  only against its disclosed pinned dependency pair.
+- The Claude Code Beta has no live Claude benchmark. Local tests and mock runs
+  are not evidence of provider quality or savings.
 
 ## Optional integration
 
@@ -47,6 +54,9 @@ explicit; they do not guarantee correct code, lower cost, or safe execution.
 ## Performance claims
 
 - The bundled mock benchmark validates a deterministic workflow only.
+- The published GPT-5.6 Luna result is one owner-run pair on one fixed fixture;
+  it records an observed result but does not establish general savings or
+  independent validation.
 - Small pilots do not establish general task-success non-inferiority.
 - Mean reductions can be dominated by a few large tasks; paired ratios,
   medians, confidence intervals, and all failures are required.

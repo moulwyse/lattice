@@ -14,12 +14,35 @@ import {
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
+const arguments_ = process.argv.slice(2);
+const sourceCheckout = arguments_.includes('--source-checkout');
+const unknownArguments = arguments_.filter(
+  (argument) => argument !== '--source-checkout',
+);
+if (unknownArguments.length > 0) {
+  console.error(
+    `Unknown public-export scan option(s): ${unknownArguments.join(', ')}`,
+  );
+  process.exit(2);
+}
 const allowGitMetadata = process.env.LATTICE_ALLOW_GIT_METADATA === '1';
 const forbiddenDirectories = new Set([
   '.codex',
   '.git',
   '.lattice',
   '.cache',
+  'node_modules',
+  'dist',
+  'build',
+  'out',
+  'coverage',
+  'tmp',
+  'temp',
+]);
+const generatedCheckoutDirectories = new Set([
+  '.cache',
+  '.git',
+  '.lattice',
   'node_modules',
   'dist',
   'build',
@@ -83,7 +106,10 @@ const textExtensions = new Set([
   '.yml',
 ]);
 const structuredExtensions = new Set(['.json', '.jsonl', '.yaml', '.yml']);
-const implementationVocabularyRoots = ['src/', 'tests/'];
+const implementationVocabularyRoots = [
+  'src/',
+  'tests/',
+];
 const implementationVocabularyFiles = new Set([
   'scripts/scan-public-export.mjs',
 ]);
@@ -106,6 +132,12 @@ const syntheticPathAllowlist = new Map([
   [
     'tests/mcp-server.test.ts',
     new Set([syntheticWindowsUserPath, syntheticUnixUserSubpath]),
+  ],
+]);
+const structuredFieldAllowlist = new Map([
+  [
+    'package-lock.json',
+    new Set(['cookie']),
   ],
 ]);
 
@@ -144,7 +176,11 @@ function inspectStructuredKeys(value, path) {
   if (!value || typeof value !== 'object') return;
   for (const [key, entry] of Object.entries(value)) {
     if (rawFields.includes(key.toLowerCase())) {
-      addFinding('raw-structured-field', path, `forbidden key: ${key}`);
+      if (structuredFieldAllowlist.get(path)?.has(key.toLowerCase())) {
+        addExemption(path, `dependency name in package lock: ${key}`);
+      } else {
+        addFinding('raw-structured-field', path, `forbidden key: ${key}`);
+      }
     }
     inspectStructuredKeys(entry, path);
   }
@@ -264,7 +300,15 @@ function walk(directory) {
     }
     if (entry.isDirectory()) {
       if (forbiddenDirectories.has(entry.name.toLowerCase())) {
-        if (entry.name === '.git' && allowGitMetadata) {
+        if (
+          sourceCheckout &&
+          generatedCheckoutDirectories.has(entry.name.toLowerCase())
+        ) {
+          addExemption(
+            name,
+            'generated or version-control directory in a source checkout',
+          );
+        } else if (entry.name === '.git' && allowGitMetadata) {
           addExemption(name, 'version-control metadata in a checked-out CI workspace');
         } else {
           addFinding('forbidden-directory', name, entry.name);
@@ -310,6 +354,9 @@ const exportDigest = createHash('sha256')
   .digest('hex');
 
 console.log(`Public export scan root: ${basename(root)}`);
+console.log(
+  `Scan mode: ${sourceCheckout ? 'source checkout' : 'strict public export'}`,
+);
 console.log(
   `Files inspected: ${manifest.length} (${textFiles} text, ${binaryFiles} binary/name-only)`,
 );

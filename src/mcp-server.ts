@@ -70,7 +70,7 @@ type McpClientRequest = (
 const InitializeParamsSchema = z
   .object({
     protocolVersion: z.string().min(1),
-    capabilities: z.record(z.unknown()).optional(),
+    capabilities: z.record(z.string(), z.unknown()).optional(),
     clientInfo: z
       .object({
         name: z.string().min(1),
@@ -98,12 +98,12 @@ const RootsListResultSchema = z
 // that clients like Codex CLI inject at the request-params envelope level.
 // We accept it here to satisfy protocol compatibility but do not forward it
 // to Lattice tool handlers — tool argument schemas remain strict.
-const McpMetaSchema = z.record(z.unknown()).optional();
+const McpMetaSchema = z.record(z.string(), z.unknown()).optional();
 
 const ToolCallParamsSchema = z
   .object({
     name: z.string().min(1),
-    arguments: z.record(z.unknown()).optional().default({}),
+    arguments: z.record(z.string(), z.unknown()).optional().default({}),
     _meta: McpMetaSchema,
   })
   .strict();

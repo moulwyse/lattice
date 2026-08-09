@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="430" viewBox="0 0 1120 430" role="img" aria-labelledby="title desc">
+  <title id="title">Lattice owner-run paired result</title>
+  <desc id="desc">On one fixed task, Lattice used 85.6 percent less fresh input plus output and completed 77.9 percent faster while both arms passed four of four tests with a byte-identical patch.</desc>
+  <defs>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="3" seed="56" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .12 0"/>
+      <feBlend in="SourceGraphic" mode="screen"/>
+    </filter>
+  </defs>
+  <rect width="1120" height="430" fill="#050505"/>
+  <rect width="1120" height="430" fill="#050505" filter="url(#grain)" opacity=".85"/>
+  <g font-family="Arial,Helvetica,sans-serif">
+    <path d="M18 18H38M28 8V28M1082 38H1102M1092 28V48" stroke="#f1f0ea" stroke-width="1.5"/>
+    <text x="48" y="34" fill="#f1f0ea" font-size="17" font-weight="900" letter-spacing="1.4">LATTICE</text>
+    <path d="M144 29H810" stroke="#f1f0ea" stroke-width="2"/>
+    <text x="1072" y="34" fill="#b4b3ad" font-family="Consolas,SFMono-Regular,monospace" font-size="10" text-anchor="end">OWNER-RUN / ONE PAIR / 2026-07-31</text>
+
+    <text x="46" y="126" fill="#f1f0ea" font-family="Impact,Arial Narrow,Arial Black,sans-serif" font-size="76" letter-spacing="-.5">85.6% LESS FRESH + OUTPUT.</text>
+    <text x="46" y="198" fill="#f1f0ea" font-family="Impact,Arial Narrow,Arial Black,sans-serif" font-size="61" letter-spacing="-.5">77.9% LESS END-TO-END TIME.</text>
+
+    <g transform="translate(48 236)">
+      <rect width="496" height="98" fill="#161616" stroke="#343431" stroke-width="2"/>
+      <text x="20" y="28" fill="#8b8b86" font-family="Consolas,SFMono-Regular,monospace" font-size="12" font-weight="700">RAW CODEX</text>
+      <text x="20" y="64" fill="#f1f0ea" font-size="27" font-weight="900">73,394 TOKENS</text>
+      <text x="294" y="64" fill="#f1f0ea" font-size="27" font-weight="900">100.768 S</text>
+      <rect x="0" y="91" width="496" height="7" fill="#8b8b86"/>
+    </g>
+    <g transform="translate(574 236)">
+      <rect width="498" height="98" fill="#0b57ff"/>
+      <text x="20" y="28" fill="#dbe6ff" font-family="Consolas,SFMono-Regular,monospace" font-size="12" font-weight="700">LATTICE</text>
+      <text x="20" y="64" fill="#ffffff" font-size="27" font-weight="900">10,541 TOKENS</text>
+      <text x="306" y="64" fill="#ffffff" font-size="27" font-weight="900">22.296 S</text>
+      <rect x="0" y="91" width="498" height="7" fill="#ff5a00"/>
+    </g>
+
+    <text x="48" y="372" fill="#f1f0ea" font-family="Consolas,SFMono-Regular,monospace" font-size="13" font-weight="700" letter-spacing=".5">SAME MODEL / SAME TASK / 4 OF 4 BOTH / BYTE-IDENTICAL PATCH</text>
+    <text x="1072" y="372" fill="#8b8b86" font-family="Consolas,SFMono-Regular,monospace" font-size="11" text-anchor="end">GPT-5.6-LUNA / MEDIUM</text>
+    <path d="M46 395H1074" stroke="#f1f0ea" stroke-width="1.5"/>
+    <text x="48" y="417" fill="#8b8b86" font-family="Consolas,SFMono-Regular,monospace" font-size="10">ONE FIXED OWNER-RUN TASK. NOT INDEPENDENT. NOT A UNIVERSAL CLAIM.</text>
+    <rect x="1038" y="401" width="34" height="23" fill="#ff5a00"/>
+    <path d="M1047 412L1054 419 1065 407" fill="none" stroke="#050505" stroke-width="4"/>
+  </g>
+</svg>

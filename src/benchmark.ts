@@ -7,7 +7,7 @@ import { metadata, writeJson } from './core.js';
 import { Events } from './events.js';
 import { runManagedProcess } from './managed-process.js';
 import { runTask } from './runtime.js';
-import type { CodexModelOverrides } from './model-settings.js';
+import type { RunOptions } from './runtime.js';
 
 const benchmarkGoal =
   'Fix reset token behavior: consume a valid token once, reject a second consumption and expired tokens, record a password-reset audit event, and preserve login behavior.';
@@ -34,10 +34,13 @@ export function resetTokenFixture() {
 
 export async function runResetTokenBenchmark(
   artifactWorkspace: string,
-  worker: 'mock' | 'codex',
+  worker: 'mock' | 'codex' | 'claude',
   events = new Events(),
   signal?: AbortSignal,
-  modelSettings: CodexModelOverrides = {},
+  modelSettings: Pick<
+    RunOptions,
+    'model' | 'reasoningEffort' | 'modelPolicy' | 'maxBudgetUsd'
+  > = {},
 ) {
   signal?.throwIfAborted();
   const fixture = resetTokenFixture();
