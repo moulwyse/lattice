@@ -15,6 +15,12 @@ default is one pair: one RAW Codex arm and one Lattice arm. Each arm starts with
 one provider turn, but retries, context faults, or protocol repairs can add
 turns. `BENCH_REPETITIONS` accepts integers from 1 through 10.
 
+Transport, authentication, configuration, and timeout failures are classified
+as infrastructure failures. If one happens before provider usage is returned,
+the driver stops immediately, writes an invalid-sample artifact, exits nonzero,
+and does not spend quota attempting the remaining arm. Such an artifact is a
+diagnostic record, not a token or latency benchmark.
+
 Raw artifacts can contain provider session identifiers, absolute temporary
 paths, model output, and complete diffs. They are written only to the ignored
 `.lattice/evaluation/` directory unless `BENCH_OUTPUT_DIRECTORY` is explicitly
@@ -50,6 +56,38 @@ npm run benchmark:paired -- --confirm-live
 If that exact model identifier is unavailable, select an available model and
 publish the new identifier with the result. Do not label a run with a model it
 did not use.
+
+## Run one Claude Code Beta pair
+
+This command creates two fresh temporary copies of the bundled reset-token
+fixture and runs RAW Claude Code against Lattice Claude. It does not run either
+arm from the Lattice source repository. RAW receives bypass permissions only
+inside its generated temporary fixture so the non-interactive agent can edit
+and verify its candidate; web tools, customizations, MCP servers, and session
+persistence are disabled.
+
+PowerShell:
+
+```powershell
+$env:BENCH_MODEL = 'claude-opus-5'
+$env:BENCH_REASONING_EFFORT = 'high'
+$env:BENCH_MAX_BUDGET_USD = '1'
+npm run benchmark:claude -- --confirm-live
+```
+
+macOS or Linux:
+
+```sh
+BENCH_MODEL=claude-opus-5 \
+BENCH_REASONING_EFFORT=high \
+BENCH_MAX_BUDGET_USD=1 \
+npm run benchmark:claude -- --confirm-live
+```
+
+The driver saves both raw results, full diffs, provider-reported usage and
+cost, timing, permission denials, and pristine acceptance output under the
+ignored `.lattice/evaluation/` directory. Review those artifacts before
+sharing them because they can contain local paths and provider session IDs.
 
 ## Controls implemented by the driver
 
