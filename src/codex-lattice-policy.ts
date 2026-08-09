@@ -53,6 +53,8 @@ const HookInputSchema = z
   .object({
     session_id: z.unknown().optional(),
     turn_id: z.unknown().optional(),
+    prompt_id: z.unknown().optional(),
+    agent_id: z.unknown().optional(),
     cwd: z.unknown().optional(),
     hook_event_name: z.unknown().optional(),
     tool_name: z.unknown().optional(),
@@ -179,13 +181,19 @@ function cleanOldStates(env: NodeJS.ProcessEnv, now: Date) {
   }
 }
 
-function contextOutput(hookEventName: 'SessionStart' | 'UserPromptSubmit') {
+function contextOutput(
+  hookEventName: 'SessionStart' | 'UserPromptSubmit' | 'SubagentStart',
+) {
   return {
     hookSpecificOutput: {
       hookEventName,
       additionalContext: LATTICE_FIRST_CONTEXT,
     },
   };
+}
+
+function implicitTurnId(input: z.infer<typeof HookInputSchema>) {
+  return `claude-current:${stringValue(input.agent_id) ?? 'main'}`;
 }
 
 function denyRepositoryTool(toolName: string) {
@@ -206,12 +214,14 @@ export async function applyCodexLatticePolicy(
   value: unknown,
   overrides: Partial<CodexLatticePolicyDependencies> = {},
 ) {
+  if ((overrides.env ?? process.env).LATTICE_CLAUDE_RAW === '1') return null;
   const input = HookInputSchema.parse(value);
   const event = stringValue(input.hook_event_name);
   const toolName = stringValue(input.tool_name);
   if (
     event !== 'SessionStart' &&
     event !== 'UserPromptSubmit' &&
+    event !== 'SubagentStart' &&
     event !== 'PreToolUse' &&
     event !== 'PostToolUse'
   ) {
@@ -241,11 +251,14 @@ export async function applyCodexLatticePolicy(
   }
 
   const sessionId = stringValue(input.session_id);
-  const turnId = stringValue(input.turn_id);
+  const turnId =
+    stringValue(input.turn_id) ??
+    stringValue(input.prompt_id) ??
+    implicitTurnId(input);
   if (!sessionId || !turnId) {
-    return event === 'UserPromptSubmit'
-      ? contextOutput('UserPromptSubmit')
-      : null;
+    if (event === 'UserPromptSubmit') return contextOutput('UserPromptSubmit');
+    if (event === 'SubagentStart') return contextOutput('SubagentStart');
+    return null;
   }
   const statePath = policyStatePath(dependencies.env, sessionId, turnId);
   const current = readState(
@@ -256,7 +269,7 @@ export async function applyCodexLatticePolicy(
     now,
   );
 
-  if (event === 'UserPromptSubmit') {
+  if (event === 'UserPromptSubmit' || event === 'SubagentStart') {
     atomicState(
       statePath,
       PolicyStateSchema.parse({
@@ -270,7 +283,7 @@ export async function applyCodexLatticePolicy(
         updatedAt: now.toISOString(),
       }),
     );
-    return contextOutput('UserPromptSubmit');
+    return contextOutput(event);
   }
 
   if (isLatticeContextTool(toolName)) {
