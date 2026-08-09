@@ -1,49 +1,111 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
-  <title id="title">Lattice paired live results on GPT-5.6 Sol and Claude Opus 5</title>
-  <desc id="desc">One install with Codex and Claude Code integrations. An owner-run Sol pair used 57.8 percent less fresh input plus output and was 51.7 percent faster. A community-run Opus 5 pair used 81.4 percent less fresh input plus output, cost 82.8 percent less, and was 70.8 percent faster.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Lattice paired live results across Codex and Claude</title>
+  <desc id="desc">Three single-task paired smoke tests show reductions in fresh input plus output tokens while preserving evaluator-defined acceptance.</desc>
   <defs>
     <filter id="grain" x="0" y="0" width="100%" height="100%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed="7" result="noise"/>
-      <feColorMatrix in="noise" type="saturate" values="0" result="mono"/>
-      <feComponentTransfer in="mono"><feFuncA type="table" tableValues="0 0.10"/></feComponentTransfer>
+      <feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="3" seed="47" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .16 0"/>
+      <feBlend in="SourceGraphic" mode="screen"/>
     </filter>
-    <linearGradient id="sol" x1="0" x2="1"><stop stop-color="#1d63ff"/><stop offset="1" stop-color="#64d8ff"/></linearGradient>
-    <linearGradient id="opus" x1="0" x2="1"><stop stop-color="#ff5a1f"/><stop offset="1" stop-color="#ffb000"/></linearGradient>
+    <pattern id="microgrid" width="38" height="38" patternUnits="userSpaceOnUse">
+      <path d="M38 0H0V38" fill="none" stroke="#2b2b2b" stroke-width="1"/>
+    </pattern>
   </defs>
-  <rect width="1200" height="630" fill="#080808"/>
-  <rect width="1200" height="630" filter="url(#grain)" opacity="0.34"/>
-  <g fill="#f4f1ea" font-family="Arial, Helvetica, sans-serif">
-    <text x="54" y="60" font-size="24" font-weight="800" letter-spacing="3">LATTICE</text>
-    <text x="54" y="124" font-size="58" font-weight="900" letter-spacing="-2">ONE INSTALL. TWO AGENTS.</text>
-    <text x="54" y="160" font-size="20" fill="#aaa7a1">Paired live smoke tests · same public fixture · provider-reported usage</text>
+
+  <rect width="1600" height="900" fill="#070707"/>
+  <rect width="1600" height="900" fill="url(#microgrid)" opacity=".19"/>
+
+  <!-- repository text as texture -->
+  <g fill="#5f5f5a" font-family="Consolas,Menlo,monospace" font-size="12" opacity=".45">
+    <text x="54" y="318">/benchmarks/paired-sol.mjs  /fixtures/reset-token/  /src/context/index.ts  /src/verify/acceptance.ts</text>
+    <text x="54" y="336">/integrations/claude-code/  /benchmarks/paired-claude-reset-token.mjs  /.lattice/evaluation/</text>
+    <text x="970" y="318">fresh_input + output  // same task // same model // clean repository // verify</text>
+    <text x="970" y="336">provider usage metadata  // independent pristine acceptance // publish failures</text>
+    <text x="54" y="785">raw/session/usage.jsonl  lattice/session/usage.jsonl  acceptance/verify.mjs  patch/fingerprint</text>
+    <text x="970" y="785">paired reduction = 1 - lattice/raw  // results are task-specific  // no universal claim</text>
   </g>
-  <line x1="54" y1="188" x2="1146" y2="188" stroke="#464646"/>
-  <g transform="translate(54 222)">
-    <rect width="526" height="308" rx="4" fill="#0d111a" stroke="#2468ff" stroke-width="2"/>
-    <rect width="526" height="8" fill="url(#sol)"/>
-    <text x="28" y="52" fill="#76dcff" font-family="Arial" font-size="15" font-weight="700" letter-spacing="2">OWNER RUN · CODEX</text>
-    <text x="28" y="88" fill="#f4f1ea" font-family="Arial" font-size="28" font-weight="800">GPT-5.6 SOL · MEDIUM</text>
-    <text x="28" y="164" fill="#f4f1ea" font-family="Arial" font-size="64" font-weight="900">−57.8%</text>
-    <text x="28" y="194" fill="#9da9bd" font-family="Arial" font-size="17">FRESH INPUT + OUTPUT</text>
-    <text x="28" y="246" fill="#f4f1ea" font-family="Arial" font-size="25" font-weight="700">−51.7% TIME</text>
-    <text x="320" y="246" fill="#f4f1ea" font-family="Arial" font-size="25" font-weight="700">4/4 BOTH</text>
-    <text x="28" y="282" fill="#758094" font-family="Arial" font-size="14">1 RAW + 1 Lattice · accepted patches differ by one blank line</text>
+
+  <!-- masthead -->
+  <g font-family="Arial,Helvetica,sans-serif">
+    <path d="M22 28H48M35 15V41" stroke="#f3f1ea" stroke-width="2"/>
+    <text x="66" y="48" fill="#f3f1ea" font-size="28" font-weight="900" letter-spacing="1">LATTICE</text>
+    <path d="M212 37H1110" stroke="#f3f1ea" stroke-width="4"/>
+    <text x="1542" y="43" fill="#9b9a94" font-size="13" text-anchor="end" letter-spacing="2.4">PAIRED EVIDENCE / AUG 2026</text>
   </g>
-  <g transform="translate(620 222)">
-    <rect width="526" height="308" rx="4" fill="#17100c" stroke="#ff6a1f" stroke-width="2"/>
-    <rect width="526" height="8" fill="url(#opus)"/>
-    <text x="28" y="52" fill="#ffb347" font-family="Arial" font-size="15" font-weight="700" letter-spacing="2">COMMUNITY RUN · CLAUDE CODE</text>
-    <text x="28" y="88" fill="#f4f1ea" font-family="Arial" font-size="28" font-weight="800">CLAUDE OPUS 5 · HIGH</text>
-    <text x="28" y="164" fill="#f4f1ea" font-family="Arial" font-size="64" font-weight="900">−81.4%</text>
-    <text x="28" y="194" fill="#b9a99f" font-family="Arial" font-size="17">FRESH INPUT + OUTPUT</text>
-    <text x="28" y="246" fill="#f4f1ea" font-family="Arial" font-size="25" font-weight="700">−82.8% COST</text>
-    <text x="305" y="246" fill="#f4f1ea" font-family="Arial" font-size="25" font-weight="700">−70.8% TIME</text>
-    <text x="28" y="282" fill="#8c7d74" font-family="Arial" font-size="14">1 RAW + 1 Lattice · both independent verification commands passed</text>
+
+  <!-- editorial headline -->
+  <g fill="#f3f1ea" font-family="Impact,Arial Black,Arial,sans-serif" letter-spacing="-2">
+    <text x="54" y="166" font-size="128">SAME VERIFIED TASK.</text>
+    <text x="54" y="287" font-size="128">LESS MODEL TRAFFIC.</text>
   </g>
-  <g fill="#858585" font-family="Arial" font-size="14" letter-spacing="1.2">
-    <text x="54" y="584">TASK-SPECIFIC SIGNALS · NOT UNIVERSAL CLAIMS · FULL CONTROLS AND LIMITATIONS PUBLISHED</text>
+
+  <!-- technical routing line -->
+  <path d="M62 382H206V414H430V382H658V414H892V382H1090V414H1325V382H1538"
+        fill="none" stroke="#0b57ff" stroke-width="7" stroke-linejoin="miter"/>
+  <g fill="#070707" stroke="#0b57ff" stroke-width="6">
+    <rect x="48" y="368" width="28" height="28"/><rect x="416" y="400" width="28" height="28"/>
+    <rect x="878" y="400" width="28" height="28"/><rect x="1311" y="368" width="28" height="28"/>
   </g>
-  <g transform="translate(1110 558)" stroke="#f4f1ea" stroke-width="2">
-    <path d="M0 14h36M18-4v36"/>
+  <rect x="1515" y="359" width="46" height="46" fill="#ff5a00"/>
+  <path d="M1526 381L1536 391 1552 373" fill="none" stroke="#070707" stroke-width="7"/>
+
+  <!-- provider sections; deliberately not cards -->
+  <path d="M52 448H1010" stroke="#f3f1ea" stroke-width="2"/>
+  <path d="M1046 448H1544" stroke="#f3f1ea" stroke-width="2"/>
+  <path d="M1028 438V754" stroke="#454541" stroke-width="2"/>
+
+  <g font-family="Arial,Helvetica,sans-serif">
+    <text x="54" y="477" fill="#f3f1ea" font-size="20" font-weight="900" letter-spacing="2">CODEX / GPT-5.6</text>
+    <text x="1006" y="477" fill="#777771" font-size="13" text-anchor="end" letter-spacing="1.6">OWNER-RUN · MEDIUM</text>
+
+    <text x="1050" y="477" fill="#f3f1ea" font-size="20" font-weight="900" letter-spacing="2">CLAUDE / OPUS 5</text>
+    <text x="1542" y="477" fill="#777771" font-size="13" text-anchor="end" letter-spacing="1.6">COMMUNITY-RUN · HIGH</text>
   </g>
+
+  <!-- Codex Luna -->
+  <g font-family="Arial,Helvetica,sans-serif">
+    <rect x="54" y="503" width="98" height="30" fill="#0b57ff"/>
+    <text x="67" y="524" fill="#f3f1ea" font-size="15" font-weight="900" letter-spacing="1.4">LUNA</text>
+    <text x="54" y="626" fill="#f3f1ea" font-family="Impact,Arial Black,Arial,sans-serif" font-size="120" letter-spacing="-2">−85.64%</text>
+    <text x="55" y="658" fill="#f3f1ea" font-size="16" font-weight="800" letter-spacing="1">FRESH INPUT + OUTPUT</text>
+    <text x="55" y="686" fill="#92918b" font-family="Consolas,Menlo,monospace" font-size="15">73,394 → 10,541  /  time −77.87%</text>
+    <text x="55" y="714" fill="#28e57f" font-family="Consolas,Menlo,monospace" font-size="14">4/4 BOTH  ·  BYTE-IDENTICAL PATCH</text>
+  </g>
+
+  <!-- Codex Sol -->
+  <g font-family="Arial,Helvetica,sans-serif">
+    <rect x="560" y="503" width="82" height="30" fill="#f3f1ea"/>
+    <text x="573" y="524" fill="#070707" font-size="15" font-weight="900" letter-spacing="1.4">SOL</text>
+    <text x="558" y="626" fill="#f3f1ea" font-family="Impact,Arial Black,Arial,sans-serif" font-size="120" letter-spacing="-2">−57.75%</text>
+    <text x="560" y="658" fill="#f3f1ea" font-size="16" font-weight="800" letter-spacing="1">FRESH INPUT + OUTPUT</text>
+    <text x="560" y="686" fill="#92918b" font-family="Consolas,Menlo,monospace" font-size="15">24,985 → 10,555  /  time −51.65%</text>
+    <text x="560" y="714" fill="#28e57f" font-family="Consolas,Menlo,monospace" font-size="14">4/4 BOTH  ·  EXECUTABLE DIFF MATCH</text>
+  </g>
+
+  <!-- Claude Opus -->
+  <g font-family="Arial,Helvetica,sans-serif">
+    <rect x="1050" y="503" width="116" height="30" fill="#ff5a00"/>
+    <text x="1063" y="524" fill="#070707" font-size="15" font-weight="900" letter-spacing="1.4">OPUS 5</text>
+    <text x="1047" y="626" fill="#ff5a00" font-family="Impact,Arial Black,Arial,sans-serif" font-size="120" letter-spacing="-2">−81.44%</text>
+    <text x="1050" y="658" fill="#f3f1ea" font-size="16" font-weight="800" letter-spacing="1">FRESH INPUT + OUTPUT</text>
+    <text x="1050" y="686" fill="#92918b" font-family="Consolas,Menlo,monospace" font-size="15">21,020 → 3,901</text>
+    <text x="1050" y="716" fill="#f3f1ea" font-size="17" font-weight="900">−82.77% COST  /  −70.83% TIME</text>
+    <text x="1050" y="744" fill="#28e57f" font-family="Consolas,Menlo,monospace" font-size="13">BOTH PRISTINE VERIFICATION COMMANDS PASSED</text>
+  </g>
+
+  <!-- coordinates / crosshairs -->
+  <g stroke="#f3f1ea" stroke-width="2" opacity=".8">
+    <path d="M1518 121H1578M1548 91V151"/>
+  </g>
+  <g fill="#a6a59e" font-family="Consolas,Menlo,monospace" font-size="12">
+    <text x="1512" y="172">X:1548</text><text x="1512" y="188">Y:0121</text>
+  </g>
+
+  <!-- footer -->
+  <path d="M54 810H1544" stroke="#f3f1ea" stroke-width="2"/>
+  <text x="54" y="846" fill="#f3f1ea" font-family="Consolas,Menlo,monospace" font-size="16" letter-spacing="1">3 SINGLE-TASK PAIRED SMOKE TESTS  •  SAME PUBLIC FIXTURE  •  TASK-SPECIFIC, NOT UNIVERSAL CLAIMS</text>
+  <text x="54" y="875" fill="#777771" font-family="Consolas,Menlo,monospace" font-size="14">RAW VS LATTICE / PROVIDER-REPORTED USAGE / CLEAN REPOSITORIES / FAILURES MUST BE PUBLISHED</text>
+  <text x="1544" y="872" fill="#f3f1ea" font-family="Arial,Helvetica,sans-serif" font-size="18" font-weight="900" text-anchor="end">github.com/moulwyse/lattice</text>
+
+  <rect width="1600" height="900" fill="#070707" filter="url(#grain)" opacity=".22" pointer-events="none"/>
 </svg>
