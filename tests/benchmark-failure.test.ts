@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  benchmarkNetworkPreflightError,
   classifyBenchmarkFailure,
   isBenchmarkInfrastructureFailure,
 } from '../src/benchmark-failure.js';
@@ -36,5 +37,21 @@ describe('live benchmark failure classification', () => {
       failureClass: 'infrastructure_network',
     })).toBe(true);
     expect(isBenchmarkInfrastructureFailure({ failureClass: null })).toBe(false);
+  });
+
+  test.each(['1', 'true', 'YES', 'on'])(
+    'fails preflight when the host disables spawned-command network: %s',
+    (value) => {
+      expect(benchmarkNetworkPreflightError({
+        CODEX_SANDBOX_NETWORK_DISABLED: value,
+      })).toContain('CODEX_SANDBOX_NETWORK_DISABLED=1');
+    },
+  );
+
+  test('allows live preflight outside a network-disabled Codex sandbox', () => {
+    expect(benchmarkNetworkPreflightError({})).toBeNull();
+    expect(benchmarkNetworkPreflightError({
+      CODEX_SANDBOX_NETWORK_DISABLED: '0',
+    })).toBeNull();
   });
 });
