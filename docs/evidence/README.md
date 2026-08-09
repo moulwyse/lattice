@@ -4,18 +4,26 @@ This directory contains sanitized, reproducible evidence for Lattice's local
 credential-free checks. It does not contain raw model conversations, provider
 sessions, private repository content, or claims about general model quality.
 
-It also contains one sanitized live paired record:
+It also contains sanitized live paired records:
 
 - [`owner-run-gpt-5.6-luna.md`](owner-run-gpt-5.6-luna.md) documents one RAW
   Codex versus Lattice pair on the public reset-token fixture;
 - [`owner-run-gpt-5.6-luna.json`](owner-run-gpt-5.6-luna.json) is the
   machine-readable summary;
+- [`owner-run-gpt-5.6-sol.md`](owner-run-gpt-5.6-sol.md) and its
+  [JSON summary](owner-run-gpt-5.6-sol.json) document a later owner-run Sol
+  pair;
+- [`community-run-claude-opus-5.md`](community-run-claude-opus-5.md) and its
+  [JSON summary](community-run-claude-opus-5.json) document a community-run
+  Opus 5 reproduction on a separate machine;
 - [`benchmarks/paired-reset-token.mjs`](../../benchmarks/paired-reset-token.mjs)
-  is the spend-gated public driver.
+  and [`benchmarks/paired-claude-reset-token.mjs`](../../benchmarks/paired-claude-reset-token.mjs)
+  are the spend-gated public drivers.
 
-That live record is owner-run, task-specific, and not independent validation.
-It must not be combined with the credential-free checks into a general quality
-or savings claim.
+The owner-run records are task-specific and not independent validation. The
+Claude record is a community-operated reproduction of a maintainer-supplied
+task, not independent task selection. They must not be combined with the
+credential-free checks into a general quality or savings claim.
 
 ## Reproduce the v0.1.0 smoke test
 
