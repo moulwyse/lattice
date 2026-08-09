@@ -38,8 +38,10 @@ explicit; they do not guarantee correct code, lower cost, or safe execution.
 - Claude Code, Agent SDK, hook input, MCP startup, model identifiers, and effort
   behavior may change independently of Lattice. The Beta is locally verified
   only against its disclosed pinned dependency pair.
-- The Claude Code Beta has no live Claude benchmark. Local tests and mock runs
-  are not evidence of provider quality or savings.
+- The Claude Code Beta has one community-operated Opus 5 pair on one public
+  fixture. Both verification commands passed, but per-test counts and patch
+  identity were unavailable in the shared legacy report. It is not evidence of
+  population-level non-inferiority or universal savings.
 
 ## Optional integration
 
@@ -57,6 +59,10 @@ explicit; they do not guarantee correct code, lower cost, or safe execution.
 - The published GPT-5.6 Luna result is one owner-run pair on one fixed fixture;
   it records an observed result but does not establish general savings or
   independent validation.
+- The published GPT-5.6 Sol result is also one owner-run pair on the same fixed
+  fixture. The accepted patches differed by one blank line.
+- The Opus 5 result is a community-operated reproduction of the
+  maintainer-supplied task, not independent task selection.
 - Small pilots do not establish general task-success non-inferiority.
 - Mean reductions can be dominated by a few large tasks; paired ratios,
   medians, confidence intervals, and all failures are required.
