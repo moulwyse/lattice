@@ -56,6 +56,7 @@
     "doctor": "node dist/cli.js doctor",
     "benchmark": "node dist/cli.js benchmark --worker mock",
     "benchmark:paired": "npm run build --silent && node benchmarks/paired-reset-token.mjs",
+    "benchmark:claude": "npm run build --silent && node benchmarks/paired-claude-reset-token.mjs",
     "lint": "tsc --noEmit",
     "format:check": "node scripts/check-format.mjs",
     "scan:public": "node scripts/scan-public-export.mjs --source-checkout",

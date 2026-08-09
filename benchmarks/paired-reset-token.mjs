@@ -9,6 +9,10 @@ import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Codex } from '@openai/codex-sdk';
 import { execa } from 'execa';
+import {
+  classifyBenchmarkFailure,
+  isBenchmarkInfrastructureFailure,
+} from '../dist/benchmark-failure.js';
 import { removeDirectoryWithRetry } from '../dist/cleanup.js';
 import { runTask } from '../dist/runtime.js';
 
@@ -185,9 +189,10 @@ async function runRawCodex(repetition) {
   try {
     const codex = new Codex({
       config: {
-        mcp_servers: {
-          lattice: { enabled: false },
-        },
+        // Replace the complete MCP table for the RAW arm. Supplying only an
+        // `enabled = false` leaf creates an incomplete server entry on newer
+        // Codex builds, which is rejected before the benchmark can start.
+        mcp_servers: {},
       },
     });
     const thread = codex.startThread({
@@ -236,6 +241,7 @@ async function runRawCodex(repetition) {
       independentVerification: verification,
     };
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     return {
       schemaVersion: 1,
       system: 'raw_codex',
@@ -244,7 +250,8 @@ async function runRawCodex(repetition) {
       baselineCommit: setup.commit,
       baseline: setup.baseline,
       elapsedMs: Date.now() - started,
-      error: error instanceof Error ? error.message : String(error),
+      failureClass: classifyBenchmarkFailure(message),
+      error: message,
     };
   } finally {
     assertTemporaryDirectory(workspace, `raw-vs-lattice-raw-${repetition}-`);
@@ -342,10 +349,12 @@ async function runLattice(repetition) {
       protocolOperations,
       internalStatus: result.status,
       failureStage: result.failureStage ?? null,
+      failureClass: result.error ? classifyBenchmarkFailure(result.error) : null,
       error: result.error ?? null,
       independentVerification: verification,
     };
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     return {
       schemaVersion: 1,
       system: 'lattice',
@@ -354,7 +363,8 @@ async function runLattice(repetition) {
       baselineCommit: setup.commit,
       baseline: setup.baseline,
       elapsedMs: Date.now() - started,
-      error: error instanceof Error ? error.message : String(error),
+      failureClass: classifyBenchmarkFailure(message),
+      error: message,
     };
   } finally {
     if (retainedWorktree) await removeRetainedWorktree(workspace, retainedWorktree);
@@ -459,8 +469,12 @@ function buildReport(artifact) {
   const runRows = artifact.runs.map((run) =>
     `| ${run.repetition} | ${run.system === 'raw_codex' ? 'RAW Codex' : 'Lattice'} | ${run.status} | ${number(run.usage?.freshInputTokens)} | ${number(run.usage?.cachedInputTokens)} | ${number(run.usage?.outputTokens)} | ${number(run.usage?.freshPlusOutputTokens)} | ${number(run.elapsedMs)} ms | ${run.independentVerification?.counts?.passed ?? 'n/a'}/${run.independentVerification?.counts?.tests ?? 'n/a'} |`,
   );
+  const validityWarning = artifact.validity.valid
+    ? ''
+    : `> **Invalid performance sample:** ${artifact.validity.reason}. No savings percentage from this execution is publishable.\n\n`;
   return `# RAW Codex vs Lattice - live benchmark\n\n` +
     `Created: ${artifact.createdAt}\n\n` +
+    validityWarning +
     `Controls: model \`${model}\`, reasoning \`${reasoningEffort}\`, one task, one fixture, and an identical baseline commit. Every run starts in a fresh repository. Lattice verified-patch reuse is disabled. Each candidate is verified in a separate clean directory with pristine acceptance tests.\n\n` +
     `## Result\n\n` +
     `- RAW Codex: ${raw.passed}/${raw.runs} successful runs.\n` +
@@ -485,6 +499,8 @@ function buildReport(artifact) {
 
 mkdirSync(outputDirectory, { recursive: true });
 const runs = [];
+let abortedAfterInfrastructureFailure = null;
+benchmarkLoop:
 for (let repetition = 1; repetition <= repetitions; repetition += 1) {
   const systems = repetition % 2 === 1
     ? [runRawCodex, runLattice]
@@ -497,6 +513,18 @@ for (let repetition = 1; repetition <= repetitions; repetition += 1) {
     process.stdout.write(
       `[${new Date().toISOString()}] finish ${label}, repetition ${repetition}: ${result.status}, fresh=${result.usage?.freshInputTokens ?? 'n/a'}, output=${result.usage?.outputTokens ?? 'n/a'}, elapsed=${result.elapsedMs}ms\n`,
     );
+    if (isBenchmarkInfrastructureFailure(result) && !result.usage) {
+      abortedAfterInfrastructureFailure = {
+        repetition,
+        system: result.system,
+        failureClass: result.failureClass,
+        error: result.error,
+      };
+      process.stderr.write(
+        `Benchmark stopped after ${result.failureClass}; the paired result would be invalid and continuing could waste quota.\n`,
+      );
+      break benchmarkLoop;
+    }
   }
 }
 
@@ -504,6 +532,20 @@ const rawRuns = runs.filter((run) => run.system === 'raw_codex');
 const latticeRuns = runs.filter((run) => run.system === 'lattice');
 const rawAggregate = aggregate(rawRuns);
 const latticeAggregate = aggregate(latticeRuns);
+const expectedRunCount = repetitions * 2;
+const validity = {
+  valid: runs.length === expectedRunCount && !runs.some(isBenchmarkInfrastructureFailure),
+  complete: runs.length === expectedRunCount,
+  expectedRunCount,
+  observedRunCount: runs.length,
+  reason: abortedAfterInfrastructureFailure
+    ? `${abortedAfterInfrastructureFailure.failureClass}: ${abortedAfterInfrastructureFailure.error}`
+    : runs.some(isBenchmarkInfrastructureFailure)
+      ? 'one or more arms ended with an infrastructure failure'
+      : runs.length !== expectedRunCount
+        ? 'the requested paired run set is incomplete'
+        : null,
+};
 const artifact = {
   schemaVersion: 1,
   benchmark: 'raw-codex-vs-lattice-reset-token',
@@ -533,6 +575,8 @@ const artifact = {
   },
   baselineCommits: [...new Set(runs.map((run) => run.baselineCommit))],
   runs,
+  validity,
+  abortedAfterInfrastructureFailure,
   aggregates: {
     rawCodex: rawAggregate,
     lattice: latticeAggregate,
@@ -542,4 +586,11 @@ const artifact = {
 
 writeFileSync(jsonOutputPath, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
 writeFileSync(reportOutputPath, buildReport(artifact), 'utf8');
-process.stdout.write(`${JSON.stringify({ jsonOutputPath, reportOutputPath, aggregates: artifact.aggregates, comparison: artifact.comparison })}\n`);
+process.stdout.write(`${JSON.stringify({
+  jsonOutputPath,
+  reportOutputPath,
+  validity: artifact.validity,
+  aggregates: artifact.aggregates,
+  comparison: artifact.comparison,
+})}\n`);
+if (!validity.valid) process.exitCode = 1;
