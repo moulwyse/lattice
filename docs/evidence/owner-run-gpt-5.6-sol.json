@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-08-09T06:24:17.712Z",
+  "classification": "owner-run paired smoke test",
+  "model": "gpt-5.6-sol",
+  "reasoningEffort": "medium",
+  "repetitionsPerArm": 1,
+  "controls": {
+    "sameTask": true,
+    "freshRepositoryPerArm": true,
+    "sameBaselineCommit": true,
+    "sameModelAndReasoning": true,
+    "agentNetworkAccess": false,
+    "webSearch": false,
+    "verifiedPatchCache": false,
+    "independentVerificationWithPristineTests": true,
+    "providerTurnsPerArm": 1
+  },
+  "rawCodex": {
+    "accepted": true,
+    "freshInputTokens": 23741,
+    "outputTokens": 1244,
+    "freshInputPlusOutputTokens": 24985,
+    "cachedInputTokens": 111872,
+    "totalInputTokens": 135613,
+    "reasoningTokens": 181,
+    "modelElapsedMs": 62791,
+    "endToEndElapsedMs": 63409,
+    "acceptanceTestsPassed": 4,
+    "acceptanceTestsTotal": 4
+  },
+  "lattice": {
+    "accepted": true,
+    "freshInputTokens": 9978,
+    "outputTokens": 577,
+    "freshInputPlusOutputTokens": 10555,
+    "cachedInputTokens": 46336,
+    "totalInputTokens": 56314,
+    "reasoningTokens": 187,
+    "modelElapsedMs": 26369,
+    "endToEndElapsedMs": 30658,
+    "acceptanceTestsPassed": 4,
+    "acceptanceTestsTotal": 4
+  },
+  "latticeReductionPercent": {
+    "freshInputTokens": 57.971441809527825,
+    "outputTokens": 53.61736334405145,
+    "freshInputPlusOutputTokens": 57.75465279167501,
+    "cachedInputTokens": 58.58123569794051,
+    "totalInputTokens": 58.47448253486023,
+    "reasoningTokens": -3.314917127071823,
+    "modelElapsedMs": 58.00512812345718,
+    "endToEndElapsedMs": 51.65039663139302
+  },
+  "verification": {
+    "baselineTestsPassed": 2,
+    "baselineTestsTotal": 4,
+    "rawTestsPassed": 4,
+    "rawTestsTotal": 4,
+    "latticeTestsPassed": 4,
+    "latticeTestsTotal": 4,
+    "pristineTestsUsed": true,
+    "changedFilesPerArm": 2,
+    "byteIdenticalPatches": false,
+    "observedPatchDifference": "one blank line in src/auth/service.js; executable changes matched"
+  },
+  "limitations": [
+    "This is one owner-run pair, not an independent validation.",
+    "The result applies to one fixed task and must not be generalized to all coding tasks.",
+    "Provider usage counters are used for token measurements.",
+    "The accepted patches were not byte-identical; they differed by one blank line.",
+    "Local CPU, memory, and disk usage were not separately measured."
+  ]
+}
