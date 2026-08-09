@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Lattice paired live results on GPT-5.6 Sol and Claude Opus 5</title>
+  <desc id="desc">One install with Codex and Claude Code integrations. An owner-run Sol pair used 57.8 percent less fresh input plus output and was 51.7 percent faster. A community-run Opus 5 pair used 81.4 percent less fresh input plus output, cost 82.8 percent less, and was 70.8 percent faster.</desc>
+  <defs>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed="7" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="mono"/>
+      <feComponentTransfer in="mono"><feFuncA type="table" tableValues="0 0.10"/></feComponentTransfer>
+    </filter>
+    <linearGradient id="sol" x1="0" x2="1"><stop stop-color="#1d63ff"/><stop offset="1" stop-color="#64d8ff"/></linearGradient>
+    <linearGradient id="opus" x1="0" x2="1"><stop stop-color="#ff5a1f"/><stop offset="1" stop-color="#ffb000"/></linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#080808"/>
+  <rect width="1200" height="630" filter="url(#grain)" opacity="0.34"/>
+  <g fill="#f4f1ea" font-family="Arial, Helvetica, sans-serif">
+    <text x="54" y="60" font-size="24" font-weight="800" letter-spacing="3">LATTICE</text>
+    <text x="54" y="124" font-size="58" font-weight="900" letter-spacing="-2">ONE INSTALL. TWO AGENTS.</text>
+    <text x="54" y="160" font-size="20" fill="#aaa7a1">Paired live smoke tests · same public fixture · provider-reported usage</text>
+  </g>
+  <line x1="54" y1="188" x2="1146" y2="188" stroke="#464646"/>
+  <g transform="translate(54 222)">
+    <rect width="526" height="308" rx="4" fill="#0d111a" stroke="#2468ff" stroke-width="2"/>
+    <rect width="526" height="8" fill="url(#sol)"/>
+    <text x="28" y="52" fill="#76dcff" font-family="Arial" font-size="15" font-weight="700" letter-spacing="2">OWNER RUN · CODEX</text>
+    <text x="28" y="88" fill="#f4f1ea" font-family="Arial" font-size="28" font-weight="800">GPT-5.6 SOL · MEDIUM</text>
+    <text x="28" y="164" fill="#f4f1ea" font-family="Arial" font-size="64" font-weight="900">−57.8%</text>
+    <text x="28" y="194" fill="#9da9bd" font-family="Arial" font-size="17">FRESH INPUT + OUTPUT</text>
+    <text x="28" y="246" fill="#f4f1ea" font-family="Arial" font-size="25" font-weight="700">−51.7% TIME</text>
+    <text x="320" y="246" fill="#f4f1ea" font-family="Arial" font-size="25" font-weight="700">4/4 BOTH</text>
+    <text x="28" y="282" fill="#758094" font-family="Arial" font-size="14">1 RAW + 1 Lattice · accepted patches differ by one blank line</text>
+  </g>
+  <g transform="translate(620 222)">
+    <rect width="526" height="308" rx="4" fill="#17100c" stroke="#ff6a1f" stroke-width="2"/>
+    <rect width="526" height="8" fill="url(#opus)"/>
+    <text x="28" y="52" fill="#ffb347" font-family="Arial" font-size="15" font-weight="700" letter-spacing="2">COMMUNITY RUN · CLAUDE CODE</text>
+    <text x="28" y="88" fill="#f4f1ea" font-family="Arial" font-size="28" font-weight="800">CLAUDE OPUS 5 · HIGH</text>
+    <text x="28" y="164" fill="#f4f1ea" font-family="Arial" font-size="64" font-weight="900">−81.4%</text>
+    <text x="28" y="194" fill="#b9a99f" font-family="Arial" font-size="17">FRESH INPUT + OUTPUT</text>
+    <text x="28" y="246" fill="#f4f1ea" font-family="Arial" font-size="25" font-weight="700">−82.8% COST</text>
+    <text x="305" y="246" fill="#f4f1ea" font-family="Arial" font-size="25" font-weight="700">−70.8% TIME</text>
+    <text x="28" y="282" fill="#8c7d74" font-family="Arial" font-size="14">1 RAW + 1 Lattice · both independent verification commands passed</text>
+  </g>
+  <g fill="#858585" font-family="Arial" font-size="14" letter-spacing="1.2">
+    <text x="54" y="584">TASK-SPECIFIC SIGNALS · NOT UNIVERSAL CLAIMS · FULL CONTROLS AND LIMITATIONS PUBLISHED</text>
+  </g>
+  <g transform="translate(1110 558)" stroke="#f4f1ea" stroke-width="2">
+    <path d="M0 14h36M18-4v36"/>
+  </g>
+</svg>
