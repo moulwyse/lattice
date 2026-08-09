@@ -36,5 +36,5 @@ identity, and the result is not a universal performance claim.
 - [x] public export and secret scans pass;
 - [ ] GitHub Actions matrix passes after an authorized push;
 - [ ] create tag `v0.2.0-claude-beta.1`;
-- [ ] upload `lattice-v2-0.2.0-claude-beta.1.tgz` as a GitHub Release asset;
+- [x] support registry-free npm installation from the GitHub prerelease tag;
 - [ ] create a GitHub prerelease, not a stable release.
