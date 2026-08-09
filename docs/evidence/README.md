@@ -4,6 +4,19 @@ This directory contains sanitized, reproducible evidence for Lattice's local
 credential-free checks. It does not contain raw model conversations, provider
 sessions, private repository content, or claims about general model quality.
 
+It also contains one sanitized live paired record:
+
+- [`owner-run-gpt-5.6-luna.md`](owner-run-gpt-5.6-luna.md) documents one RAW
+  Codex versus Lattice pair on the public reset-token fixture;
+- [`owner-run-gpt-5.6-luna.json`](owner-run-gpt-5.6-luna.json) is the
+  machine-readable summary;
+- [`benchmarks/paired-reset-token.mjs`](../../benchmarks/paired-reset-token.mjs)
+  is the spend-gated public driver.
+
+That live record is owner-run, task-specific, and not independent validation.
+It must not be combined with the credential-free checks into a general quality
+or savings claim.
+
 ## Reproduce the v0.1.0 smoke test
 
 From the tagged source or installed GitHub release:
