@@ -42,7 +42,7 @@ The local verification below needs no model account and makes no model call.
 Run it from the Git repository where you want to use Lattice.
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v0.2.0-claude-beta.1/lattice-v2-0.2.0-claude-beta.1.tgz
+npm install --global github:moulwyse/lattice#v0.2.0-claude-beta.1
 lattice doctor --workspace .
 lattice benchmark --worker mock
 ```
@@ -98,7 +98,7 @@ The release tarball gives Windows, macOS, and Linux users one npm-managed
 installation command without requiring an npm registry publication:
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v0.2.0-claude-beta.1/lattice-v2-0.2.0-claude-beta.1.tgz
+npm install --global github:moulwyse/lattice#v0.2.0-claude-beta.1
 lattice --version
 lattice benchmark --worker mock
 ```
@@ -237,7 +237,7 @@ Install the prerelease directly from GitHub Releases. Neither the maintainer
 nor the installer needs an npm account:
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v0.2.0-claude-beta.1/lattice-v2-0.2.0-claude-beta.1.tgz
+npm install --global github:moulwyse/lattice#v0.2.0-claude-beta.1
 lattice --version
 ```
 
