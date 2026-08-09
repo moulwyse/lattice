@@ -22,6 +22,11 @@ intends to use semantic versioning after the first public release.
 - A public, spend-gated RAW Codex versus Lattice benchmark driver that defaults
   to one pair and stores unsanitized output under ignored local state.
 - A benchmark result card for the README.
+- Sanitized task-specific paired records for GPT-5.6 Sol and a community-run
+  Claude Opus 5 reproduction, with explicit acceptance and generalization
+  boundaries.
+- A cross-provider README card and unified Codex + Claude Code installation
+  path.
 
 ### Changed
 
@@ -30,12 +35,19 @@ intends to use semantic versioning after the first public release.
   disclosed mechanism.
 - Moved the task-specific owner-run evidence and its non-generalization warning
   into the first screen of the README.
+- Replaced Claude's pre-benchmark status with the observed community-run Opus 5
+  result without transferring Codex claims or calling it independent task
+  selection.
 
 ### Fixed
 
 - Windows process-tree cancellation now bounds `taskkill` and falls back to the
   exact child process on restricted hosts, preventing launcher hangs and locked
   temporary workspaces.
+- Live benchmark runners fail before model use when the current Codex task
+  disables network access for spawned commands.
+- Node TAP acceptance summaries now support both `#` and `ℹ` prefixes and
+  preserve successful legacy verification status when counts are unavailable.
 
 ### Security
 
