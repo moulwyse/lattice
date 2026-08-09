@@ -1,8 +1,7 @@
 {
   "name": "lattice-v2",
-  "version": "0.1.1",
-  "private": true,
-  "description": "Bounded, auditable repository context and verified patch execution for coding agents.",
+  "version": "0.2.0-claude-beta.1",
+  "description": "Optimized, auditable execution for repository-scale coding agents.",
   "type": "module",
   "license": "Apache-2.0",
   "author": {
@@ -17,11 +16,16 @@
   "bugs": {
     "url": "https://github.com/moulwyse/lattice/issues"
   },
+  "publishConfig": {
+    "access": "public",
+    "tag": "beta"
+  },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
   },
   "files": [
     "dist",
+    "benchmarks",
     "docs",
     "examples",
     "fixtures",
@@ -51,16 +55,18 @@
     "eval:budget:guard": "npm run build --silent && node dist/eval-budget-cli.js guard",
     "doctor": "node dist/cli.js doctor",
     "benchmark": "node dist/cli.js benchmark --worker mock",
+    "benchmark:paired": "npm run build --silent && node benchmarks/paired-reset-token.mjs",
     "lint": "tsc --noEmit",
     "format:check": "node scripts/check-format.mjs",
     "scan:public": "node scripts/scan-public-export.mjs --source-checkout",
     "package:check": "npm pack --dry-run"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.220",
     "@openai/codex-sdk": "^0.144.5",
     "commander": "^13.0.0",
     "execa": "^9.5.2",
-    "zod": "^3.24.0"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
