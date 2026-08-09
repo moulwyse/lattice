@@ -14,19 +14,24 @@ function packageVersion() {
 }
 
 describe('public release metadata', () => {
-  test('package metadata preserves authorship and disables publication', () => {
+  test('package metadata preserves authorship and publishes only on the beta tag', () => {
     const packageJson = JSON.parse(
       readFileSync(resolve(root, 'package.json'), 'utf8'),
     ) as {
       version: string;
-      private: boolean;
+      private?: boolean;
+      publishConfig: { access: string; tag: string };
       license: string;
       author: { name: string; url: string };
       repository: { url: string };
     };
 
-    expect(packageJson.version).toBe('0.1.1');
-    expect(packageJson.private).toBe(true);
+    expect(packageJson.version).toBe('0.2.0-claude-beta.1');
+    expect(packageJson.private).toBeUndefined();
+    expect(packageJson.publishConfig).toEqual({
+      access: 'public',
+      tag: 'beta',
+    });
     expect(packageJson.license).toBe('Apache-2.0');
     expect(packageJson.author).toEqual({
       name: 'Moulwyse',
