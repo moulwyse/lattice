@@ -63,7 +63,7 @@ paths, credentials, and private source remain excluded from public evidence.
 ## Install and inspect
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v0.2.0-claude-beta.1/lattice-v2-0.2.0-claude-beta.1.tgz
+npm install --global github:moulwyse/lattice#v0.2.0-claude-beta.1
 lattice benchmark --worker mock
 lattice integration claude enable --workspace .
 lattice claude
