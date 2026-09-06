@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -41,6 +41,20 @@ describe('Task compiler', () => {
 });
 
 describe('Terra repository index', () => {
+  it('indexes Unicode and literal Git pathspec characters without losing files', async () => {
+    const repo = await repository({
+      'src/café.js': 'export const cafe = 1;\n',
+      'src/[id].js': 'export const bracket = 2;\n',
+      'src/i.js': 'export const other = 3;\n',
+    });
+    repositories.push(repo);
+    const index = await buildIndex(repo.path);
+    expect(index.files.map((file) => file.path)).toEqual([
+      'src/[id].js', 'src/café.js', 'src/i.js',
+    ]);
+    expect(index.files.every((file) => file.fingerprint.kind === 'git')).toBe(true);
+  });
+
   it('is deterministic, ordered, and excludes metadata, ignored, generated, and binary files', async () => {
     const repo = await repository({
       'src/z.js': 'export const z = 1;\n',
@@ -144,9 +158,65 @@ describe('Terra repository index', () => {
     expect(existsSync(join(external.path, 'index'))).toBe(false);
     expect(existsSync(join(external.path, 'sessions'))).toBe(false);
   });
+
+  it('does not extract scripts from an external package manifest symlink', async (context) => {
+    const repo = await repository({ 'src/safe.js': 'export const safe = true;\n' });
+    const external = await repository({
+      'package.json': JSON.stringify({ scripts: { test: 'external-command-sentinel' } }),
+    });
+    repositories.push(repo, external);
+    try {
+      symlinkSync(join(external.path, 'package.json'), join(repo.path, 'package.json'), 'file');
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (['EPERM', 'EACCES', 'ENOTSUP'].includes(code ?? '')) {
+        context.skip(`OS denied test symlink creation (${code})`);
+        return;
+      }
+      throw error;
+    }
+    const index = await buildIndex(repo.path);
+    expect(index.scripts).toEqual({});
+    expect(index.files.map((file) => file.path)).not.toContain('package.json');
+  });
 });
 
 describe('adaptive exact context packs', () => {
+  it('refuses content changed since indexing instead of attaching an old fingerprint', async () => {
+    const repo = await repository({ 'src/value.js': 'export const value = 1;\n' });
+    repositories.push(repo);
+    const index = await buildIndex(repo.path);
+    writeFileSync(join(repo.path, 'src/value.js'), 'export const value = 2;\n');
+    const kernel = new ContextKernel(repo.path, index, compileTask('Inspect value'));
+    expect(() => kernel.initial()).toThrow(/changed since indexing/);
+    expect(() => kernel.resolve({ reason: 'read', pathHint: 'src/value.js' }))
+      .toThrow(/changed since indexing/);
+    expect(kernel.pages).toEqual([]);
+  });
+
+  it('refuses a directory replaced by an external junction after indexing', async (context) => {
+    const repo = await repository({ 'src/value.js': 'export const value = 1;\n' });
+    const external = await repository({ 'value.js': 'external-private-sentinel\n' });
+    repositories.push(repo, external);
+    const index = await buildIndex(repo.path);
+    renameSync(join(repo.path, 'src'), join(repo.path, 'original-src'));
+    try {
+      symlinkSync(external.path, join(repo.path, 'src'), 'junction');
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (['EPERM', 'EACCES', 'ENOTSUP'].includes(code ?? '')) {
+        context.skip(`OS denied test junction creation (${code})`);
+        return;
+      }
+      throw error;
+    }
+    const kernel = new ContextKernel(repo.path, index, compileTask('Inspect value'));
+    expect(() => kernel.initial()).toThrow(/repository read escapes workspace/);
+    expect(() => kernel.resolve({ reason: 'read', pathHint: 'src/value.js' }))
+      .toThrow(/repository read escapes workspace/);
+    expect(kernel.pages).toEqual([]);
+  });
+
   it('grants a bounded exact slice and upgrades it to the full file on demand', async () => {
     const largeSource = [
       ...Array.from(

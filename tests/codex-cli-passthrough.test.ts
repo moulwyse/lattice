@@ -33,6 +33,7 @@ type Fixture = {
   localApplicationData: string;
   fakeNativePath: string;
   fakePidLog: string;
+  exitedFakePids: Set<number>;
   fakeArgvPath: string;
   env: NodeJS.ProcessEnv;
   userPathStore: UserPathStore;
@@ -212,6 +213,9 @@ async function runCli(
         `fake Codex passthrough timed out after ${options.timeoutMs ?? 15_000}ms`,
       );
     }
+    for (const fakePid of fakePids(value)) {
+      if (!isProcessAlive(fakePid)) value.exitedFakePids.add(fakePid);
+    }
     return {
       pid,
       ...closed,
@@ -274,6 +278,7 @@ beforeEach(async () => {
     localApplicationData,
     fakeNativePath,
     fakePidLog,
+    exitedFakePids: new Set(),
     fakeArgvPath,
     env,
     userPathStore,
@@ -311,6 +316,9 @@ afterEach(async () => {
   }
   if (value) {
     for (const pid of fakePids(value)) {
+      // Never signal a historical PID we already observed exiting: Windows
+      // may have reassigned it to an unrelated process in another test.
+      if (value.exitedFakePids.has(pid)) continue;
       try {
         if (isProcessAlive(pid)) await terminateProcessTree(pid);
       } catch (error) {
@@ -540,14 +548,15 @@ describe('transparent Codex CLI passthrough', () => {
         expectNoLatticeProgress(result.stdout);
         expectNoLatticeProgress(result.stderr);
         expect(isProcessAlive(result.pid)).toBe(false);
-        observedPids.push(fakePids().at(-1)!);
+        const nativePid = fakePids().at(-1)!;
+        expect(isProcessAlive(nativePid)).toBe(false);
+        expect(requireFixture().exitedFakePids.has(nativePid)).toBe(true);
+        observedPids.push(nativePid);
       }
 
       expect(observedPids).toHaveLength(10);
-      // Windows may legally reuse a PID after the preceding child exits. Leak
-      // safety depends on every observed PID being dead and the active set
-      // being empty, not on historical PID uniqueness.
-      expect(observedPids.every((pid) => !isProcessAlive(pid))).toBe(true);
+      // Check each child immediately after its launch completes instead of
+      // probing historical PIDs after all ten launches (Windows reuses PIDs).
       expect(activeCliPids.size).toBe(0);
     },
     60_000,

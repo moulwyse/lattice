@@ -14,7 +14,7 @@ function packageVersion() {
 }
 
 describe('public release metadata', () => {
-  test('package metadata preserves authorship and publishes only on the beta tag', () => {
+  test('major release metadata preserves authorship and the latest package tag', () => {
     const packageJson = JSON.parse(
       readFileSync(resolve(root, 'package.json'), 'utf8'),
     ) as {
@@ -26,11 +26,11 @@ describe('public release metadata', () => {
       repository: { url: string };
     };
 
-    expect(packageJson.version).toBe('0.2.0-claude-beta.1');
+    expect(packageJson.version).toBe('1.0.0');
     expect(packageJson.private).toBeUndefined();
     expect(packageJson.publishConfig).toEqual({
       access: 'public',
-      tag: 'beta',
+      tag: 'latest',
     });
     expect(packageJson.license).toBe('Apache-2.0');
     expect(packageJson.author).toEqual({
