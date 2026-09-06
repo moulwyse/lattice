@@ -1,15 +1,33 @@
 # Paired live benchmark
 
+For a **local-only performance comparison with zero model calls**, see
+[Local index/context performance](#local-indexcontext-performance) below.
+
 This directory contains the public driver for the RAW Codex versus Lattice
 reset-token comparison. It is evaluation infrastructure, not a product demo:
 both arms make a live model call and the result can vary with the model,
 provider, account, cache state, and service load.
 
 Published one-pair records are documented for
+[GPT-6 Astra / medium](../docs/evidence/owner-run-gpt-6-astra.md),
 [GPT-5.6 Luna](../docs/evidence/owner-run-gpt-5.6-luna.md),
 [GPT-5.6 Sol](../docs/evidence/owner-run-gpt-5.6-sol.md), and a
 [community-run Claude Opus 5 reproduction](../docs/evidence/community-run-claude-opus-5.md).
 They are task-specific smoke tests, not population-level claims.
+
+For one **GPT-6 Astra / medium** pair on Windows, double-click
+`START-ASTRA-BENCHMARK.cmd` in the repository root. Doing so explicitly starts a
+live, quota-consuming pair using your existing Codex login. The launcher keeps
+the console open and saves timestamped results under `.lattice/evaluation/`.
+It does not upload anything or initiate a login. From an ordinary terminal on
+any supported platform, the equivalent is:
+
+```sh
+npm run benchmark:astra -- --confirm-live
+```
+
+The launcher fixes repetitions to one, uses the same paired driver, and only
+prints a savings headline when both arms pass and the comparison is valid.
 
 ## Safety gate
 
@@ -105,7 +123,8 @@ printing the misleading `n/a/n/a`.
 - the same task and bundled fixture are used by both arms;
 - each arm starts in a fresh temporary Git repository;
 - the fixed Git author and commit date produce the same baseline commit;
-- RAW Codex has the Lattice MCP server disabled;
+- both Codex arms override the MCP table to empty and disable global hooks and
+  plugins for that client only (ordinary Lattice/Codex sessions are unchanged);
 - model tool network access and web search are disabled;
 - Lattice uses the same model and reasoning setting;
 - verified-patch reuse is disabled;
@@ -116,6 +135,65 @@ printing the misleading `n/a/n/a`.
   recorded when available;
 - every temporary directory is checked before cleanup.
 
+The Codex driver writes an atomic `*-checkpoint.json` for each arm **before**
+removing any temporary directory, then updates it with cleanup diagnostics.
+If Windows keeps a directory locked (`EBUSY`), bounded retries are attempted;
+the original model result/error and any returned usage remain in the checkpoint.
+Verification directories and retained worktrees are cleaned only after that
+checkpoint (the worktrees live inside the disposable fixture repository).
+Cleanup failure stops further arms and marks the comparison invalid. No process
+is force-killed, and the driver never modifies global hooks or credentials.
+Infrastructure failures and failed arms without usage also stop further spending.
+An invalid run has no publishable savings percentage; inspect its JSON/report,
+resolve the underlying error, then rerun from a normal terminal. An interrupted
+cleanup leaves a checkpoint with `cleanup.status: "pending"` and its paths.
+Reported arm elapsed time includes execution and acceptance/result collection,
+but excludes fixture setup, checkpoint writes, and temporary-directory cleanup.
+Each Codex arm also has its own SQLite runtime-state directory under the output
+directory. It does not reuse the desktop app's live state database. Authentication
+remains in the normal Codex credential store; credentials are not copied into
+benchmark outputs.
+
 The driver does not create an independent evaluation. For a credible broader
 claim, use evaluator-selected tasks and the protocol in
 [`docs/evaluation.md`](../docs/evaluation.md).
+
+## Local index/context performance
+
+This separate driver measures repository indexing and initial context selection,
+not model execution. It needs Node.js, Git, installed dependencies, and two
+compiled builds. It does not require provider authentication or call a model.
+
+Before changing source code, save the baseline build inside the ignored local
+state directory (PowerShell):
+
+```powershell
+npm run build
+New-Item -ItemType Directory -Path .lattice/perf-baseline -ErrorAction Stop
+Copy-Item -LiteralPath dist -Destination .lattice/perf-baseline/dist -Recurse
+```
+
+After making the source changes, rebuild and compare:
+
+```powershell
+npm run build
+node benchmarks/local-index-performance.mjs --baseline-dist .lattice/perf-baseline/dist --pairs 3 --output .lattice/local-performance.json
+```
+
+Use a fresh baseline directory; do not overwrite an earlier baseline. Keep both
+builds in an environment where their dependencies resolve, and record the
+baseline revision and dependency versions. This example uses the current
+checkout's dependencies for both builds, isolating the source-code comparison.
+
+Each arm indexes an isolated clone of the same generated repository: 64
+JavaScript modules with 80 exports each, plus a package manifest. Run order
+alternates across pairs. Full file records, fingerprints, scripts, and the exact
+eight selected context pages must match, or the command fails. The report
+contains every timing sample and paired reductions. Temporary fixture repos
+are removed on completion.
+
+Run without concurrent builds/tests for less noisy timing. This is one synthetic
+workload with warm OS caches, not a cold-cache or repository-scale guarantee.
+An indexing speedup is **not** a measurement of token/cost savings, model quality,
+or end-to-end coding speed. Use the spend-gated paired live drivers separately
+to measure those outcomes.

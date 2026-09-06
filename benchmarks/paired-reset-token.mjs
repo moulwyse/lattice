@@ -2,10 +2,11 @@ import {
   cpSync,
   mkdtempSync,
   mkdirSync,
+  readFileSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Codex } from '@openai/codex-sdk';
 import { execa } from 'execa';
@@ -19,10 +20,19 @@ import {
   parseNodeTestCounts,
 } from '../dist/benchmark-output.js';
 import { removeDirectoryWithRetry } from '../dist/cleanup.js';
+import { writeJson } from '../dist/core.js';
+import {
+  benchmarkStopReason,
+  captureBenchmarkArm,
+  isolatedBenchmarkCodexConfig,
+} from '../dist/benchmark-lifecycle.js';
 import { runTask } from '../dist/runtime.js';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const projectDirectory = dirname(scriptDirectory);
+const codexSdkVersion = JSON.parse(readFileSync(
+  join(projectDirectory, 'node_modules', '@openai', 'codex-sdk', 'package.json'), 'utf8',
+)).version;
 const fixture = join(projectDirectory, 'fixtures', 'reset-token');
 const outputDirectory = resolve(
   process.env.BENCH_OUTPUT_DIRECTORY ?? join(projectDirectory, '.lattice', 'evaluation'),
@@ -73,7 +83,7 @@ function assertNestedWorktree(workspace, worktree) {
   const expectedRoot = resolve(workspace, '.lattice', 'worktrees');
   const resolvedWorktree = resolve(worktree);
   const relation = relative(expectedRoot, resolvedWorktree);
-  if (!relation || relation === '..' || relation.startsWith(`..${sep}`)) {
+  if (!relation || isAbsolute(relation) || relation === '..' || relation.startsWith(`..${sep}`)) {
     throw new Error(`refusing to clean unexpected Lattice worktree: ${resolvedWorktree}`);
   }
 }
@@ -95,9 +105,20 @@ function itemCounts(items = []) {
   );
 }
 
-async function createWorkspace(system, repetition) {
+function registerTemporaryCleanup(register, path, prefix) {
+  register({
+    path,
+    remove: async () => {
+      assertTemporaryDirectory(path, prefix);
+      await removeDirectoryWithRetry(path);
+    },
+  });
+}
+
+async function createWorkspace(system, repetition, register) {
   const prefix = `raw-vs-lattice-${system}-${repetition}-`;
   const workspace = mkdtempSync(join(tmpdir(), prefix));
+  registerTemporaryCleanup(register, workspace, prefix);
   cpSync(join(fixture, 'package.json'), join(workspace, 'package.json'));
   cpSync(join(fixture, 'src'), join(workspace, 'src'), { recursive: true });
   cpSync(join(fixture, 'tests'), join(workspace, 'tests'), { recursive: true });
@@ -139,31 +160,27 @@ async function createWorkspace(system, repetition) {
   };
 }
 
-async function independentlyVerify(sourceWorkspace, system, repetition) {
+async function independentlyVerify(sourceWorkspace, system, repetition, register) {
   const prefix = `raw-vs-lattice-verify-${system}-${repetition}-`;
   const verificationWorkspace = mkdtempSync(join(tmpdir(), prefix));
-  try {
-    cpSync(join(fixture, 'package.json'), join(verificationWorkspace, 'package.json'));
-    cpSync(join(fixture, 'tests'), join(verificationWorkspace, 'tests'), { recursive: true });
-    cpSync(join(sourceWorkspace, 'src'), join(verificationWorkspace, 'src'), {
-      recursive: true,
-    });
-    const started = Date.now();
-    const verification = await command(verificationWorkspace, 'npm', ['test']);
-    const combined = `${verification.stdout}\n${verification.stderr}`;
-    return {
-      status: verification.exitCode === 0 ? 'passed' : 'failed',
-      exitCode: verification.exitCode,
-      elapsedMs: Date.now() - started,
-      counts: parseNodeTestCounts(combined),
-      stdout: verification.stdout,
-      stderr: verification.stderr,
-      pristineTests: true,
-    };
-  } finally {
-    assertTemporaryDirectory(verificationWorkspace, prefix);
-    await removeDirectoryWithRetry(verificationWorkspace);
-  }
+  registerTemporaryCleanup(register, verificationWorkspace, prefix);
+  cpSync(join(fixture, 'package.json'), join(verificationWorkspace, 'package.json'));
+  cpSync(join(fixture, 'tests'), join(verificationWorkspace, 'tests'), { recursive: true });
+  cpSync(join(sourceWorkspace, 'src'), join(verificationWorkspace, 'src'), {
+    recursive: true,
+  });
+  const started = Date.now();
+  const verification = await command(verificationWorkspace, 'npm', ['test']);
+  const combined = `${verification.stdout}\n${verification.stderr}`;
+  return {
+    status: verification.exitCode === 0 ? 'passed' : 'failed',
+    exitCode: verification.exitCode,
+    elapsedMs: Date.now() - started,
+    counts: parseNodeTestCounts(combined),
+    stdout: verification.stdout,
+    stderr: verification.stderr,
+    pristineTests: true,
+  };
 }
 
 function normalizedUsage(usage) {
@@ -182,20 +199,25 @@ function normalizedUsage(usage) {
   };
 }
 
-async function runRawCodex(repetition) {
-  const setup = await createWorkspace('raw', repetition);
+function benchmarkCodexConfig(system, repetition) {
+  // Do not share the desktop app's live SQLite database or another arm's state.
+  const stateDirectory = join(outputDirectory, `codex-state-${system}-${repetition}`);
+  mkdirSync(stateDirectory, { recursive: true });
+  return isolatedBenchmarkCodexConfig(stateDirectory);
+}
+
+async function runRawCodex(repetition, register) {
+  const setup = await createWorkspace('raw', repetition, register);
   const { workspace } = setup;
   const started = Date.now();
+  let thread;
+  let turn;
+  let modelElapsedMs;
   try {
     const codex = new Codex({
-      config: {
-        // Replace the complete MCP table for the RAW arm. Supplying only an
-        // `enabled = false` leaf creates an incomplete server entry on newer
-        // Codex builds, which is rejected before the benchmark can start.
-        mcp_servers: {},
-      },
+      config: benchmarkCodexConfig('raw', repetition),
     });
-    const thread = codex.startThread({
+    thread = codex.startThread({
       model,
       modelReasoningEffort: reasoningEffort,
       workingDirectory: workspace,
@@ -210,14 +232,13 @@ async function runRawCodex(repetition) {
       180_000,
     );
     const modelStarted = Date.now();
-    let turn;
     try {
       turn = await thread.run(goal, { signal: controller.signal });
     } finally {
       clearTimeout(timeout);
+      modelElapsedMs = Date.now() - modelStarted;
     }
-    const modelElapsedMs = Date.now() - modelStarted;
-    const verification = await independentlyVerify(workspace, 'raw', repetition);
+    const verification = await independentlyVerify(workspace, 'raw', repetition, register);
     const diff = await command(workspace, 'git', ['diff', '--no-ext-diff', '--binary']);
     const changed = await command(workspace, 'git', ['diff', '--name-only']);
     const status = await command(workspace, 'git', ['status', '--short']);
@@ -250,12 +271,12 @@ async function runRawCodex(repetition) {
       baselineCommit: setup.commit,
       baseline: setup.baseline,
       elapsedMs: Date.now() - started,
+      usage: normalizedUsage(turn?.usage),
+      modelElapsedMs,
+      threadId: thread?.id,
       failureClass: classifyBenchmarkFailure(message),
       error: message,
     };
-  } finally {
-    assertTemporaryDirectory(workspace, `raw-vs-lattice-raw-${repetition}-`);
-    await removeDirectoryWithRetry(workspace);
   }
 }
 
@@ -276,25 +297,18 @@ function latticeUsage(telemetry) {
   };
 }
 
-async function removeRetainedWorktree(workspace, worktree) {
-  assertNestedWorktree(workspace, worktree);
-  await command(workspace, 'git', ['worktree', 'remove', '--force', worktree]);
-  await removeDirectoryWithRetry(worktree);
-  await command(workspace, 'git', ['worktree', 'prune']);
-}
-
-async function runLattice(repetition) {
-  const setup = await createWorkspace('lattice', repetition);
+async function runLattice(repetition, register) {
+  const setup = await createWorkspace('lattice', repetition, register);
   const { workspace } = setup;
   const started = Date.now();
   let retainedWorktree;
+  let result;
   try {
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(new Error('Lattice benchmark timed out')),
       180_000,
     );
-    let result;
     try {
       result = await runTask(workspace, goal, {
         worker: 'codex',
@@ -304,13 +318,15 @@ async function runLattice(repetition) {
         useVerifiedCache: false,
         retainWorktree: true,
         signal: controller.signal,
+        codexConfig: benchmarkCodexConfig('lattice', repetition),
       });
     } finally {
       clearTimeout(timeout);
     }
     retainedWorktree = result.transaction?.worktree;
+    if (retainedWorktree) assertNestedWorktree(workspace, retainedWorktree);
     const verification = retainedWorktree
-      ? await independentlyVerify(retainedWorktree, 'lattice', repetition)
+      ? await independentlyVerify(retainedWorktree, 'lattice', repetition, register)
       : {
           status: 'failed',
           exitCode: null,
@@ -363,13 +379,12 @@ async function runLattice(repetition) {
       baselineCommit: setup.commit,
       baseline: setup.baseline,
       elapsedMs: Date.now() - started,
+      usage: latticeUsage(result?.telemetry),
+      modelElapsedMs: result?.telemetry?.stageMs?.worker ?? null,
+      threadId: result?.threadId,
       failureClass: classifyBenchmarkFailure(message),
       error: message,
     };
-  } finally {
-    if (retainedWorktree) await removeRetainedWorktree(workspace, retainedWorktree);
-    assertTemporaryDirectory(workspace, `raw-vs-lattice-lattice-${repetition}-`);
-    await removeDirectoryWithRetry(workspace);
   }
 }
 
@@ -472,6 +487,12 @@ function buildReport(artifact) {
   const validityWarning = artifact.validity.valid
     ? ''
     : `> **Invalid performance sample:** ${artifact.validity.reason}. No savings percentage from this execution is publishable.\n\n`;
+  const diagnostics = artifact.runs.flatMap((run) => [
+    ...(run.error ? [`- ${run.system}, pair ${run.repetition}: ${run.error}`] : []),
+    ...run.cleanup.errors.map((error) =>
+      `- Cleanup ${error.code ?? 'error'}: ${error.path} (${error.message})`,
+    ),
+  ]);
   return `# RAW Codex vs Lattice - live benchmark\n\n` +
     `Created: ${artifact.createdAt}\n\n` +
     validityWarning +
@@ -493,6 +514,7 @@ function buildReport(artifact) {
     `| Pair | System | Status | Fresh | Cached | Output | Fresh + output | End-to-end | Acceptance |\n` +
     `|---:|---|---|---:|---:|---:|---:|---:|---:|\n` +
     `${runRows.join('\n')}\n\n` +
+    (diagnostics.length ? `## Diagnostics\n\n${diagnostics.join('\n')}\n\n` : '') +
     `## Interpretation\n\n` +
     `RAW Codex receives the ordinary autonomous task and operates the repository itself. Lattice indexes the repository first, supplies bounded task-relevant context, and accepts a structured patch. This compares two execution systems around the same model; it is not an isolated model benchmark. Cached input remains context traffic but is accounted for separately, so the primary expensive-traffic metric is fresh input plus output.\n`;
 }
@@ -500,6 +522,7 @@ function buildReport(artifact) {
 mkdirSync(outputDirectory, { recursive: true });
 const runs = [];
 let abortedAfterInfrastructureFailure = null;
+let stoppedEarly = null;
 benchmarkLoop:
 for (let repetition = 1; repetition <= repetitions; repetition += 1) {
   const systems = repetition % 2 === 1
@@ -507,21 +530,40 @@ for (let repetition = 1; repetition <= repetitions; repetition += 1) {
     : [runLattice, runRawCodex];
   for (const runSystem of systems) {
     const label = runSystem === runRawCodex ? 'RAW Codex' : 'Lattice';
+    const system = runSystem === runRawCodex ? 'raw_codex' : 'lattice';
+    const checkpointPath = join(outputDirectory, `${outputTag}-${system}-${repetition}-checkpoint.json`);
     process.stdout.write(`[${new Date().toISOString()}] start ${label}, repetition ${repetition}\n`);
-    const result = await runSystem(repetition);
+    const started = Date.now();
+    const result = await captureBenchmarkArm({
+      run: (register) => runSystem(repetition, register),
+      failure: (error) => ({
+        schemaVersion: 1,
+        system,
+        repetition,
+        status: 'failed',
+        elapsedMs: Date.now() - started,
+        failureClass: classifyBenchmarkFailure(error),
+        error: error instanceof Error ? error.message : String(error),
+      }),
+      checkpoint: (run) => writeJson(checkpointPath, {
+        model, reasoningEffort, createdAt: new Date().toISOString(), ...run,
+      }),
+    });
     runs.push(result);
     process.stdout.write(
       `[${new Date().toISOString()}] finish ${label}, repetition ${repetition}: ${result.status}, fresh=${result.usage?.freshInputTokens ?? 'n/a'}, output=${result.usage?.outputTokens ?? 'n/a'}, elapsed=${result.elapsedMs}ms\n`,
     );
-    if (isBenchmarkInfrastructureFailure(result) && !result.usage) {
-      abortedAfterInfrastructureFailure = {
+    const stopReason = benchmarkStopReason(result);
+    if (stopReason) {
+      stoppedEarly = { repetition, system, reason: stopReason };
+      if (isBenchmarkInfrastructureFailure(result)) abortedAfterInfrastructureFailure = {
         repetition,
         system: result.system,
         failureClass: result.failureClass,
         error: result.error,
       };
       process.stderr.write(
-        `Benchmark stopped after ${result.failureClass}; the paired result would be invalid and continuing could waste quota.\n`,
+        `Benchmark stopped: ${stopReason}. No further arm was started. Checkpoint: ${checkpointPath}\n`,
       );
       break benchmarkLoop;
     }
@@ -534,12 +576,12 @@ const rawAggregate = aggregate(rawRuns);
 const latticeAggregate = aggregate(latticeRuns);
 const expectedRunCount = repetitions * 2;
 const validity = {
-  valid: runs.length === expectedRunCount && !runs.some(isBenchmarkInfrastructureFailure),
+  valid: runs.length === expectedRunCount && !runs.some(isBenchmarkInfrastructureFailure) && !stoppedEarly,
   complete: runs.length === expectedRunCount,
   expectedRunCount,
   observedRunCount: runs.length,
-  reason: abortedAfterInfrastructureFailure
-    ? `${abortedAfterInfrastructureFailure.failureClass}: ${abortedAfterInfrastructureFailure.error}`
+  reason: stoppedEarly
+    ? stoppedEarly.reason
     : runs.some(isBenchmarkInfrastructureFailure)
       ? 'one or more arms ended with an infrastructure failure'
       : runs.length !== expectedRunCount
@@ -559,6 +601,10 @@ const artifact = {
     goalCharacters: goal.length,
     fixture,
     fixedGitDate,
+    codexClientConfig: isolatedBenchmarkCodexConfig(),
+    codexSdkVersion,
+    codexStateDatabase: 'separate SQLite directory per arm under the output directory',
+    timing: 'arm execution through acceptance/result collection; fixture setup, checkpoint writes and cleanup excluded',
     rawCodex: {
       sandboxMode: 'workspace-write',
       approvalPolicy: 'never',
@@ -577,6 +623,7 @@ const artifact = {
   runs,
   validity,
   abortedAfterInfrastructureFailure,
+  stoppedEarly,
   aggregates: {
     rawCodex: rawAggregate,
     lattice: latticeAggregate,
@@ -584,7 +631,11 @@ const artifact = {
   comparison: comparison(rawAggregate, latticeAggregate),
 };
 
-writeFileSync(jsonOutputPath, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
+if (!validity.valid) {
+  for (const metric of Object.values(artifact.comparison)) metric.latticeSavingPercent = null;
+}
+
+writeJson(jsonOutputPath, artifact);
 writeFileSync(reportOutputPath, buildReport(artifact), 'utf8');
 process.stdout.write(`${JSON.stringify({
   jsonOutputPath,
