@@ -48,6 +48,15 @@ Lattice is a local orchestration tool, not a sandbox:
 Use a low-privilege account, a disposable branch or clone, provider-side spend
 limits, and repositories without production secrets. Review every diff.
 
+Source reads check canonical repository boundaries and context pages must match
+the raw bytes fingerprinted during indexing. Changed sources require reindexing.
+JSON artifacts are written through exclusive temporary files and directory-entry
+replacement, so an existing destination link is not truncated in place. These
+checks are defense in depth, not isolation from another process running as the
+same OS user: concurrent filesystem changes can still race path validation.
+Git clean filters and allowlisted repository scripts are executable local code;
+do not run Lattice over an untrusted checkout with valuable credentials present.
+
 ## Public-export scanner
 
 `npm run scan:public` checks the export for common credential patterns,
