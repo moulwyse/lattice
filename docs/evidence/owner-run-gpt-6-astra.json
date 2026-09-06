@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "kind": "owner-run-single-task-paired-smoke-test",
+  "date": "2026-09-06",
+  "model": "gpt-6-astra",
+  "reasoningEffort": "medium",
+  "codexSdkVersion": "0.153.4",
+  "fixture": "fixtures/reset-token",
+  "order": [
+    "raw",
+    "lattice"
+  ],
+  "repetitions": 1,
+  "valid": true,
+  "metrics": {
+    "freshInputTokens": {
+      "raw": 16100,
+      "lattice": 3751
+    },
+    "outputTokens": {
+      "raw": 772,
+      "lattice": 254
+    },
+    "freshPlusOutputTokens": {
+      "raw": 16872,
+      "lattice": 4005,
+      "reductionPercent": 76.2624466571835
+    },
+    "cachedInputTokens": {
+      "raw": 52736,
+      "lattice": 12160
+    },
+    "totalInputTokens": {
+      "raw": 68836,
+      "lattice": 15911
+    },
+    "modelElapsedMs": {
+      "raw": 69289,
+      "lattice": 23359
+    },
+    "armElapsedMs": {
+      "raw": 70218,
+      "lattice": 26969,
+      "reductionPercent": 61.592469167449934
+    },
+    "costUsd": null
+  },
+  "acceptance": {
+    "raw": {
+      "passed": 4,
+      "total": 4
+    },
+    "lattice": {
+      "passed": 4,
+      "total": 4
+    },
+    "pristineTests": true
+  },
+  "patchIdentity": {
+    "sourceDiffMatch": true,
+    "fullDiffMatch": false,
+    "sourceDiffSha256": "bf74f4be21cc86186d5ae8e425502cd0c551b8398030024ee42b78a5c603453a"
+  },
+  "limitations": [
+    "One fixed task, one RAW-first pair; not independent task selection.",
+    "Arm elapsed excludes setup, checkpoints and cleanup.",
+    "No provider-dollar savings measured.",
+    "Private provider transcripts are excluded."
+  ]
+}
