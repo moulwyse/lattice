@@ -30,7 +30,7 @@
     <path d="M22 28H48M35 15V41" stroke="#f3f1ea" stroke-width="2"/>
     <text x="66" y="48" fill="#f3f1ea" font-size="28" font-weight="900" letter-spacing="1">LATTICE</text>
     <path d="M212 37H1110" stroke="#f3f1ea" stroke-width="4"/>
-    <text x="1542" y="43" fill="#9b9a94" font-size="13" text-anchor="end" letter-spacing="2.4">PAIRED EVIDENCE / AUG 2026</text>
+    <text x="1542" y="43" fill="#9b9a94" font-size="13" text-anchor="end" letter-spacing="2.4">PAIRED EVIDENCE / SEP 2026</text>
   </g>
 
   <!-- editorial headline -->
@@ -55,7 +55,7 @@
   <path d="M1028 438V754" stroke="#454541" stroke-width="2"/>
 
   <g font-family="Arial,Helvetica,sans-serif">
-    <text x="54" y="477" fill="#f3f1ea" font-size="20" font-weight="900" letter-spacing="2">CODEX / GPT-5.6</text>
+    <text x="54" y="477" fill="#f3f1ea" font-size="20" font-weight="900" letter-spacing="2">CODEX / LUNA + ASTRA</text>
     <text x="1006" y="477" fill="#777771" font-size="13" text-anchor="end" letter-spacing="1.6">OWNER-RUN · MEDIUM</text>
 
     <text x="1050" y="477" fill="#f3f1ea" font-size="20" font-weight="900" letter-spacing="2">CLAUDE / OPUS 5</text>
@@ -72,14 +72,14 @@
     <text x="55" y="714" fill="#28e57f" font-family="Consolas,Menlo,monospace" font-size="14">4/4 BOTH  ·  BYTE-IDENTICAL PATCH</text>
   </g>
 
-  <!-- Codex Sol -->
+  <!-- Codex Astra -->
   <g font-family="Arial,Helvetica,sans-serif">
-    <rect x="560" y="503" width="82" height="30" fill="#f3f1ea"/>
-    <text x="573" y="524" fill="#070707" font-size="15" font-weight="900" letter-spacing="1.4">SOL</text>
-    <text x="558" y="626" fill="#f3f1ea" font-family="Impact,Arial Black,Arial,sans-serif" font-size="120" letter-spacing="-2">−57.75%</text>
+    <rect x="560" y="503" width="170" height="30" fill="#f3f1ea"/>
+    <text x="573" y="524" fill="#070707" font-size="15" font-weight="900" letter-spacing="1.4">GPT-6 ASTRA</text>
+    <text x="558" y="626" fill="#f3f1ea" font-family="Impact,Arial Black,Arial,sans-serif" font-size="120" letter-spacing="-2">−76.26%</text>
     <text x="560" y="658" fill="#f3f1ea" font-size="16" font-weight="800" letter-spacing="1">FRESH INPUT + OUTPUT</text>
-    <text x="560" y="686" fill="#92918b" font-family="Consolas,Menlo,monospace" font-size="15">24,985 → 10,555  /  time −51.65%</text>
-    <text x="560" y="714" fill="#28e57f" font-family="Consolas,Menlo,monospace" font-size="14">4/4 BOTH  ·  EXECUTABLE DIFF MATCH</text>
+    <text x="560" y="686" fill="#92918b" font-family="Consolas,Menlo,monospace" font-size="15">16,872 → 4,005  /  time −61.59%</text>
+    <text x="560" y="714" fill="#28e57f" font-family="Consolas,Menlo,monospace" font-size="14">4/4 BOTH  ·  SOURCE DIFF MATCH</text>
   </g>
 
   <!-- Claude Opus -->

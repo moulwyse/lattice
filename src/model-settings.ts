@@ -59,7 +59,7 @@ export function parseReasoningEffort(
   value: string | undefined,
 ): ModelReasoningEffort | undefined {
   if (value === undefined || value === 'inherit') return undefined;
-  if (!reasoningEfforts.includes(value as ModelReasoningEffort)) {
+  if (!reasoningEfforts.some((effort) => effort === value)) {
     throw new Error(
       `reasoning effort must be one of: ${reasoningEfforts.join(', ')}, or inherit`,
     );

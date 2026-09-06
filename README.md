@@ -11,23 +11,25 @@
   coding models can focus on solving the task.
 </p>
 
-![Lattice paired live results on GPT-5.6 Sol and Claude Opus 5](docs/assets/cross-provider-live-results.svg)
+![Lattice paired live results: GPT-6 Astra, GPT-5.6 Luna and Claude Opus 5](docs/assets/astra-cross-provider-results.png)
 
 One package now includes both the **Codex** and **Claude Code Beta** adapters.
-Two task-specific live pairs have exercised the same public fixture through
-different providers:
+The latest Codex pair uses **GPT-6 Astra / medium**. Historical Claude and Codex
+results remain available; these are separate single-task runs, not a model ranking:
 
 | Pair | Fresh input + output | End-to-end time | Cost | Acceptance |
 | --- | ---: | ---: | ---: | --- |
-| GPT-5.6 Sol, owner-run | **57.75% less** | **51.65% faster** | Not reported | 4/4 on both arms |
+| GPT-6 Astra / medium, owner-run | **76.26% less** | **61.59% lower arm time** | Not measured | 4/4 on both arms |
 | Claude Opus 5, community-run | **81.44% less** | **70.83% faster** | **82.77% less** | Both verification commands passed; counts unavailable |
 
 > **Evidence boundary:** these are one-pair smoke tests on one fixed task, not
 > independent task selection, population-level non-inferiority, or universal
-> savings. Read the sanitized [Sol record](docs/evidence/owner-run-gpt-5.6-sol.md),
+> savings. Read the sanitized [Astra record](docs/evidence/owner-run-gpt-6-astra.md),
 > [Opus 5 record](docs/evidence/community-run-claude-opus-5.md), controls, and
-> limitations. The historical [Luna record](docs/evidence/owner-run-gpt-5.6-luna.md)
-> remains published rather than being replaced.
+> limitations. Astra arm time excludes setup/checkpoint/cleanup. Source-only
+> diffs match, but full patches differ. The historical
+> [Sol](docs/evidence/owner-run-gpt-5.6-sol.md) and
+> [Luna](docs/evidence/owner-run-gpt-5.6-luna.md) records remain published.
 
 [![Build and test](https://github.com/moulwyse/lattice/actions/workflows/ci.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/ci.yml)
 [![Quality](https://github.com/moulwyse/lattice/actions/workflows/quality.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/quality.yml)
@@ -42,7 +44,7 @@ The local verification below needs no model account and makes no model call.
 Run it from the Git repository where you want to use Lattice.
 
 ```sh
-npm install --global github:moulwyse/lattice#v0.2.0-claude-beta.1
+npm install --global github:moulwyse/lattice#v1.0.0
 lattice doctor --workspace .
 lattice benchmark --worker mock
 ```
@@ -56,10 +58,11 @@ Created and led by **[Moulwyse](https://github.com/moulwyse)**.
 
 This repository is the original and canonical home of Lattice.
 
-> **Early public release:** review the [limitations](docs/limitations.md) and
+> **v1.0.0 scope:** review the [limitations](docs/limitations.md) and
 > [security model](SECURITY.md) before using Lattice on a sensitive repository.
-> The npm package is not published yet; install the signed-off release tarball
-> from GitHub or build from source.
+> The npm registry package is not published; npm installs directly from the
+> GitHub tag. Claude Code stays Beta; transparent Codex hooks stay experimental.
+> See the [release and upgrade guide](docs/release-v1.0.0.md).
 
 ## How it works
 
@@ -92,13 +95,13 @@ You need [Git](https://git-scm.com/downloads) and a supported
 [Node.js](https://nodejs.org/en/download) version (`20.19+` or `22.12+`). You
 do not need an API key to install Lattice or run its local demo.
 
-### Install the unified v0.2.0 Claude Beta release
+### Install the unified v1.0.0 release
 
-The release tarball gives Windows, macOS, and Linux users one npm-managed
+The GitHub tag gives Windows, macOS, and Linux users one npm-managed
 installation command without requiring an npm registry publication:
 
 ```sh
-npm install --global github:moulwyse/lattice#v0.2.0-claude-beta.1
+npm install --global github:moulwyse/lattice#v1.0.0
 lattice --version
 lattice benchmark --worker mock
 ```
@@ -233,11 +236,11 @@ Claude Code is an opt-in Beta integration inside the main Lattice package.
 There is one package, one installation, and one CLI: `lattice`. Existing Codex
 commands and defaults remain unchanged.
 
-Install the prerelease directly from GitHub Releases. Neither the maintainer
+Install the unified release directly from GitHub. Neither the maintainer
 nor the installer needs an npm account:
 
 ```sh
-npm install --global github:moulwyse/lattice#v0.2.0-claude-beta.1
+npm install --global github:moulwyse/lattice#v1.0.0
 lattice --version
 ```
 
@@ -394,7 +397,7 @@ Read [SECURITY.md](SECURITY.md) and
 - Local integration tests do not substitute for a live provider evaluation.
 - The credential-free reset-token benchmark is a deterministic functional
   fixture, not evidence of model quality or savings.
-- The Luna and Sol results are single owner-run pairs on one fixed fixture.
+- The Astra, Luna and Sol results are single owner-run pairs on one fixed fixture.
 - The Opus 5 result is one community-operated reproduction on the same
   maintainer-supplied fixture; it is not independent task selection.
 

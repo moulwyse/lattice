@@ -4,12 +4,12 @@ This guide covers the GitHub release package and source installation. For most
 people, the short version is:
 
 ```sh
-npm install --global github:moulwyse/lattice#v0.2.0-claude-beta.1
+npm install --global github:moulwyse/lattice#v1.0.0
 lattice benchmark --worker mock
 ```
 
-The package is hosted as a GitHub release asset while npm registry publication
-remains intentionally disabled. One package installs both the Codex and Claude
+npm installs the versioned source directly from GitHub and builds the CLI.
+No npm registry publication or npm account is required. One package installs both the Codex and Claude
 Code adapters; provider accounts are needed only when that provider is used.
 To build directly from the canonical source:
 
@@ -39,11 +39,10 @@ for `--worker claude`, `lattice claude`, or the Claude Code Beta integration.
 
 ## GitHub release installation
 
-The release tarball is produced by `npm pack` from the tagged commit and
-attached to the matching GitHub release. Install or upgrade it with:
+Install or upgrade from the tagged source with npm (Git is required):
 
 ```sh
-npm install --global github:moulwyse/lattice#v0.2.0-claude-beta.1
+npm install --global github:moulwyse/lattice#v1.0.0
 ```
 
 Verify the command and run the no-model smoke test:

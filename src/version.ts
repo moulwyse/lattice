@@ -1,1 +1,1 @@
-export const LATTICE_VERSION = '0.2.0-claude-beta.1';
+export const LATTICE_VERSION = '1.0.0';

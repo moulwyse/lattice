@@ -120,6 +120,7 @@ const syntheticBenchmarkEmail = 'lattice@' + 'example.invalid';
 const syntheticTestEmail = 'tests@' + 'example.invalid';
 const syntheticEmailAllowlist = new Map([
   ['src/benchmark.ts', new Set([syntheticBenchmarkEmail])],
+  ['benchmarks/local-index-performance.mjs', new Set([syntheticBenchmarkEmail])],
   ['tests/helpers.ts', new Set([syntheticTestEmail])],
 ]);
 const publicContactEmail = 'ptech1500@' + 'gmail.com';
