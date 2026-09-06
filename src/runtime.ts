@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import type { CodexOptions } from '@openai/codex-sdk';
 import { resolveClaudeModelSettings } from './claude-model-settings.js';
 import { ClaudeWorker } from './claude-worker.js';
 import { ContextKernel } from './context.js';
@@ -45,6 +46,8 @@ export type RunOptions = {
   retainWorktree?: boolean;
   events?: Events;
   useVerifiedCache?: boolean;
+  /** Optional per-client overrides, used to isolate controlled benchmarks. */
+  codexConfig?: CodexOptions['config'];
 };
 
 type VerificationTest = { name: string; result: 'passed' | 'failed' };
@@ -261,6 +264,7 @@ export async function runTask(workspace: string, goal: string, options: RunOptio
               )
             : new CodexWorker(
                 modelSettings as ReturnType<typeof resolveCodexModelSettings>,
+                options.codexConfig,
               );
       const input = () => ({
         workspace,

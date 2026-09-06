@@ -1,5 +1,6 @@
 import {
   Codex,
+  type CodexOptions,
   type Thread,
   type ThreadOptions,
 } from '@openai/codex-sdk';
@@ -240,13 +241,18 @@ async function runProviderTurn<T extends { usage: ProviderUsage | null }>(
 }
 
 export class CodexWorker implements Worker {
-  private readonly codex = new Codex();
+  private readonly codex: Codex;
   private thread?: Thread;
   private repaired = false;
   private readonly sentPageIds = new Set<string>();
   threadId?: string;
 
-  constructor(private readonly modelSettings: CodexModelOverrides = {}) {}
+  constructor(
+    private readonly modelSettings: CodexModelOverrides = {},
+    config?: CodexOptions['config'],
+  ) {
+    this.codex = new Codex({ config });
+  }
 
   async run(input: WorkerInput) {
     this.sentPageIds.clear();

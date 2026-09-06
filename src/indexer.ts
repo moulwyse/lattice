@@ -1,7 +1,7 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { extname, join, relative } from 'node:path';
 import { execa } from 'execa';
-import { fingerprint } from './fingerprint.js';
+import { readFingerprintedFile } from './fingerprint.js';
 import { metadata, safeReadPath, writeJson } from './core.js';
 import type { FileRecord, RepositoryIndex } from './types.js';
 
@@ -31,11 +31,11 @@ async function repositoryPaths(workspace: string, git: boolean) {
   if (!git) return walk(workspace).sort();
   const result = await execa(
     'git',
-    ['ls-files', '--cached', '--others', '--exclude-standard'],
+    ['ls-files', '-z', '--cached', '--others', '--exclude-standard'],
     { cwd: workspace },
   );
   return result.stdout
-    .split(/\r?\n/)
+    .split('\0')
     .filter(Boolean)
     .map((path) => path.replaceAll('\\', '/'))
     .filter((path) => supported.has(extname(path)))
@@ -63,17 +63,17 @@ export async function buildIndex(workspace: string): Promise<RepositoryIndex> {
     : null;
   const files: FileRecord[] = [];
 
-  for (const path of await repositoryPaths(workspace, git)) {
-    let full: string;
+  const paths = await repositoryPaths(workspace, git);
+  const readRecord = async (path: string): Promise<FileRecord | undefined> => {
     try {
-      full = safeReadPath(workspace, path);
+      safeReadPath(workspace, path);
     } catch {
       // Tracked symlinks/junctions may never expose content outside the
       // repository through the index or MCP context bridge.
-      continue;
+      return undefined;
     }
-    const bytes = readFileSync(full);
-    if (bytes.includes(0)) continue;
+    const { bytes, fingerprint: sourceFingerprint } = await readFingerprintedFile(workspace, path);
+    if (bytes.includes(0)) return undefined;
     const text = bytes.toString('utf8');
     const extension = extname(path);
     const imports = [...text.matchAll(/(?:from\s+|require\()['"]([^'"]+)/g)].map(
@@ -93,7 +93,7 @@ export async function buildIndex(workspace: string): Promise<RepositoryIndex> {
         ),
       ]),
     ];
-    files.push({
+    return {
       path,
       language:
         {
@@ -104,21 +104,34 @@ export async function buildIndex(workspace: string): Promise<RepositoryIndex> {
           '.json': 'json',
           '.md': 'markdown',
         }[extension] ?? 'text',
-      size: statSync(full).size,
-      fingerprint: await fingerprint(workspace, path),
+      size: bytes.length,
+      fingerprint: sourceFingerprint,
       imports,
       exports,
       symbols,
       references,
       isTest: /(\.test\.|\.spec\.|\/tests?\/)/.test(path),
       isConfig: /package\.json|tsconfig|config/.test(path),
-    });
+    };
+  };
+  // Bound both concurrent file buffers and Git subprocess work. Await every
+  // operation in a batch before throwing, and preserve the sorted path order.
+  // No partial index is persisted if any file fails its read/fingerprint.
+  const batchSize = 4;
+  for (let offset = 0; offset < paths.length; offset += batchSize) {
+    const records = await Promise.allSettled(
+      paths.slice(offset, offset + batchSize).map(readRecord),
+    );
+    for (const record of records) {
+      if (record.status === 'rejected') throw record.reason;
+      if (record.value) files.push(record.value);
+    }
   }
 
   let scripts: Record<string, string> = {};
   try {
     scripts =
-      (JSON.parse(readFileSync(join(workspace, 'package.json'), 'utf8')) as {
+      (JSON.parse(readFileSync(safeReadPath(workspace, 'package.json'), 'utf8')) as {
         scripts?: Record<string, string>;
       }).scripts ?? {};
   } catch {

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { extname, posix } from 'node:path';
-import { join } from 'node:path';
+import { rawHash, safeReadPath } from './core.js';
 import type { ContextPage, FileRecord, RepositoryIndex, TaskIR } from './types.js';
 
 export const MAX_WHOLE_FILE_CONTEXT_CHARACTERS = 12_000;
@@ -81,7 +81,14 @@ function createPage(
   task: TaskIR,
   options: { forceFull?: boolean; focus?: string } = {},
 ): ContextPage {
-  const content = readFileSync(join(workspace, file.path), 'utf8');
+  const bytes = readFileSync(safeReadPath(workspace, file.path));
+  if (
+    bytes.length !== file.fingerprint.byteLength ||
+    rawHash(bytes) !== file.fingerprint.rawSha256
+  ) {
+    throw new Error(`repository source changed since indexing: ${file.path}; rebuild the index`);
+  }
+  const content = bytes.toString('utf8');
   const complete =
     options.forceFull ||
     task.risk === 'high' ||
@@ -252,6 +259,9 @@ export class ContextKernel {
 
   initial() {
     for (const candidate of initialContextFiles(this.index, this.task)) {
+      // Initial pages never evict other initial pages. Once the page budget is
+      // full, reading further candidates cannot change the selected context.
+      if (this.pages.length >= this.task.budget.maxPages) break;
       this.add(createPage(this.workspace, candidate.file, candidate.reason, this.task));
     }
     return this.pages;
