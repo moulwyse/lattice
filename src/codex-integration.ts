@@ -1140,6 +1140,14 @@ export async function enableCodexIntegration(
         path: options.hooksPath ?? join(env.CODEX_HOME ?? join(env.HOME ?? homedir(), '.codex'), 'hooks.json'),
       });
       if (
+        existing.hooks?.path === installedHooks.registration.path &&
+        existing.hooks.installedFingerprintSha256 ===
+          installedHooks.registration.installedFingerprintSha256
+      ) {
+        // Re-enabling unchanged hooks must not relinquish file ownership.
+        installedHooks.registration.createdFile = existing.hooks.createdFile;
+      }
+      if (
         installedHooks.changed ||
         JSON.stringify(existing.hooks) !==
           JSON.stringify(installedHooks.registration)
