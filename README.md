@@ -44,11 +44,15 @@ The local verification below needs no model account and makes no model call.
 Run it from the Git repository where you want to use Lattice.
 
 ```sh
-npx @moulwyse/lattice doctor --workspace .
-npx @moulwyse/lattice benchmark --worker mock
+npm install --global github:moulwyse/lattice#v1.0.0
+lattice doctor --workspace .
+lattice benchmark --worker mock
 ```
 
-A healthy verification ends with `Status: passed`. The scoped package includes
+If npm reports `EALLOWGIT` (for example npm 12), use
+`npm install --global --allow-git=root github:moulwyse/lattice#v1.0.0`.
+
+A healthy verification ends with `Status: passed`. The unified package includes
 the Codex and Claude Code adapters; each integration remains opt-in so Lattice
 does not silently change either agent. Continue with the
 [Codex setup](docs/quick-start.md) or [Claude Code Beta setup](docs/claude-code.md).
@@ -59,7 +63,7 @@ This repository is the original and canonical home of Lattice.
 
 > **v1.0.0 scope:** review the [limitations](docs/limitations.md) and
 > [security model](SECURITY.md) before using Lattice on a sensitive repository.
-> The package is available on npm as `@moulwyse/lattice`. Claude Code stays Beta;
+> Install the tagged GitHub release with npm; `@moulwyse/lattice` is not yet available in the public npm registry. Claude Code stays Beta;
 > transparent Codex hooks stay experimental.
 > See the [release and upgrade guide](docs/release-v1.0.0.md).
 
@@ -96,12 +100,12 @@ do not need an API key to install Lattice or run its local demo.
 
 ### Run the unified v1.0.0 release
 
-The scoped npm package gives Windows, macOS, and Linux users the same
-credential-free commands without a global installation:
+Install the tagged GitHub release globally through npm on Windows, macOS, or Linux:
 
 ```sh
-npx @moulwyse/lattice --version
-npx @moulwyse/lattice benchmark --worker mock
+npm install --global github:moulwyse/lattice#v1.0.0
+lattice --version
+lattice benchmark --worker mock
 ```
 
 The package contains both provider adapters. Codex remains stable-by-default;
@@ -234,10 +238,11 @@ Claude Code is an opt-in Beta integration inside the main Lattice package.
 There is one package, one installation, and one CLI: `lattice`. Existing Codex
 commands and defaults remain unchanged.
 
-Run the unified release directly from npm. No global installation is required:
+Install the same unified release through npm:
 
 ```sh
-npx @moulwyse/lattice --version
+npm install --global github:moulwyse/lattice#v1.0.0
+lattice --version
 ```
 
 Enable it only in the repository where you want Claude Code to use Lattice:
