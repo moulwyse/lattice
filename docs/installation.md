@@ -151,26 +151,44 @@ state. It does not copy a Codex credential into Lattice. To revert it, run
 
 ## Platform support
 
-Automatic launcher, hook, and persistent-PATH setup is currently Windows-only.
-On macOS or Linux, do not run the automatic enable command. After building, the
-read-only MCP bridge can instead be registered explicitly with the official
-Codex CLI:
+Automatic launcher, MCP registration, session hooks, and persistent PATH setup
+are implemented on Windows and Linux. Linux supports Bash, Zsh, and Fish,
+including Arch/Omarchy. Use a persistent source clone or installation: the
+integration records absolute Node and CLI paths, so do not delete that installation.
+
+```sh
+node dist/cli.js integration codex enable
+# Open a new terminal, then restart Codex.
+node dist/cli.js integration codex doctor
+codex
+# Native Codex without Lattice:
+codex-raw
+# Revert before removing the installation:
+node dist/cli.js integration codex disable
+```
+
+Bash receives a marked block in ~/.bashrc and the active login profile
+(~/.bash_profile, ~/.bash_login, or ~/.profile). Zsh uses ~/.zshrc and
+~/.zprofile, respecting ZDOTDIR. Fish uses
+~/.config/fish/conf.d/lattice-codex.fish, respecting XDG_CONFIG_HOME.
+Only the exact managed block is removed; unrelated settings are preserved.
+Edited managed blocks are left intact and reported as errors. The original
+shell and profile paths are recorded so disabling also works after changing shells.
+No sudo is needed. Existing terminals retain their old PATH until restarted.
+Shell aliases/functions named codex can override PATH; remove those manually.
+Unsupported shells fail before MCP registration or hook installation.
+
+Linux has a native lifecycle smoke test in the Ubuntu CI matrix. The test uses
+a local Codex stand-in; it does not establish compatibility with every live
+Codex release or a complete Omarchy desktop session. macOS remains unverified.
+Manual MCP registration remains an option for other environments:
 
 ```sh
 codex mcp add lattice -- node /absolute/path/to/lattice/dist/cli.js mcp-server
 codex mcp list
-```
-
-Use an absolute path. This manual registration provides the three bounded
-repository-context tools, but it does not install the transparent launcher or
-session-sync hooks. Remove only this named registration with:
-
-```sh
+# Remove a manually registered bridge:
 codex mcp remove lattice
 ```
-
-Native macOS/Linux execution still requires verification on those operating
-systems; dependency resolution alone is not a runtime test.
 
 ## First repository check
 

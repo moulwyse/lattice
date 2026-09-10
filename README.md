@@ -164,18 +164,19 @@ lattice --version
 lattice benchmark --worker mock
 ```
 
-Then register the read-only MCP bridge with Codex manually:
+On Linux (Bash, Zsh, Fish), enable the launcher, MCP bridge and hooks:
 
 ```sh
 codex login status
-codex mcp add lattice -- node "$(pwd)/dist/cli.js" mcp-server
-codex mcp list
+lattice integration codex enable
+# Open a new terminal and restart Codex.
+lattice integration codex doctor
 ```
 
-The full automatic launcher and hook lifecycle is currently Windows-only.
-macOS and Linux receive the three bounded repository-context MCP tools through
-the manual registration above. Native runtime verification on those systems is
-still welcome; see [platform support](docs/installation.md#platform-support).
+Linux setup includes shell PATH configuration and supports Arch/Omarchy.
+A native Linux lifecycle smoke test is included in CI; live Omarchy validation
+remains pending. For macOS or manual MCP setup, see
+[platform support](docs/installation.md#platform-support).
 
 If `npm link` is unavailable or requires global permissions, skip it and run
 the CLI from the cloned directory as `node dist/cli.js <command>`.
@@ -188,10 +189,9 @@ Open a terminal in the repository you want to work on and run:
 lattice doctor --workspace .
 ```
 
-Resolve any reported error, then open that repository in Codex. On Windows,
-the enabled integration keeps the Codex model and reasoning selection in sync
-and exposes Lattice automatically. On macOS and Linux, Codex can use the
-manually registered Lattice MCP tools.
+Resolve any reported error, then open that repository in Codex. On Windows
+and Linux, the enabled integration installs the launcher, MCP bridge and
+session synchronization hooks. Hook activation still depends on the Codex client.
 
 ### Undo the integration
 
@@ -202,10 +202,10 @@ lattice integration codex disable
 npm unlink --global lattice-v2
 ```
 
-macOS or Linux:
+Linux automatic integration:
 
 ```sh
-codex mcp remove lattice
+lattice integration codex disable
 npm unlink --global lattice-v2
 ```
 
@@ -378,11 +378,9 @@ never enabled by installation. Run `lattice integration codex doctor`, review
 the reported paths, and keep a configuration backup before enabling it. The
 disable command removes only state that Lattice recognizes as its own.
 
-Automatic persistent-PATH setup through `lattice integration codex enable` is
-currently Windows-only. On macOS and Linux, the core CLI and manual stdio MCP
-registration remain available, but the transparent launcher/hook lifecycle is
-not claimed as implemented. See [installation](docs/installation.md) and
-[provider status](docs/providers.md).
+Automatic persistent-PATH setup supports Windows and Linux (Bash, Zsh, Fish).
+Linux live Omarchy sessions and macOS automatic integration remain unverified.
+See [installation](docs/installation.md) and [provider status](docs/providers.md).
 
 Read [SECURITY.md](SECURITY.md) and
 [`docs/security.md`](docs/security.md) before real use.

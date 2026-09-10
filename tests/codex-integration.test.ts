@@ -324,6 +324,17 @@ describe('Codex integration lifecycle', () => {
     };
     expect(hooks.hooks.SessionStart).toHaveLength(1);
     expect(hooks.hooks.UserPromptSubmit).toHaveLength(1);
+    const repeated = await enableCodexIntegration({
+      cliPath: integration.cliPath,
+      paths: integration.paths,
+      userPathStore: integration.pathStore,
+      nativeTarget: integration.target,
+      codexCommandRunner: fake.runner,
+      registerHooks: true,
+      hooksPath,
+    });
+    expect(repeated.changed).toBe(false);
+    expect(repeated.state.hooks?.createdFile).toBe(true);
 
     const disabled = await disableCodexIntegration({
       paths: integration.paths,

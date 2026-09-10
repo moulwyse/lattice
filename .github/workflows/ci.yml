@@ -29,6 +29,9 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: npm
+      - name: Install Linux shells for integration tests
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y zsh fish
       - run: npm ci
       - name: Run tests
         if: runner.os != 'Windows'

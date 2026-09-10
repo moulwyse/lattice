@@ -46,9 +46,9 @@ explicit; they do not guarantee correct code, lower cost, or safe execution.
 ## Optional integration
 
 - Transparent Codex integration is experimental and changes user-level state.
-- Its automatic persistent-PATH/launcher/hook lifecycle is currently
-  Windows-only. macOS and Linux can use manual stdio MCP registration, but that
-  path has not been run natively during this release audit.
+- Automatic PATH/launcher/hooks are implemented on Windows and Linux
+  (Bash, Zsh, Fish). Linux lifecycle tests use a local Codex stand-in; a full
+  live Omarchy session and native macOS integration remain unverified.
 - It does not route every native file operation through Lattice.
 - MCP registration or hooks can be configured but unused in a particular turn.
 - Provider updates can change configuration formats or launcher behavior.
