@@ -44,7 +44,7 @@ The local verification below needs no model account and makes no model call.
 Run it from the Git repository where you want to use Lattice.
 
 ```sh
-npm install --global github:moulwyse/lattice#v1.0.0
+npx @moulwyse/lattice
 lattice doctor --workspace .
 lattice benchmark --worker mock
 ```
@@ -101,7 +101,7 @@ The GitHub tag gives Windows, macOS, and Linux users one npm-managed
 installation command without requiring an npm registry publication:
 
 ```sh
-npm install --global github:moulwyse/lattice#v1.0.0
+npx @moulwyse/lattice
 lattice --version
 lattice benchmark --worker mock
 ```
@@ -240,7 +240,7 @@ Install the unified release directly from GitHub. Neither the maintainer
 nor the installer needs an npm account:
 
 ```sh
-npm install --global github:moulwyse/lattice#v1.0.0
+npx @moulwyse/lattice
 lattice --version
 ```
 
