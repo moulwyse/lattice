@@ -81,11 +81,10 @@ from observed context grants.
 
 Review user-level paths before enabling it. See [security](security.md).
 
-The automatic launcher, hook, and persistent-PATH lifecycle is currently
-Windows-only. Windows enable/status/doctor/shim/hook/disable behavior was tested
-against Codex CLI `0.145.0` in an isolated `CODEX_HOME`. On macOS and Linux,
-manual stdio MCP registration is documented, but native runtime behavior has
-not been executed and transparent auto-enable is not supported.
+The automatic launcher, hook, and persistent-PATH lifecycle is implemented on
+Windows and Linux (Bash, Zsh, Fish). Windows was audited against Codex CLI
+`0.145.0`. Linux has a native lifecycle smoke test using a local Codex stand-in;
+a full live Omarchy session remains unverified. See [installation](installation.md#platform-support).
 
 ## Claude Code adapter — beta
 

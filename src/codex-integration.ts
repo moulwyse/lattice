@@ -36,6 +36,7 @@ import {
   type NativeCodexTarget,
 } from './codex-launcher.js';
 import { runManagedProcess } from './managed-process.js';
+import { posixUserPathStore } from './posix-user-path.js';
 
 const SHIM_MARKER = 'Lattice managed Codex shim';
 const USER_PATH_VALUE_ENV = 'LATTICE_INTEGRATION_USER_PATH_VALUE';
@@ -69,6 +70,11 @@ export const CodexIntegrationStateSchema = z
         raw: z.array(z.string()).min(1),
       })
       .strict(),
+    pathProfiles: z.array(z.string().min(1)).min(1).optional(),
+    pathEnvironment: z.object({
+      HOME: z.string(), SHELL: z.string(), ZDOTDIR: z.string().optional(),
+      XDG_CONFIG_HOME: z.string().optional(),
+    }).optional(),
     originalUserPath: z.string().nullable(),
     enabledUserPath: z.string(),
     nativeTarget: NativeCodexTargetSchema,
@@ -1128,8 +1134,10 @@ export async function enableCodexIntegration(
       const installedHooks = installCodexSyncHooks({
         nodeExecutable: existing.nodeExecutable,
         cliPath,
-        runnerPath: join(paths.stateDirectory, 'codex-hook.cmd'),
-        ...(options.hooksPath ? { path: options.hooksPath } : {}),
+        ...(process.platform === 'win32'
+          ? { runnerPath: join(paths.stateDirectory, 'codex-hook.cmd') }
+          : {}),
+        path: options.hooksPath ?? join(env.CODEX_HOME ?? join(env.HOME ?? homedir(), '.codex'), 'hooks.json'),
       });
       if (
         installedHooks.changed ||
@@ -1166,7 +1174,8 @@ export async function enableCodexIntegration(
   }
 
   const nodeExecutable = resolve(process.execPath);
-  const pathStore = options.userPathStore ?? windowsUserPathStore(env);
+  const pathStore = options.userPathStore ?? (process.platform === 'win32'
+    ? windowsUserPathStore(env) : posixUserPathStore(paths.shimDirectory, env));
   const originalUserPath = await pathStore.read();
   const nativeTarget = resolveNativeCodex({
     env,
@@ -1199,6 +1208,12 @@ export async function enableCodexIntegration(
       nodeExecutable,
       ...paths,
       shimPaths,
+      ...(process.platform !== 'win32' ? { pathEnvironment: {
+        HOME: env.HOME || homedir(), SHELL: env.SHELL || '/bin/bash',
+        ...(env.ZDOTDIR ? { ZDOTDIR: env.ZDOTDIR } : {}),
+        ...(env.XDG_CONFIG_HOME ? { XDG_CONFIG_HOME: env.XDG_CONFIG_HOME } : {}),
+      } } : {}),
+      ...('files' in pathStore ? { pathProfiles: pathStore.files } : {}),
       originalUserPath,
       enabledUserPath,
       nativeTarget,
@@ -1231,8 +1246,10 @@ export async function enableCodexIntegration(
       const installedHooks = installCodexSyncHooks({
         nodeExecutable,
         cliPath,
-        runnerPath: join(paths.stateDirectory, 'codex-hook.cmd'),
-        ...(options.hooksPath ? { path: options.hooksPath } : {}),
+        ...(process.platform === 'win32'
+          ? { runnerPath: join(paths.stateDirectory, 'codex-hook.cmd') }
+          : {}),
+        path: options.hooksPath ?? join(env.CODEX_HOME ?? join(env.HOME ?? homedir(), '.codex'), 'hooks.json'),
       });
       hooks = installedHooks.registration;
       hooksChanged = installedHooks.changed;
@@ -1322,7 +1339,8 @@ export async function disableCodexIntegration(
       warnings: [] as string[],
     };
   }
-  const pathStore = options.userPathStore ?? windowsUserPathStore(env);
+  const pathStore = options.userPathStore ?? (process.platform === 'win32'
+    ? windowsUserPathStore(env) : posixUserPathStore(paths.shimDirectory, state.pathEnvironment ?? env, state.pathProfiles));
   const current = await pathStore.read();
   const exact = current === state.enabledUserPath;
   const restored = exact
@@ -1399,7 +1417,8 @@ export async function codexIntegrationStatus(
       bridgeInspection: null,
     };
   }
-  const pathStore = options.userPathStore ?? windowsUserPathStore(env);
+  const pathStore = options.userPathStore ?? (process.platform === 'win32'
+    ? windowsUserPathStore(env) : posixUserPathStore(paths.shimDirectory, state.pathEnvironment ?? env, state.pathProfiles));
   const userPath = await pathStore.read();
   const userPathContainsShim = (userPath ?? '')
     .split(delimiter)
