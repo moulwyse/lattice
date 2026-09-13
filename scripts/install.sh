@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 log_step() { printf "\033[36m[lattice-install]\033[0m %s\n" "$1"; }
