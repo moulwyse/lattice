@@ -3,15 +3,17 @@
 This guide covers the GitHub release package and source installation. For most
 people, the short version is:
 
-```sh
-npm install --global github:moulwyse/lattice#v1.0.0
-lattice benchmark --worker mock
+```powershell
+# Windows (PowerShell):
+irm https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/install.ps1 | iex
 ```
 
-npm installs the versioned source directly from GitHub and builds the CLI.
-No npm registry publication or npm account is required. One package installs both the Codex and Claude
-Code adapters; provider accounts are needed only when that provider is used.
-To build directly from the canonical source:
+```sh
+# Linux / macOS (Bash):
+curl -fsSL https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/install.sh | bash
+```
+
+Or build directly from the canonical source:
 
 ```sh
 git clone https://github.com/moulwyse/lattice.git
@@ -37,9 +39,23 @@ Codex is optional and is needed only for `--worker codex` or the optional Codex
 integration. Claude authentication or API access is optional and is needed only
 for `--worker claude`, `lattice claude`, or the Claude Code Beta integration.
 
-## GitHub release installation
+## GitHub release and automated installation
 
-Install or upgrade from the tagged source with npm (Git is required):
+Install or upgrade using the automated installer scripts, from tagged source with npm, or from canonical source.
+
+On modern npm (such as npm 12 / Node 24), remote Git package fetching and lifecycle build scripts are disabled by default (`EALLOWGIT` and `EALLOWSCRIPTS`). For the most reliable setup without manual flags, use the installer scripts:
+
+```powershell
+# Windows (PowerShell):
+irm https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/install.ps1 | iex
+```
+
+```sh
+# Linux / macOS (Bash):
+curl -fsSL https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/install.sh | bash
+```
+
+Or install with npm (requires Git and appropriate npm security settings):
 
 ```sh
 npm install --global github:moulwyse/lattice#v1.0.0

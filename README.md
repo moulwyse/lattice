@@ -43,14 +43,29 @@ You need [Git](https://git-scm.com/downloads) and Node.js `20.19+` or `22.12+`.
 The local verification below needs no model account and makes no model call.
 Run it from the Git repository where you want to use Lattice.
 
+```powershell
+# Windows (PowerShell):
+irm https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/install.ps1 | iex
+```
+
 ```sh
-npm install --global github:moulwyse/lattice#v1.0.0
+# Linux / macOS (Bash):
+curl -fsSL https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/install.sh | bash
+```
+
+Or build from canonical source:
+
+```sh
+git clone https://github.com/moulwyse/lattice.git
+cd lattice
+npm ci
+npm run build
+npm link
 lattice doctor --workspace .
 lattice benchmark --worker mock
 ```
 
-If npm reports `EALLOWGIT` (for example npm 12), use
-`npm install --global --allow-git=root github:moulwyse/lattice#v1.0.0`.
+Direct `npm install --global github:moulwyse/lattice#v1.0.0` is supported on npm versions with remote Git execution permitted. Modern npm (such as npm 12) enforces strict security policies on remote Git lifecycle builds (`EALLOWGIT`/`EALLOWSCRIPTS`); use the automated installer script or clone directly.
 
 A healthy verification ends with `Status: passed`. The unified package includes
 the Codex and Claude Code adapters; each integration remains opt-in so Lattice
