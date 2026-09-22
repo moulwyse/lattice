@@ -180,6 +180,20 @@ describe('in-process sidecar server', () => {
     ).toBeGreaterThan(0);
   });
 
+  test('serves the leading part of a file larger than the byte budget, marked truncated', async () => {
+    const { state } = await fixtureServer();
+    const result = (await sidecarContext(state, {
+      pathHint: 'src/auth/service.js',
+      maxPages: 1,
+      maxBytes: 40,
+    })) as ContextResult & { pages: { truncated?: boolean }[] };
+    expect(result.pages).toHaveLength(1);
+    expect(result.pages[0].truncated).toBe(true);
+    expect(Buffer.byteLength(result.pages[0].content)).toBeLessThanOrEqual(40);
+    expect(result.pages[0].reason).toMatch(/truncated to the first \d+ of \d+ bytes/);
+    expect(result.bytesUsed).toBeLessThanOrEqual(40);
+  });
+
   test('tracks two concurrent leases independently', async () => {
     const { server, state } = await fixtureServer();
     const first = await attachSidecar(state, { heartbeat: false });

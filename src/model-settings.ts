@@ -10,6 +10,7 @@ export const reasoningEfforts = [
   'medium',
   'high',
   'xhigh',
+  'max',
 ] as const satisfies readonly ModelReasoningEffort[];
 
 export type CodexModelOverrides = {

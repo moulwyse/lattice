@@ -91,6 +91,15 @@ export type ProviderPatchChange =
       editHandle: string;
       operation: 'replace_text';
       replacements: { oldContent: string; newContent: string }[];
+    }
+  | {
+      editHandle: string;
+      operation: 'delete_file';
+    }
+  | {
+      operation: 'create_file';
+      path: string;
+      content: string;
     };
 
 export type ProviderPatchIR = {
@@ -169,7 +178,7 @@ export type Usage = {
   costUsd: number | null;
 };
 
-export type TurnKind = 'initial' | 'context_fault' | 'protocol_repair';
+export type TurnKind = 'initial' | 'context_fault' | 'protocol_repair' | 'patch_revision';
 
 export type ProtocolTurnDiagnostics = {
   rawResponseSha256: string | null;
@@ -214,6 +223,7 @@ export type RuntimeState =
   | 'CONTEXT_FAULT'
   | 'PATCH_LOWERED'
   | 'PROTOCOL_REPAIR'
+  | 'PATCH_REVISION'
   | 'TRANSACTION_RUNNING'
   | 'VERIFYING'
   | 'PASSED'

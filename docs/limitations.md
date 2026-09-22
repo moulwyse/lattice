@@ -7,8 +7,14 @@ explicit; they do not guarantee correct code, lower cost, or safe execution.
 
 - Relevant code can be omitted by ranking, ignore rules, or budget limits.
 - Estimated tokens are not provider billing counters.
-- Symbol extraction and import resolution are intentionally lightweight and can
-  be incomplete for dynamic or uncommon language features.
+- Symbol extraction uses per-language regular expressions, not parsers, and can
+  be incomplete for dynamic or uncommon language features. Local import
+  resolution (and therefore dependency-driven context selection) exists only
+  for JavaScript and TypeScript; other languages rely on path and symbol
+  relevance.
+- Verification commands are limited to the `npm`/`npx` allowlist and the
+  repository's own verification-like package scripts; `pytest`, `go test`,
+  `cargo test`, `make` and similar runners are not yet allowlisted.
 - A model can request more context, but the request can still be insufficient
   or misdirected.
 
@@ -21,6 +27,15 @@ explicit; they do not guarantee correct code, lower cost, or safe execution.
   maintainability problems.
 - Worktree isolation depends on Git and does not isolate the operating system,
   network, user credentials, or external services.
+- Verified patches are applied to the workspace by default (`--no-apply`
+  verifies only). Patches cannot create hidden files or directories, edit
+  existing tests, or edit configuration pages such as `package.json`, so tasks
+  that need those changes cannot be completed through a worker patch.
+- The worker gets at most two patch revisions after a rejected patch or a
+  failed verification; it does not iterate freely like an interactive agent.
+- The Codex worker runs in an empty scratch directory and answers from granted
+  pages only, so repository instructions such as `AGENTS.md` are not loaded
+  unless they are granted as context.
 
 ## Provider behavior
 
@@ -63,6 +78,10 @@ explicit; they do not guarantee correct code, lower cost, or safe execution.
   fixture. The accepted patches differed by one blank line.
 - The Opus 5 result is a community-operated reproduction of the
   maintainer-supplied task, not independent task selection.
+- In v1.0.0 the Lattice arm of the reset-token comparisons also received five
+  hand-written acceptance criteria for that fixture which the RAW arm did not,
+  and the fixture used `core.autocrlf=false`. Those v1.0.0 comparisons are not
+  like-for-like and should be re-measured with the current release.
 - Small pilots do not establish general task-success non-inferiority.
 - Mean reductions can be dominated by a few large tasks; paired ratios,
   medians, confidence intervals, and all failures are required.

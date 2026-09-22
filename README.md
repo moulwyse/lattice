@@ -65,7 +65,7 @@ lattice doctor --workspace .
 lattice benchmark --worker mock
 ```
 
-Direct `npm install --global github:moulwyse/lattice#v1.0.0` is supported on npm versions with remote Git execution permitted. Modern npm (such as npm 12) enforces strict security policies on remote Git lifecycle builds (`EALLOWGIT`/`EALLOWSCRIPTS`); use the automated installer script or clone directly.
+Direct `npm install --global github:moulwyse/lattice#v2.0.0` is supported on npm versions with remote Git execution permitted. Modern npm (such as npm 12) enforces strict security policies on remote Git lifecycle builds (`EALLOWGIT`/`EALLOWSCRIPTS`); use the automated installer script or clone directly.
 
 A healthy verification ends with `Status: passed`. The unified package includes
 the Codex and Claude Code adapters; each integration remains opt-in so Lattice
@@ -76,11 +76,11 @@ Created and led by **[Moulwyse](https://github.com/moulwyse)**.
 
 This repository is the original and canonical home of Lattice.
 
-> **v1.0.0 scope:** review the [limitations](docs/limitations.md) and
+> **v2.0.0 scope:** review the [limitations](docs/limitations.md) and
 > [security model](SECURITY.md) before using Lattice on a sensitive repository.
 > Install the tagged GitHub release with npm; `@moulwyse/lattice` is not yet available in the public npm registry. Claude Code stays Beta;
 > transparent Codex hooks stay experimental.
-> See the [release and upgrade guide](docs/release-v1.0.0.md).
+> See the [release and upgrade guide](docs/release-v2.0.0.md).
 
 ## How it works
 
@@ -113,12 +113,12 @@ You need [Git](https://git-scm.com/downloads) and a supported
 [Node.js](https://nodejs.org/en/download) version (`20.19+` or `22.12+`). You
 do not need an API key to install Lattice or run its local demo.
 
-### Run the unified v1.0.0 release
+### Run the unified v2.0.0 release
 
 Install the tagged GitHub release globally through npm on Windows, macOS, or Linux:
 
 ```sh
-npm install --global github:moulwyse/lattice#v1.0.0
+npm install --global github:moulwyse/lattice#v2.0.0
 lattice --version
 lattice benchmark --worker mock
 ```
@@ -256,7 +256,7 @@ commands and defaults remain unchanged.
 Install the same unified release through npm:
 
 ```sh
-npm install --global github:moulwyse/lattice#v1.0.0
+npm install --global github:moulwyse/lattice#v2.0.0
 lattice --version
 ```
 

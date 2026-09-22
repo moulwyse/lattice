@@ -1,10 +1,15 @@
 [CmdletBinding()]
 param(
-  [string]$Ref = "main",
+  # Branch or tag to install. `irm ... | iex` cannot pass parameters, so the
+  # LATTICE_REF and LATTICE_INSTALL_DIR environment variables are honored too.
+  [string]$Ref = "",
   [string]$InstallDir = ""
 )
 
 $ErrorActionPreference = "Stop"
+$RepositoryUrl = "https://github.com/moulwyse/lattice.git"
+if (-not $Ref) { $Ref = if ($env:LATTICE_REF) { $env:LATTICE_REF } else { "main" } }
+if (-not $InstallDir -and $env:LATTICE_INSTALL_DIR) { $InstallDir = $env:LATTICE_INSTALL_DIR }
 
 function Write-Step {
   param([string]$Message)
@@ -16,10 +21,35 @@ function Write-Ok {
   Write-Host "OK: $Message" -ForegroundColor Green
 }
 
+# `throw`, not `exit`: under `irm | iex` an exit would close the user's shell.
 function Write-Fail {
   param([string]$Message)
   Write-Host "Error: $Message" -ForegroundColor Red
-  exit 1
+  throw "Lattice installation failed: $Message"
+}
+
+# Native commands do not honor $ErrorActionPreference in Windows PowerShell.
+function Invoke-Native {
+  param([string]$Description, [scriptblock]$Command)
+  & $Command
+  if ($LASTEXITCODE -ne 0) {
+    Write-Fail "$Description failed with exit code $LASTEXITCODE."
+  }
+}
+
+# cmd.exe reads batch files in the OEM code page; PowerShell 5.1 reads a
+# BOM-less script as ANSI. Encode shims so non-ASCII profile paths survive.
+function Write-Shim {
+  param([string]$Path, [string]$Content, [string]$Kind)
+  if ($Kind -eq "cmd") {
+    $oem = [System.Text.Encoding]::GetEncoding([Globalization.CultureInfo]::CurrentCulture.TextInfo.OEMCodePage)
+    if ($oem.GetString($oem.GetBytes($Content)) -ne $Content) {
+      Write-Fail "The path '$Content' cannot be represented in the console code page; choose an ASCII -InstallDir."
+    }
+    [System.IO.File]::WriteAllBytes($Path, $oem.GetBytes($Content))
+  } else {
+    [System.IO.File]::WriteAllText($Path, $Content, (New-Object System.Text.UTF8Encoding($true)))
+  }
 }
 
 Write-Step "Checking environment prerequisites..."
@@ -71,16 +101,27 @@ if (-not $isLocalRepo) {
   }
 
   if (Test-Path (Join-Path $targetDir ".git")) {
-    Write-Step "Updating existing installation in $targetDir..."
-    & git -C $targetDir fetch --all --tags
-    & git -C $targetDir checkout $Ref
-    & git -C $targetDir pull origin $Ref
-  } else {
-    Write-Step "Cloning Lattice into $targetDir..."
-    if (Test-Path $targetDir) {
-      Remove-Item -Recurse -Force $targetDir
+    $origin = (& git -C $targetDir remote get-url origin 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $origin -notmatch 'moulwyse/lattice(\.git)?$') {
+      Write-Fail "$targetDir is a Git checkout of another project; choose a different -InstallDir."
     }
-    & git clone --branch $Ref --depth 1 "https://github.com/moulwyse/lattice.git" $targetDir
+    Write-Step "Updating existing installation in $targetDir to $Ref..."
+    Invoke-Native "git fetch" { git -C $targetDir fetch --tags --force origin }
+    & git -C $targetDir show-ref --verify --quiet "refs/remotes/origin/$Ref"
+    if ($LASTEXITCODE -eq 0) {
+      Invoke-Native "git checkout" { git -C $targetDir checkout $Ref }
+      Invoke-Native "git pull" { git -C $targetDir pull --ff-only origin $Ref }
+    } else {
+      Invoke-Native "git checkout" { git -C $targetDir checkout --detach $Ref }
+    }
+  } else {
+    # Never delete a directory we did not create: clone only into a missing
+    # or empty directory.
+    if ((Test-Path $targetDir) -and (Get-ChildItem -Force -LiteralPath $targetDir | Select-Object -First 1)) {
+      Write-Fail "$targetDir already exists and is not a Lattice checkout. Remove it yourself or choose a different -InstallDir."
+    }
+    Write-Step "Cloning Lattice $Ref into $targetDir..."
+    Invoke-Native "git clone" { git clone --branch $Ref --depth 1 $RepositoryUrl $targetDir }
   }
 } else {
   Write-Step "Using current repository checkout: $targetDir"
@@ -91,9 +132,10 @@ Push-Location $targetDir
 try {
   & npm ci
   if ($LASTEXITCODE -ne 0) {
-    & npm install
+    Write-Step "npm ci failed; retrying with npm install..."
+    Invoke-Native "npm install" { npm install }
   }
-  & npm run build
+  Invoke-Native "npm run build" { npm run build }
 } finally {
   Pop-Location
 }
@@ -132,12 +174,12 @@ if (`$MyInvocation.ExpectingInput) {
 exit `$LASTEXITCODE
 "@
 
-  Set-Content -Path $cmdFile -Value $cmdContent -Encoding Ascii
-  Set-Content -Path $ps1File -Value $ps1Content -Encoding Ascii
+  Write-Shim -Path $cmdFile -Content $cmdContent -Kind "cmd"
+  Write-Shim -Path $ps1File -Content $ps1Content -Kind "ps1"
   Write-Ok "Registered global command: $cmdName"
 }
 
 Write-Step "Verifying installation..."
-& node $cliPath --version
+Invoke-Native "lattice --version" { node $cliPath --version }
 Write-Ok "Lattice installed and verified successfully!"
 Write-Host "Try running: lattice --help or lattice benchmark --worker mock" -ForegroundColor Yellow

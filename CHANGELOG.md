@@ -8,6 +8,155 @@ intends to use semantic versioning after the first public release.
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-09-23
+
+MAJOR release. Lattice now completes ordinary tasks on ordinary repositories:
+v1.0.0 only passed its bundled reset-token fixture. Defaults, the worker
+protocol and task results changed incompatibly; see the
+[upgrade guide](docs/release-v2.0.0.md).
+
+### Breaking changes
+
+- `lattice run` and `lattice continue` apply a verified patch to the
+  workspace by default. Pass `--no-apply` to verify only.
+- Worker protocol v5 adds `create_file`, `delete_file` and `PATCH_REVISION`
+  turns. `providerProtocolVersion` is 5, and verified patches cached by
+  v1.0.0 are ignored.
+- Task results are `passed`, `failed` or `cancelled`; `partial` is no
+  longer produced. Per-criterion evidence is informational and criteria are
+  derived from the goal instead of fixture-specific text.
+- The ordinary Codex worker is isolated: it runs in an empty scratch
+  directory without user MCP servers, hooks, plugins, network access or web
+  search, and answers from granted pages only.
+- Runs started in a repository subdirectory operate on the repository root.
+- The Lattice-first hook policy denies ordinary tools at most once per turn.
+- The verification allowlist adds the repository's own `test*`, `lint`,
+  `check`, `typecheck` and `build` package scripts and excludes watch,
+  dev-server and UI scripts.
+- `create_file` refuses hidden paths.
+
+### Fixed
+
+- Tasks outside the bundled reset-token fixture no longer always fail: the
+  task compiler derived hard-coded reset-token criteria, and acceptance
+  evidence only recognized fixture vocabulary, so every other task ended as
+  `partial`/`FAILED` even when verification passed. Task status is now decided
+  by the verification commands; criteria are derived from the goal's clauses
+  and attributed to tests generically.
+- A passed `lattice run`/`lattice continue` now applies the verified patch to
+  the workspace (fingerprint-checked `git apply`); previously the diff was
+  only stored under `.lattice/`. Use `--no-apply` to verify only.
+- Verification no longer fails for projects with dependencies: installed
+  `node_modules` directories are linked into the isolated worktree.
+- Uncommitted work no longer blocks a run: the worktree reproduces the
+  workspace's dirty and untracked state, and the diff contains only the
+  transaction's own changes.
+- A patch with no verification command can no longer pass.
+- Indexing is about 50x faster on large repositories (one batched
+  `git hash-object` per 256 files instead of 2-5 Git processes per file).
+- Test detection no longer misses root `test/` and `tests/` directories;
+  config detection no longer matches every path containing "config".
+- TypeScript ESM imports such as `./x.js` resolve to `x.ts` during context
+  selection; complete pages no longer report one extra trailing line.
+- `replace_text` works on CRLF checkouts (the Git for Windows default):
+  model edits with LF line endings are matched against the file's own
+  convention, and `replace_file` preserves the file's line endings.
+- Runs started from a repository subdirectory operate on the repository root
+  instead of failing with `ENOENT` during the transaction.
+- An untracked nested Git repository (or dirty submodule) in the workspace no
+  longer makes every transaction fail; thousands of dirty paths no longer hit
+  the Windows command-line limit.
+- Ctrl+C in `lattice codex` / `lattice claude` reaches the native CLI once
+  instead of force-killing it on Windows or arriving twice (exit) on POSIX.
+- A missing executable (for example `git` or `npm` not on PATH) is reported as
+  an error instead of crashing Lattice with an unhandled `error` event.
+- The per-turn worker deadline now actually aborts Claude turns (it previously
+  never reached the Claude query); the default deadline is 5 minutes and
+  `LATTICE_WORKER_TIMEOUT_MS` overrides it.
+- A hanging verification command is reported as failed verification (exit
+  124) instead of aborting the run; stored verification output is bounded.
+- The Lattice-first hook policy denies at most once per turn, so a turn can
+  no longer be blocked completely when the Lattice MCP tools are unavailable;
+  `codex-raw` / `lattice codex --raw` bypass the hooks like the Claude raw mode.
+- The worker prompt's repository map is ranked by task relevance and capped at
+  12,000 characters instead of listing every file and symbol.
+- High-risk tasks no longer force whole files of any size into context (files
+  above ~48 KB were impossible); a faulted file that does not fit the budget
+  falls back to the slice around the requested symbol.
+- `lattice continue` records a patch that cannot be lowered as a failed task
+  instead of leaving it `running`.
+- Codex developer instructions are merged at the front of the argument list
+  (never after `--`), multi-line TOML strings are read correctly, and nothing
+  is injected when existing instructions cannot be merged safely.
+- The Windows Codex integration preserves `%VAR%` entries and the
+  `REG_EXPAND_SZ` type of the user PATH, so disable restores it exactly.
+- Sidecar: watching works for nested directories on Linux, watcher errors no
+  longer crash it, a stale lock from a crashed sidecar is recovered, reindexing
+  is serialized, and state is written only when it changes.
+- MCP bridge: a failed sidecar attachment is retried on the next call instead
+  of failing the whole session, a stopped sidecar is re-attached once, and
+  reading a file larger than `maxBytes` returns its truncated beginning.
+- Claude and Codex hooks start about 45% faster (one Git process, no sidecar
+  module on tool events).
+- `.mjs`/`.cjs` tests are selected as context under `node --test`.
+- The installers never delete an existing directory that is not a Lattice
+  checkout, stop on `git`/`npm` failures, update an existing installation,
+  no longer close the PowerShell window on failure under `irm | iex`, and write
+  shims that work with non-ASCII profile paths.
+- `lattice doctor` no longer creates `.lattice/` in the inspected directory and
+  checks Node.js against the supported engine range.
+
+### Added
+
+- Worker protocol v5: `create_file` (new path + content) and `delete_file`
+  (complete-file grant) operations.
+- Indexing of Python, Go, Rust, Java, Kotlin, C#, Ruby, PHP, Swift, C/C++,
+  CSS, HTML, Vue, Svelte, YAML, TOML and shell files; doc comments no longer
+  contribute symbols.
+- Repository package scripts named `test*`, `lint`, `check`, `typecheck` and
+  `build` are added to the verification allowlist.
+- Vitest/Jest, pytest and `go test` reporter lines are recognized as evidence.
+- Patch revision turns: a patch rejected by edit-grant lowering, or one whose
+  verification fails, is returned to the worker with the concrete error for up
+  to two corrected patches.
+- Codex worker structured output (`outputSchema`), with an automatic retry
+  without it if the provider rejects the schema.
+- `LATTICE_REF` and `LATTICE_INSTALL_DIR` for the installers.
+
+### Security
+
+- `.lattice/` (sidecar token, indexes, task results, worktrees) is added to the
+  clone-local `.git/info/exclude`, so it cannot be committed by accident.
+- `create_file` cannot create hidden paths such as `.envrc`,
+  `.vscode/tasks.json`, `.github/workflows` or `.husky`, because verified
+  patches are applied automatically.
+- Dependency links are removed from retained worktrees, and worktrees left by a
+  crashed run are cleaned up link-first, so no recursive delete of `.lattice/`
+  can reach the user's `node_modules`.
+- The Codex worker runs in an empty scratch directory without network access,
+  web search, MCP servers, hooks or plugins, so it answers from granted pages.
+- `.mcp.json` no longer receives an unused absolute workspace path; a file
+  Lattice creates is excluded locally, and a tracked one triggers a warning.
+- The hook policy state lives in the per-user state directory instead of the
+  shared temporary directory on Linux and macOS.
+
+### Changed
+
+- The Codex prompt module now re-exports the shared prompt instead of
+  duplicating it.
+- The ordinary Codex worker inherits model and provider settings but no longer
+  user MCP servers, hooks or plugins (previously only benchmarks isolated it).
+- Watch, dev-server and UI package scripts (`test:watch`, `test:ui`, ...) are
+  not allowlisted for verification because they never exit.
+- Codex `max` reasoning effort is accepted.
+- `START-ASTRA-BENCHMARK.cmd` asks for confirmation before spending quota.
+- `* text=auto` in `.gitattributes`; files committed with mixed line endings
+  are normalized.
+- Evidence note: in v1.0.0 the Lattice arm of the reset-token benchmarks also
+  received five hand-written acceptance criteria that the RAW arm did not, and
+  the RAW/Lattice Codex configurations differed from ordinary use. Published
+  v1.0.0 comparisons should be re-measured with this release.
+
 ## [1.0.0] - 2026-09-06
 
 ### Added
@@ -142,6 +291,8 @@ previous Claude Code Beta prerelease.
 - Other provider adapters are not included.
 - Public CLI, MCP, and persistence compatibility is not stable before 1.0.
 
-[Unreleased]: https://github.com/moulwyse/lattice/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/moulwyse/lattice/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/moulwyse/lattice/compare/v1.0.0...v2.0.0
+[1.0.0]: https://github.com/moulwyse/lattice/compare/v0.1.1...v1.0.0
 [0.1.1]: https://github.com/moulwyse/lattice/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/moulwyse/lattice/releases/tag/v0.1.0

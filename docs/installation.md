@@ -13,6 +13,13 @@ irm https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/install.ps1 
 curl -fsSL https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/install.sh | bash
 ```
 
+The installers clone into `%LOCALAPPDATA%\lattice-agent` or
+`~/.local/share/lattice-agent` and update that checkout when run again. Set
+`LATTICE_REF` to install a specific branch or tag (for example `v2.0.0`) and
+`LATTICE_INSTALL_DIR` to use another directory. They never delete an existing
+directory that is not a Lattice checkout, and they stop on the first failed
+`git` or `npm` step.
+
 Or build directly from the canonical source:
 
 ```sh
@@ -58,7 +65,7 @@ curl -fsSL https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/insta
 Or install with npm (requires Git and appropriate npm security settings):
 
 ```sh
-npm install --global github:moulwyse/lattice#v1.0.0
+npm install --global github:moulwyse/lattice#v2.0.0
 ```
 
 Verify the command and run the no-model smoke test:

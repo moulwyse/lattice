@@ -18,9 +18,12 @@ import {
   resolveClaudeModelSettings,
 } from '../src/claude-model-settings.js';
 import {
+  ClaudeWorker,
   claudeProviderUsage,
   claudeQueryOptions,
 } from '../src/claude-worker.js';
+import { compileTask } from '../src/task.js';
+import { telemetry } from '../src/telemetry.js';
 import { applyCodexLatticePolicy } from '../src/codex-lattice-policy.js';
 import {
   readClaudeSessionModelState,
@@ -134,6 +137,55 @@ describe('Claude provider protocol', () => {
         },
       },
     }))).toThrow(/Claude worker protocol error/);
+  });
+});
+
+describe('Claude worker deadline', () => {
+  it('aborts a Claude turn that exceeds the per-turn deadline', async () => {
+    const previous = process.env.LATTICE_WORKER_TIMEOUT_MS;
+    process.env.LATTICE_WORKER_TIMEOUT_MS = '200';
+    let aborted = false;
+    try {
+      const workspace = temporaryDirectory('lattice-claude-deadline-');
+      const worker = new ClaudeWorker(
+        resolveClaudeModelSettings(workspace),
+        ({ options }) =>
+          (async function* () {
+            await new Promise((resolve) =>
+              options!.abortController!.signal.addEventListener('abort', resolve, { once: true }),
+            );
+            aborted = true;
+          })(),
+      );
+      const started = Date.now();
+      await expect(
+        worker.run({
+          workspace,
+          task: compileTask('Change value'),
+          pages: [],
+          repositoryMap: [],
+          signal: new AbortController().signal,
+          metrics: telemetry(),
+          editGrants: {
+            schemaVersion: 1,
+            taskId: 'task',
+            sessionId: 'session',
+            repositoryId: 'repo',
+            baseCommit: 'base',
+            epoch: 1,
+            nextHandle: 1,
+            grants: [],
+            mappingSha256: '',
+          },
+        }),
+      ).rejects.toThrow('worker timeout after 200ms');
+      expect(Date.now() - started).toBeLessThan(5_000);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(aborted).toBe(true);
+    } finally {
+      if (previous === undefined) delete process.env.LATTICE_WORKER_TIMEOUT_MS;
+      else process.env.LATTICE_WORKER_TIMEOUT_MS = previous;
+    }
   });
 });
 

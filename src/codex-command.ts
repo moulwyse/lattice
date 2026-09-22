@@ -17,84 +17,164 @@ export const LATTICE_ROUTING_INSTRUCTIONS =
   'Use native shell/filesystem reads only when Lattice cannot provide the required information or runtime/generated state must be inspected.\n' +
   'Use native editing tools normally.';
 
-function unquoteTomlString(val: string): string {
-  val = val.trim();
-  if (val.startsWith('"""') && val.endsWith('"""')) {
-    val = val.slice(3, -3);
-  } else if (val.startsWith("'''") && val.endsWith("'''")) {
-    val = val.slice(3, -3);
-  } else if (val.startsWith('"') && val.endsWith('"')) {
-    val = val.slice(1, -1);
-  } else if (val.startsWith("'") && val.endsWith("'")) {
-    val = val.slice(1, -1);
+const TOML_ESCAPES: Record<string, string> = {
+  b: '\b',
+  t: '\t',
+  n: '\n',
+  f: '\f',
+  r: '\r',
+  '"': '"',
+  '\\': '\\',
+};
+
+/**
+ * Parse one TOML string value (basic, literal, or their multi-line forms)
+ * starting at `start`. Returns null for anything that is not a complete
+ * string, so callers can refuse to guess.
+ */
+export function parseTomlString(text: string, start: number) {
+  const multiLine = text.startsWith('"""', start) || text.startsWith("'''", start);
+  const quote = text[start];
+  if (quote !== '"' && quote !== "'") return null;
+  const delimiter = multiLine ? quote.repeat(3) : quote;
+  let index = start + delimiter.length;
+  if (multiLine && text.startsWith('\r\n', index)) index += 2;
+  else if (multiLine && text[index] === '\n') index += 1;
+  let value = '';
+  while (index < text.length) {
+    if (text.startsWith(delimiter, index)) {
+      return { value, end: index + delimiter.length };
+    }
+    const character = text[index];
+    if (!multiLine && (character === '\n' || character === '\r')) return null;
+    if (quote === "'" || character !== '\\') {
+      value += character;
+      index += 1;
+      continue;
+    }
+    const escape = text[index + 1];
+    if (escape === undefined) return null;
+    if (escape in TOML_ESCAPES) {
+      value += TOML_ESCAPES[escape];
+      index += 2;
+    } else if (escape === 'u' || escape === 'U') {
+      const length = escape === 'u' ? 4 : 8;
+      const hex = text.slice(index + 2, index + 2 + length);
+      if (!new RegExp(`^[0-9a-fA-F]{${length}}$`).test(hex)) return null;
+      value += String.fromCodePoint(Number.parseInt(hex, 16));
+      index += 2 + length;
+    } else if (multiLine && /[ \t\r\n]/.test(escape)) {
+      // Line-ending backslash: trim the newline and following whitespace.
+      const rest = /^\\[ \t]*\r?\n[ \t\r\n]*/.exec(text.slice(index));
+      if (!rest) return null;
+      index += rest[0].length;
+    } else {
+      return null;
+    }
   }
-  return val
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '\r')
-    .replace(/\\t/g, '\t')
-    .replace(/\\"/g, '"')
-    .replace(/\\\\/g, '\\');
+  return null;
 }
 
-function getGlobalDeveloperInstructions(env?: NodeJS.ProcessEnv): string | null {
-  try {
-    const codexHome = env?.CODEX_HOME || process.env.CODEX_HOME || join(homedir(), '.codex');
-    const configPath = join(codexHome, 'config.toml');
-    if (!existsSync(configPath)) return null;
-    const content = readFileSync(configPath, 'utf8');
-    const match = content.match(/^\s*developer_instructions\s*=\s*(.*)$/m);
-    if (!match || !match[1]) return null;
-    return unquoteTomlString(match[1]);
-  } catch {
-    return null;
-  }
+type ConfiguredInstructions =
+  | { kind: 'none' }
+  | { kind: 'value'; value: string }
+  | { kind: 'unreadable' };
+
+/**
+ * `developer_instructions` from a Codex config file. Only a top-level string
+ * is understood; a value in a profile or an unusual form is reported as
+ * unreadable so the launcher never replaces instructions it cannot merge.
+ */
+export function configuredDeveloperInstructions(content: string): ConfiguredInstructions {
+  if (!/developer_instructions/.test(content)) return { kind: 'none' };
+  const assignment = /^[ \t]*developer_instructions[ \t]*=[ \t]*/m.exec(content);
+  if (!assignment) return { kind: 'unreadable' };
+  const before = content.slice(0, assignment.index);
+  if (/^[ \t]*\[/m.test(before)) return { kind: 'unreadable' };
+  const parsed = parseTomlString(content, assignment.index + assignment[0].length);
+  if (!parsed) return { kind: 'unreadable' };
+  const rest = content.slice(parsed.end).split(/\r?\n/, 1)[0] ?? '';
+  if (!/^[ \t]*(?:#.*)?$/.test(rest)) return { kind: 'unreadable' };
+  return { kind: 'value', value: parsed.value };
 }
 
-function injectRoutingInstructions(
+function configuredInstructions(cwd: string, env?: NodeJS.ProcessEnv): ConfiguredInstructions {
+  const codexHome = env?.CODEX_HOME || process.env.CODEX_HOME || join(homedir(), '.codex');
+  // A project config takes precedence over the user config in Codex.
+  for (const path of [join(cwd, '.codex', 'config.toml'), join(codexHome, 'config.toml')]) {
+    try {
+      if (!existsSync(path)) continue;
+      const configured = configuredDeveloperInstructions(readFileSync(path, 'utf8'));
+      if (configured.kind !== 'none') return configured;
+    } catch {
+      return { kind: 'unreadable' };
+    }
+  }
+  return { kind: 'none' };
+}
+
+function commandLineInstructions(value: string) {
+  return parseTomlString(value.trim(), 0)?.value ?? value;
+}
+
+/**
+ * Add the Lattice routing note to Codex developer instructions. The override
+ * is placed before every other argument (root options are accepted ahead of
+ * any subcommand, and never after `--`), and existing instructions are merged
+ * rather than replaced. When they cannot be read reliably, nothing is added.
+ */
+export function injectRoutingInstructions(
   args: readonly string[],
   routingInstructions: string,
-  env?: NodeJS.ProcessEnv,
+  options: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
 ): string[] {
   let existingInstructions: string | null = null;
   const filteredArgs: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
-
+    if (arg === '--') {
+      filteredArgs.push(...args.slice(i));
+      break;
+    }
     if (arg === '-c' || arg === '--config') {
       const next = args[i + 1];
       if (next && next.startsWith('developer_instructions=')) {
-        existingInstructions = unquoteTomlString(next.slice('developer_instructions='.length));
-        i++; // consume next
-        continue;
-      } else {
-        filteredArgs.push(arg);
-        if (next !== undefined) {
-          filteredArgs.push(next);
-          i++;
-        }
+        existingInstructions = commandLineInstructions(next.slice('developer_instructions='.length));
+        i++;
         continue;
       }
-    } else if (arg.startsWith('-cdeveloper_instructions=')) {
-      existingInstructions = unquoteTomlString(arg.slice('-cdeveloper_instructions='.length));
-      continue;
-    } else if (arg.startsWith('--config=developer_instructions=')) {
-      existingInstructions = unquoteTomlString(arg.slice('--config=developer_instructions='.length));
+      filteredArgs.push(arg);
+      if (next !== undefined) {
+        filteredArgs.push(next);
+        i++;
+      }
       continue;
     }
-
+    if (arg.startsWith('-cdeveloper_instructions=')) {
+      existingInstructions = commandLineInstructions(arg.slice('-cdeveloper_instructions='.length));
+      continue;
+    }
+    if (arg.startsWith('--config=developer_instructions=')) {
+      existingInstructions = commandLineInstructions(
+        arg.slice('--config=developer_instructions='.length),
+      );
+      continue;
+    }
     filteredArgs.push(arg);
   }
 
   if (existingInstructions === null) {
-    existingInstructions = getGlobalDeveloperInstructions(env);
+    const configured = configuredInstructions(options.cwd ?? process.cwd(), options.env);
+    if (configured.kind === 'unreadable') return [...args];
+    if (configured.kind === 'value') existingInstructions = configured.value;
   }
 
   const merged = existingInstructions
     ? `${existingInstructions}\n\n${routingInstructions}`
     : routingInstructions;
 
-  return [...filteredArgs, '-c', `developer_instructions=${JSON.stringify(merged)}`];
+  return ['-c', `developer_instructions=${JSON.stringify(merged)}`, ...filteredArgs];
 }
 
 function compactError(error: unknown) {
@@ -179,7 +259,10 @@ export async function runCodexCommand(
 
   let nativeArguments = [...arguments_];
   if (options.raw !== true && isSafeRepo) {
-    nativeArguments = injectRoutingInstructions(nativeArguments, LATTICE_ROUTING_INSTRUCTIONS, options.env);
+    nativeArguments = injectRoutingInstructions(nativeArguments, LATTICE_ROUTING_INSTRUCTIONS, {
+      cwd,
+      env: options.env,
+    });
   } else if (ownedBridgeName) {
     nativeArguments = [
       '-c',

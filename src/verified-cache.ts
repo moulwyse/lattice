@@ -7,7 +7,7 @@ export type VerifiedPatchCacheArtifact = {
   schemaVersion: 1;
   key: string;
   createdAt: string;
-  providerProtocolVersion: 4;
+  providerProtocolVersion: 5;
   internalPatch: InternalPatchIR;
 };
 
@@ -22,7 +22,7 @@ export function verifiedPatchCacheKey(
 ) {
   const canonical = {
     schemaVersion: 1,
-    providerProtocolVersion: 4,
+    providerProtocolVersion: 5,
     repositoryId: identity.repositoryId,
     baseCommit: identity.baseCommit,
     task: {
@@ -52,7 +52,7 @@ export function loadVerifiedPatch(workspace: string, key: string) {
   const artifact = readJson<VerifiedPatchCacheArtifact>(path);
   if (
     artifact.schemaVersion !== 1 ||
-    artifact.providerProtocolVersion !== 4 ||
+    artifact.providerProtocolVersion !== 5 ||
     artifact.key !== key ||
     artifact.internalPatch.schemaVersion !== 1
   ) {
@@ -70,7 +70,7 @@ export function persistVerifiedPatch(
     schemaVersion: 1,
     key,
     createdAt: new Date().toISOString(),
-    providerProtocolVersion: 4,
+    providerProtocolVersion: 5,
     internalPatch,
   };
   writeJson(pathFor(workspace, key), artifact);

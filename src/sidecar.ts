@@ -29,7 +29,7 @@ import {
   repositoryGrantIdentity,
 } from './edit-grants.js';
 import { fingerprint } from './fingerprint.js';
-import { buildIndex, searchIndex } from './indexer.js';
+import { buildIndex, INDEX_IGNORED_DIRECTORIES, searchIndex } from './indexer.js';
 import { isProcessAlive, terminateProcessTree } from './managed-process.js';
 import {
   SIDECAR_PROTOCOL_VERSION,
@@ -240,11 +240,7 @@ export function readSidecarState(path: string): SidecarState | null {
 
 function shouldIgnoreWatchPath(path: string) {
   const normalized = path.replaceAll('\\', '/');
-  return normalized
-    .split('/')
-    .some((part) =>
-      ['.git', '.lattice', 'node_modules', 'dist', 'build', 'coverage'].includes(part),
-    );
+  return normalized.split('/').some((part) => INDEX_IGNORED_DIRECTORIES.has(part));
 }
 
 function invalidatePersistedGrants(
@@ -384,13 +380,19 @@ async function contextPages(
     fingerprint: string;
     content: string;
     reason: string;
+    truncated?: boolean;
   }[] = [];
   let bytesUsed = 0;
   for (const [path, reason] of selected) {
     if (pages.length >= request.maxPages) break;
     const full = safeReadPath(workspace, path);
     const bytes = readFileSync(full);
-    if (bytes.includes(0) || bytesUsed + bytes.length > request.maxBytes) continue;
+    if (bytes.includes(0)) continue;
+    // A file larger than the whole byte budget is still served as its
+    // leading part (marked truncated) when it is the first page; otherwise
+    // an explicit read of a large file would return nothing at all.
+    const truncated = bytesUsed + bytes.length > request.maxBytes;
+    if (truncated && pages.length > 0) continue;
     const sourceFingerprint = await fingerprint(workspace, path);
     if (
       sourceFingerprint.rawSha256 !== rawHash(bytes) ||
@@ -401,38 +403,113 @@ async function contextPages(
     // Reject a symlink/junction swap between reading the bytes and computing
     // the fingerprint rather than serving content with the wrong identity.
     safeReadPath(workspace, path);
+    let served = bytes;
+    if (truncated) {
+      let end = request.maxBytes - bytesUsed;
+      // Cut on a UTF-8 character boundary.
+      while (end > 0 && (bytes[end] & 0xc0) === 0x80) end -= 1;
+      served = bytes.subarray(0, end);
+    }
     pages.push({
       path,
       fingerprint: sourceFingerprint.value,
-      content: bytes.toString('utf8'),
-      reason,
+      content: served.toString('utf8'),
+      reason: truncated
+        ? `${reason}; truncated to the first ${served.length} of ${bytes.length} bytes`
+        : reason,
+      ...(truncated ? { truncated: true } : {}),
     });
-    bytesUsed += bytes.length;
+    bytesUsed += served.length;
   }
   return { pages, bytesUsed };
 }
 
+const MAX_DIRECTORY_WATCHERS = 4_096;
+
+type RepositoryWatcher = { close(): void };
+
+/**
+ * Watch the repository for source changes. Windows and macOS use one native
+ * recursive watcher. On Linux, Node's recursive mode also descends into
+ * node_modules and build output and can exhaust inotify watches, so every
+ * indexable directory gets its own watcher, and new directories are added
+ * as they appear. Watcher errors are reported, never thrown.
+ */
 function createWatcher(
   workspace: string,
   onPaths: (paths: string[]) => void,
-): FSWatcher | null {
-  try {
-    return watch(
-      workspace,
-      { recursive: process.platform === 'win32' || process.platform === 'darwin' },
-      (_event, filename) => {
-        const path = filename?.toString().replaceAll('\\', '/');
-        if (!path) {
-          onPaths(['*']);
-          return;
-        }
-        if (shouldIgnoreWatchPath(path)) return;
-        onPaths([path]);
-      },
-    );
-  } catch {
-    return null;
+  onError: (error: unknown) => void,
+): RepositoryWatcher | null {
+  const report = (path: string | null) => {
+    if (!path) {
+      onPaths(['*']);
+      return;
+    }
+    if (!shouldIgnoreWatchPath(path)) onPaths([path]);
+  };
+  if (process.platform !== 'linux') {
+    try {
+      const watcher = watch(workspace, { recursive: true }, (_event, filename) =>
+        report(filename?.toString().replaceAll('\\', '/') ?? null),
+      );
+      watcher.on('error', onError);
+      return watcher;
+    } catch {
+      return null;
+    }
   }
+
+  const watchers = new Map<string, FSWatcher>();
+  const watchDirectory = (relative: string) => {
+    if (watchers.has(relative)) return;
+    if (watchers.size >= MAX_DIRECTORY_WATCHERS) {
+      onError(new Error(`repository has more than ${MAX_DIRECTORY_WATCHERS} directories; some changes are not watched`));
+      return;
+    }
+    try {
+      const watcher = watch(join(workspace, relative), (_event, filename) => {
+        const name = filename?.toString();
+        const path = name ? (relative ? `${relative}/${name}` : name) : null;
+        if (path && !shouldIgnoreWatchPath(path)) {
+          try {
+            if (statSync(join(workspace, path)).isDirectory()) watchTree(path);
+          } catch {
+            // Deleted entries are reported below like any other change.
+          }
+        }
+        report(path);
+      });
+      watcher.on('error', (error) => {
+        watchers.delete(relative);
+        watcher.close();
+        onError(error);
+      });
+      watchers.set(relative, watcher);
+    } catch (error) {
+      onError(error);
+    }
+  };
+  const watchTree = (relative: string) => {
+    watchDirectory(relative);
+    let entries;
+    try {
+      entries = readdirSync(join(workspace, relative), { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory() || INDEX_IGNORED_DIRECTORIES.has(entry.name)) continue;
+      watchTree(relative ? `${relative}/${entry.name}` : entry.name);
+    }
+  };
+  watchTree('');
+  if (watchers.size === 0) return null;
+  return {
+    close() {
+      for (const watcher of watchers.values()) watcher.close();
+      watchers.clear();
+    },
+  };
 }
 
 export async function startSidecarServer(
@@ -468,7 +545,8 @@ export async function startSidecarServer(
     { path: string; fingerprint: string }
   >();
   let index: RepositoryIndex | null = null;
-  let watcher: FSWatcher | null = null;
+  let watcher: RepositoryWatcher | null = null;
+  let reindexing = Promise.resolve();
   let invalidationTimer: NodeJS.Timeout | undefined;
   let idleTimer: NodeJS.Timeout | undefined;
   let reaper: NodeJS.Timeout | undefined;
@@ -747,7 +825,9 @@ export async function startSidecarServer(
     invalidationTimer = setTimeout(() => {
       const changedPaths = [...pendingChangedPaths];
       pendingChangedPaths.clear();
-      void reindex(changedPaths);
+      // One reindex at a time: a slower earlier run can never overwrite the
+      // index produced for later changes.
+      reindexing = reindexing.then(() => reindex(changedPaths));
     }, 200);
     invalidationTimer.unref();
   };
@@ -831,16 +911,21 @@ export async function startSidecarServer(
 
     reaper = setInterval(() => {
       const now = Date.now();
+      let expired = false;
       for (const [lease, value] of leases) {
         if (value.expiresAt <= now) {
           leases.delete(lease);
           assistedMcpLeases.delete(lease);
+          expired = true;
         }
       }
-      try {
-        persist();
-      } catch (error) {
-        recordError(error);
+      // State is written when it changes, not on every tick.
+      if (expired) {
+        try {
+          persist();
+        } catch (error) {
+          recordError(error);
+        }
       }
       if (leases.size === 0) scheduleIdle();
     }, Math.min(1_000, Math.max(100, Math.floor(leaseTtlMs / 3))));
@@ -861,10 +946,10 @@ export async function startSidecarServer(
         currentState.indexedFiles = value.files.length;
         currentState.telemetry.initialIndexMs = Date.now() - initialIndexStarted;
         persist();
-        watcher = createWatcher(root, queueInvalidation);
+        watcher = createWatcher(root, queueInvalidation, recordError);
         if (!watcher) {
           currentState.telemetry.errors.push(
-            'recursive file watching is unavailable on this platform',
+            'file watching is unavailable on this platform',
           );
           persist();
         }
@@ -966,6 +1051,19 @@ async function waitForSidecar(
     }
     if (Date.now() >= deadline) throw new Error('sidecar startup timed out');
     await delay(40, undefined, signal ? { signal } : undefined);
+  }
+}
+
+/** A healthy sidecar publishes its state within seconds of taking the lock. */
+const STALE_LOCK_MS = 60_000;
+
+function lockAgeMs(path: string) {
+  try {
+    const lock = JSON.parse(readFileSync(path, 'utf8')) as { at?: unknown };
+    const at = typeof lock.at === 'string' ? Date.parse(lock.at) : NaN;
+    return Number.isFinite(at) ? Date.now() - at : Date.now() - statSync(path).mtimeMs;
+  } catch {
+    return Number.POSITIVE_INFINITY;
   }
 }
 
@@ -1095,7 +1193,9 @@ export async function ensureSidecar(
     });
   }
   if (existsSync(paths.lock)) {
-    if (lockOwnerIsAlive(paths.lock)) {
+    // A crashed sidecar's PID can be reused by an unrelated process. A lock
+    // whose owner never became healthy long after taking it is stale.
+    if (lockOwnerIsAlive(paths.lock) && lockAgeMs(paths.lock) < STALE_LOCK_MS) {
       try {
         const state = await waitForSidecar(
           paths,

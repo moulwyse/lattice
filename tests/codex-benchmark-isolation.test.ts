@@ -21,9 +21,11 @@ afterEach(async () => {
 });
 
 describe('benchmark-only Codex configuration', () => {
-  it('leaves ordinary worker configuration inherited', () => {
+  it('isolates the ordinary worker from user MCP servers, hooks and plugins', () => {
     new CodexWorker();
-    expect(Codex).toHaveBeenCalledWith({ config: undefined });
+    expect(Codex).toHaveBeenCalledWith({
+      config: { mcp_servers: {}, features: { hooks: false, plugins: false } },
+    });
   });
 
   it('passes isolated config through the runtime to the actual worker client', async () => {

@@ -17,14 +17,18 @@ const allowed: Record<RuntimeState, readonly RuntimeState[]> = {
   RESPONSE_VALIDATED: [
     'CONTEXT_FAULT',
     'PATCH_LOWERED',
+    'PATCH_REVISION',
     'FAILED',
     'CANCELLED',
   ],
   CONTEXT_FAULT: ['CONTEXT_GRANTED', 'FAILED', 'CANCELLED'],
   PATCH_LOWERED: ['TRANSACTION_RUNNING', 'FAILED', 'CANCELLED'],
   PROTOCOL_REPAIR: ['WORKER_RUNNING', 'FAILED', 'CANCELLED'],
+  // A rejected patch (edit-grant lowering) or failed verification returns the
+  // concrete error to the worker for a bounded number of corrected patches.
+  PATCH_REVISION: ['WORKER_RUNNING', 'FAILED', 'CANCELLED'],
   TRANSACTION_RUNNING: ['VERIFYING', 'FAILED', 'CANCELLED'],
-  VERIFYING: ['PASSED', 'FAILED', 'CANCELLED'],
+  VERIFYING: ['PASSED', 'PATCH_REVISION', 'FAILED', 'CANCELLED'],
   PASSED: [],
   FAILED: [],
   CANCELLED: [],

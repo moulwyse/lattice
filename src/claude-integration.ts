@@ -8,7 +8,8 @@ import {
 } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
-import { metadata } from './core.js';
+import { execa } from 'execa';
+import { addGitExcludePattern, metadata, removeGitExcludePattern } from './core.js';
 import {
   LATTICE_POST_TOOL_MATCHER,
   LATTICE_PRE_TOOL_MATCHER,
@@ -27,10 +28,22 @@ export type ClaudeIntegrationState = {
   hookCommand: string;
   enabledMcpjsonServerAdded: boolean;
   mcpFileCreated?: boolean;
+  /** `/.mcp.json` was added to the clone-local Git exclude file. */
+  mcpExcluded?: boolean;
   settingsFileCreated?: boolean;
   enabledMcpjsonServersExisted?: boolean;
   enabledAt: string;
 };
+
+const MCP_EXCLUDE_COMMENT = 'Lattice: machine-specific Claude MCP entry';
+
+async function trackedByGit(repository: string, path: string) {
+  const result = await execa('git', ['ls-files', '--error-unmatch', '--', path], {
+    cwd: repository,
+    reject: false,
+  });
+  return result.exitCode === 0;
+}
 
 function readObject(path: string): JsonRecord {
   if (!existsSync(path)) return {};
@@ -170,7 +183,9 @@ export async function enableClaudeIntegration(options: {
   const existing = readClaudeIntegrationState(repository.root);
   if (existing) {
     const status = await claudeIntegrationStatus(repository.root);
-    if (status.enabled) return { changed: false as const, state: existing };
+    if (status.enabled) {
+      return { changed: false as const, state: existing, warnings: [] as string[] };
+    }
     throw new Error(
       'Claude integration has a partial or changed ownership receipt; run integration claude disable before enabling again.',
     );
@@ -178,13 +193,13 @@ export async function enableClaudeIntegration(options: {
   metadata(repository.root);
   const paths = claudeIntegrationPaths(repository.root);
   const command = hookCommand(options.cliPath);
+  // Claude starts project MCP servers in the project directory and the bridge
+  // discovers the repository from there (or from client roots), so no
+  // workspace path is written into this shared file.
   const mcpDefinition = {
     type: 'stdio',
     command: process.execPath,
     args: [resolve(options.cliPath), 'mcp-server'],
-    env: {
-      LATTICE_WORKSPACE: repository.root,
-    },
   };
 
   const mcpFileCreated = !existsSync(paths.mcpPath);
@@ -241,7 +256,18 @@ export async function enableClaudeIntegration(options: {
     writeObject(paths.mcpPath, mcp);
     settings.enabledMcpjsonServers = [...new Set([...enabledServers, 'lattice'])];
     writeObject(paths.settingsPath, settings);
-    return { changed: true as const, state };
+    // The entry holds this machine's Node and CLI paths. A file Lattice
+    // created is kept out of commits locally; a shared file gets a warning.
+    const warnings: string[] = [];
+    if (mcpFileCreated) {
+      state.mcpExcluded = addGitExcludePattern(repository.root, '/.mcp.json', MCP_EXCLUDE_COMMENT);
+      writeObject(paths.statePath, state as unknown as JsonRecord);
+    } else if (await trackedByGit(repository.root, '.mcp.json')) {
+      warnings.push(
+        '.mcp.json is tracked by Git and now contains machine-specific paths for the lattice server; do not commit that entry.',
+      );
+    }
+    return { changed: true as const, state, warnings };
   } catch (error) {
     const rollback = await disableClaudeIntegration(repository.root).catch(
       (rollbackError: unknown) => ({
@@ -279,6 +305,9 @@ export async function disableClaudeIntegration(workspace: string) {
     else delete mcp.mcpServers;
     if (state.mcpFileCreated === true && Object.keys(mcp).length === 0) {
       rmSync(state.mcpPath, { force: true });
+      if (state.mcpExcluded) {
+        removeGitExcludePattern(state.workspace, '/.mcp.json', MCP_EXCLUDE_COMMENT);
+      }
     } else {
       writeObject(state.mcpPath, mcp);
     }

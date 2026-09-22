@@ -44,7 +44,7 @@ export function telemetry(): Telemetry {
     rejectedEditGrantReason: null,
     editGrantMappingSha256: null,
     patchLoweringDurationMs: null,
-    providerProtocolVersion: 4,
+    providerProtocolVersion: 5,
     internalPatchVersion: 1,
     runtimeStateTransitions: [],
     terminalStateReason: null,

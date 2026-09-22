@@ -11,7 +11,9 @@ import {
 import {
   buildContextFaultPrompt,
   buildInitialWorkerPrompt,
+  buildPatchRevisionPrompt,
   buildProtocolRepairPrompt,
+  type PatchRevisionFeedback,
 } from './providers/claude/prompt.js';
 import { parseClaudeResponse } from './providers/claude/protocol.js';
 import { CLAUDE_WORKER_OUTPUT_SCHEMA } from './providers/claude/protocol.js';
@@ -21,10 +23,12 @@ import {
   recordTurnUsage,
   type ProviderUsage,
 } from './telemetry.js';
-import type { TurnKind, WorkerResponse } from './types.js';
+import type { PromptManifest, TurnKind, WorkerResponse } from './types.js';
+import { LATTICE_VERSION } from './version.js';
 import {
   selectNewContextPages,
   withTimeout,
+  workerTurnTimeoutMs,
   type Worker,
   type WorkerInput,
 } from './worker.js';
@@ -44,7 +48,7 @@ export function claudeQueryOptions(
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     CLAUDE_AGENT_SDK_CLIENT_APP:
-      'lattice-claude-code-beta/1.0.0',
+      `lattice-claude-code-beta/${LATTICE_VERSION}`,
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
   };
   if (opus5) delete env.CLAUDE_CODE_DISABLE_THINKING;
@@ -110,12 +114,15 @@ async function runClaudeQuery(
   prompt: string,
   input: WorkerInput,
   modelSettings: ResolvedClaudeModelSettings,
-  resume?: string,
+  resume: string | undefined,
+  signal: AbortSignal,
 ) {
+  // `signal` combines run cancellation with the per-turn deadline, so a stuck
+  // Claude process is aborted instead of holding the run forever.
   const abortController = new AbortController();
-  const abort = () => abortController.abort(input.signal.reason);
-  input.signal.addEventListener('abort', abort, { once: true });
-  if (input.signal.aborted) abort();
+  const abort = () => abortController.abort(signal.reason);
+  signal.addEventListener('abort', abort, { once: true });
+  if (signal.aborted) abort();
   let result: SDKResultMessage | undefined;
   try {
     for await (const message of queryFunction({
@@ -130,7 +137,7 @@ async function runClaudeQuery(
       if (message.type === 'result') result = message;
     }
   } finally {
-    input.signal.removeEventListener('abort', abort);
+    signal.removeEventListener('abort', abort);
   }
   if (!result) throw new Error('Claude Agent SDK returned no result message');
   const usage = claudeProviderUsage(result);
@@ -202,6 +209,15 @@ export class ClaudeWorker implements Worker {
     return this.turn(input, 'context_fault');
   }
 
+  async revise(input: WorkerInput, feedback: PatchRevisionFeedback) {
+    if (!this.threadId) throw new Error('Claude worker has no active session');
+    return this.exchange(
+      input,
+      'patch_revision',
+      buildPatchRevisionPrompt(input.metrics, feedback),
+    );
+  }
+
   private async turn(
     input: WorkerInput,
     kind: Extract<TurnKind, 'initial' | 'context_fault'>,
@@ -218,16 +234,25 @@ export class ClaudeWorker implements Worker {
             grantedContextPages,
             input.editGrants,
           );
+    return this.exchange(input, kind, built);
+  }
+
+  private async exchange(
+    input: WorkerInput,
+    kind: TurnKind,
+    built: { text: string; manifest: PromptManifest },
+  ): Promise<WorkerResponse> {
     input.metrics.promptManifests.push(built.manifest);
 
     const result = await runProviderTurn(input, kind, () =>
-      withTimeout(120_000, input.signal, () =>
+      withTimeout(workerTurnTimeoutMs(), input.signal, (signal) =>
         runClaudeQuery(
           this.queryFunction,
           built.text,
           input,
           this.settingsForTurn(input),
           this.threadId,
+          signal,
         ),
       ),
     );
@@ -251,13 +276,14 @@ export class ClaudeWorker implements Worker {
       const repair = buildProtocolRepairPrompt(input.metrics, error.message);
       input.metrics.promptManifests.push(repair.manifest);
       const repaired = await runProviderTurn(input, 'protocol_repair', () =>
-        withTimeout(120_000, input.signal, () =>
+        withTimeout(workerTurnTimeoutMs(), input.signal, (signal) =>
           runClaudeQuery(
             this.queryFunction,
             repair.text,
             input,
             this.settingsForTurn(input),
             this.threadId,
+            signal,
           ),
         ),
       );

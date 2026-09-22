@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { nativeTargetFromIntegration } from './codex-integration.js';
 import type { NativeCodexTarget } from './codex-launcher.js';
+import { LATTICE_VERSION } from './version.js';
 
 export type RateLimitWindow = {
   usedPercent: number;
@@ -40,10 +41,11 @@ type AppServerRateLimitResponse = {
 };
 
 function percent(value: unknown, label: string) {
-  if (!Number.isInteger(value) || Number(value) < 0 || Number(value) > 100) {
-    throw new Error(`${label} must be an integer from 0 through 100`);
+  // Rate-limit snapshots may report fractional usage (e.g. 12.5).
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100) {
+    throw new Error(`${label} must be a number from 0 through 100`);
   }
-  return Number(value);
+  return value;
 }
 
 function nullableInteger(value: unknown, label: string) {
@@ -236,7 +238,7 @@ export async function readCodexRateLimits(
   }, options.timeoutMs ?? 15_000);
   try {
     await request('initialize', {
-      clientInfo: { name: 'lattice-eval-budget', version: '1.0.0' },
+      clientInfo: { name: 'lattice-eval-budget', version: LATTICE_VERSION },
       capabilities: { experimentalApi: true },
     });
     child.stdin.write(`${JSON.stringify({ method: 'initialized' })}\n`);

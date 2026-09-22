@@ -16,7 +16,7 @@ The integration includes:
 - project-scoped MCP and lifecycle hooks;
 - interactive `lattice claude` launch and explicit `--raw` bypass;
 - a transactional Claude Agent SDK worker with isolated Git worktrees;
-- model, effort, cancellation, and hard USD-budget controls;
+- model, effort, cancellation, and USD budget caps (no new turn starts after the cap; one turn can exceed it);
 - provider-reported token, cost, and latency telemetry;
 - reversible enable, disable, and uninstall paths;
 - credential-free contract tests and spend-gated live benchmark drivers.
@@ -63,7 +63,7 @@ paths, credentials, and private source remain excluded from public evidence.
 ## Install and inspect
 
 ```sh
-npm install --global github:moulwyse/lattice#v1.0.0
+npm install --global github:moulwyse/lattice#v2.0.0
 lattice benchmark --worker mock
 lattice integration claude enable --workspace .
 lattice claude

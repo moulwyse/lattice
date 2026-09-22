@@ -1,6 +1,7 @@
 import { realpathSync } from 'node:fs';
 import { isAbsolute, normalize, resolve } from 'node:path';
 import { z } from 'zod';
+import { LATTICE_CODEX_RAW_ENV } from './codex-lattice-policy.js';
 import {
   runInheritedProcess,
   type InheritedProcessResult,
@@ -140,6 +141,10 @@ export async function launchNativeCodex(
     ...baseEnvironment,
     [CODEX_LAUNCHER_DEPTH_ENV]: String(inheritedDepth + 1),
   };
+  // Global Codex hooks cannot see the raw flag otherwise; without this marker
+  // the Lattice-first policy would still apply while the MCP bridge is off.
+  if (raw) childEnvironment[LATTICE_CODEX_RAW_ENV] = '1';
+  else delete childEnvironment[LATTICE_CODEX_RAW_ENV];
   let result: InheritedProcessResult | null = null;
   try {
     result = await runInheritedProcess(

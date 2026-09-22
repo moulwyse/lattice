@@ -47,9 +47,26 @@ const ProviderReplaceTextChangeWireSchema = z
   })
   .strict();
 
+const ProviderDeleteFileChangeWireSchema = z
+  .object({
+    editHandle: z.string().regex(/^E[1-9]\d*$/, 'must be a task-scoped edit handle'),
+    operation: z.literal('delete_file'),
+  })
+  .strict();
+
+const ProviderCreateFileChangeWireSchema = z
+  .object({
+    operation: z.literal('create_file'),
+    path: z.string().min(1),
+    content: z.string(),
+  })
+  .strict();
+
 const ProviderChangeWireSchema = z.discriminatedUnion('operation', [
   ProviderReplaceFileChangeWireSchema,
   ProviderReplaceTextChangeWireSchema,
+  ProviderDeleteFileChangeWireSchema,
+  ProviderCreateFileChangeWireSchema,
 ]);
 
 const PatchWireSchema = z
@@ -127,6 +144,27 @@ const replaceTextOutputSchema = {
   additionalProperties: false,
 } as const;
 
+const deleteFileOutputSchema = {
+  type: 'object',
+  properties: {
+    editHandle: { type: 'string', pattern: '^E[1-9]\\d*$' },
+    operation: { type: 'string', enum: ['delete_file'] },
+  },
+  required: ['editHandle', 'operation'],
+  additionalProperties: false,
+} as const;
+
+const createFileOutputSchema = {
+  type: 'object',
+  properties: {
+    operation: { type: 'string', enum: ['create_file'] },
+    path: { type: 'string' },
+    content: { type: 'string' },
+  },
+  required: ['operation', 'path', 'content'],
+  additionalProperties: false,
+} as const;
+
 const patchOutputSchema = {
   type: 'object',
   properties: {
@@ -138,7 +176,14 @@ const patchOutputSchema = {
         changes: {
           type: 'array',
           minItems: 1,
-          items: { anyOf: [replaceFileOutputSchema, replaceTextOutputSchema] },
+          items: {
+            anyOf: [
+              replaceFileOutputSchema,
+              replaceTextOutputSchema,
+              deleteFileOutputSchema,
+              createFileOutputSchema,
+            ],
+          },
         },
         verificationCommands: {
           type: 'array',
@@ -310,11 +355,19 @@ function versionResponse(
   };
 }
 
-function assertDistinctHandles(response: WorkerResponse) {
+export function assertDistinctHandles(response: WorkerResponse) {
   if (response.kind !== 'patch') return;
-  const handles = response.patch.changes.map((change) => change.editHandle);
+  const handles = response.patch.changes.flatMap((change) =>
+    'editHandle' in change ? [change.editHandle] : [],
+  );
   if (new Set(handles).size !== handles.length) {
     throw new Error('duplicate conflicting edit handles');
+  }
+  const created = response.patch.changes.flatMap((change) =>
+    change.operation === 'create_file' ? [change.path.replaceAll('\\', '/').toLowerCase()] : [],
+  );
+  if (new Set(created).size !== created.length) {
+    throw new Error('duplicate create_file paths');
   }
 }
 

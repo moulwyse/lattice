@@ -5,9 +5,12 @@ import {
   ContextKernel,
   MAX_WHOLE_FILE_CONTEXT_CHARACTERS,
   initialContextFiles,
+  resolveLocalImport,
 } from '../src/context.js';
-import { buildIndex, searchIndex } from '../src/indexer.js';
-import { compileTask, TaskSchema } from '../src/task.js';
+import type { RepositoryIndex } from '../src/types.js';
+import { fingerprint } from '../src/fingerprint.js';
+import { buildIndex, isConfigPath, isTestPath, searchIndex } from '../src/indexer.js';
+import { compileTask, TaskSchema, withRepositoryVerification } from '../src/task.js';
 import { repository, type TestRepository } from './helpers.js';
 
 const repositories: TestRepository[] = [];
@@ -16,14 +19,48 @@ afterEach(async () => {
 });
 
 describe('Task compiler', () => {
-  it('produces validated reset-token acceptance criteria without dropping invariants', () => {
+  it('derives clause criteria from the goal without task-specific vocabulary', () => {
     const task = compileTask(
       'Fix password reset tokens and preserve login behavior; do not change tests.',
     );
     expect(TaskSchema.parse(task)).toEqual(task);
-    expect(task.acceptanceCriteria).toHaveLength(5);
+    expect(task.acceptanceCriteria.map((criterion) => criterion.text)).toEqual([
+      'Fix password reset tokens and preserve login behavior',
+      'do not change tests',
+    ]);
     expect(task.invariants.join(' ')).toContain('preserve login behavior');
     expect(task.risk).toBe('high');
+  });
+
+  it('splits sentences, list items and comma clauses into criteria', () => {
+    expect(
+      compileTask('Add a --verbose flag.\n- print each file\n- keep quiet mode default').acceptanceCriteria.map(
+        (criterion) => criterion.text,
+      ),
+    ).toEqual(['Add a --verbose flag', 'print each file', 'keep quiet mode default']);
+    expect(compileTask('Refactor').acceptanceCriteria.map((criterion) => criterion.text)).toEqual([
+      'Refactor',
+    ]);
+  });
+
+  it('allowlists only verification-like package scripts', () => {
+    const task = withRepositoryVerification(compileTask('Fix value'), {
+      test: 'vitest',
+      'test:unit': 'vitest run unit',
+      typecheck: 'tsc --noEmit',
+      deploy: 'rm -rf /',
+      postinstall: 'node x.js',
+      'test:watch': 'vitest',
+      'test:ui': 'vitest --ui',
+      'build:dev': 'vite build --watch',
+    });
+    expect(task.allowedVerificationCommands).not.toContain('npm run test:watch');
+    expect(task.allowedVerificationCommands).not.toContain('npm run test:ui');
+    expect(task.allowedVerificationCommands).not.toContain('npm run build:dev');
+    expect(task.allowedVerificationCommands).toContain('npm run test:unit');
+    expect(task.allowedVerificationCommands).toContain('npm run typecheck');
+    expect(task.allowedVerificationCommands).not.toContain('npm run deploy');
+    expect(task.allowedVerificationCommands).not.toContain('npm run postinstall');
   });
 
   it('rejects invalid Task IR budgets', () => {
@@ -74,6 +111,63 @@ describe('Terra repository index', () => {
     expect(first.files[0].imports).toEqual(['./z.js']);
     expect(first.files[0].references).toContain('Thing');
     expect(searchIndex(first, 'Thing')[0].path).toBe('src/a.js');
+  });
+
+  it('indexes non-JavaScript languages and ignores symbols mentioned only in comments', async () => {
+    const repo = await repository({
+      'app/service.py': '# class NotReal\nfrom app.models import User\n\nclass Service:\n    def run(self):\n        pass\n',
+      'cmd/main.go': 'package main\n\nimport "fmt"\n\n// func ghost() {}\nfunc Serve() { fmt.Println() }\n',
+      'src/lib.rs': 'use crate::util;\npub struct Engine;\nfn start() {}\n',
+      'src/api.ts': '/**\n * function phantom() is documented only\n */\nexport default async function handler() {}\nexport enum Mode { A }\n',
+    });
+    repositories.push(repo);
+    const index = await buildIndex(repo.path);
+    const byPath = new Map(index.files.map((file) => [file.path, file]));
+    expect(byPath.get('app/service.py')).toMatchObject({
+      language: 'python',
+      imports: ['app.models'],
+      symbols: ['Service', 'run'],
+    });
+    expect(byPath.get('cmd/main.go')?.symbols).toEqual(['Serve']);
+    expect(byPath.get('src/lib.rs')?.symbols).toEqual(expect.arrayContaining(['Engine', 'start']));
+    expect(byPath.get('src/api.ts')?.symbols).not.toContain('phantom');
+    expect(byPath.get('src/api.ts')?.exports).toEqual(['handler', 'Mode']);
+    expect(index.files.every((file) => file.fingerprint.kind === 'git')).toBe(true);
+  });
+
+  it('matches the per-file fingerprint for clean, dirty, and untracked files', async () => {
+    const repo = await repository({
+      'src/clean.js': 'export const clean = 1;\n',
+      'src/dirty.js': 'export const dirty = 1;\n',
+    });
+    repositories.push(repo);
+    writeFileSync(join(repo.path, 'src/dirty.js'), 'export const dirty = 2;\n');
+    writeFileSync(join(repo.path, 'src/new.js'), 'export const fresh = 1;\n');
+    const index = await buildIndex(repo.path);
+    for (const file of index.files) {
+      expect(file.fingerprint).toEqual(await fingerprint(repo.path, file.path));
+    }
+  });
+
+  it('resolves TypeScript ESM `.js` specifiers to their `.ts` sources', () => {
+    const file = (path: string) => ({ path }) as RepositoryIndex['files'][number];
+    const index = { files: [file('src/b.ts'), file('src/c.mts')] } as RepositoryIndex;
+    expect(resolveLocalImport(index, 'src/a.ts', './b.js')?.path).toBe('src/b.ts');
+    expect(resolveLocalImport(index, 'src/a.ts', './c.mjs')?.path).toBe('src/c.mts');
+    expect(resolveLocalImport(index, 'src/a.ts', './missing.js')).toBeUndefined();
+  });
+
+  it('classifies test and config paths without substring false positives', () => {
+    for (const path of ['test/a.js', 'tests/a.js', 'src/__tests__/a.ts', 'a.spec.ts', 'pkg/x_test.go', 'test_x.py']) {
+      expect(isTestPath(path), path).toBe(true);
+    }
+    for (const path of ['src/latest.js', 'src/contest/a.js', 'src/testing.ts']) {
+      expect(isTestPath(path), path).toBe(false);
+    }
+    for (const path of ['package.json', 'tsconfig.build.json', 'vite.config.ts', '.eslintrc.json']) {
+      expect(isConfigPath(path), path).toBe(true);
+    }
+    expect(isConfigPath('src/config-loader.ts')).toBe(false);
   });
 
   it('excludes tracked and untracked source symlinks whose targets are outside the repository', async (context) => {

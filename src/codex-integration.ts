@@ -293,31 +293,46 @@ function powershellExecutable(env: NodeJS.ProcessEnv) {
 }
 
 /**
- * Reads and writes HKCU\Environment\Path through the documented .NET API.
- * Passing values through the child environment avoids command interpolation,
- * PowerShell quoting, and setx.exe's historical truncation behavior.
+ * Reads and writes HKCU\Environment\Path through the .NET registry API.
+ *
+ * `[Environment]::Get/SetEnvironmentVariable` would expand `%VAR%` references
+ * on read and store the result as REG_SZ on write, silently rewriting the
+ * user's PATH. Here the value is read unexpanded and written back as
+ * REG_EXPAND_SZ (REG_SZ only when it already was and holds no variables),
+ * so disable restores the exact original. Values travel through the child
+ * environment, avoiding command interpolation and PowerShell quoting.
  */
 export function windowsUserPathStore(
   env: NodeJS.ProcessEnv = process.env,
+  location: { key: string; value: string; broadcast: boolean } = {
+    key: 'Environment',
+    value: 'Path',
+    broadcast: true,
+  },
 ): UserPathStore {
   if (process.platform !== 'win32') {
     throw new Error('automatic Codex PATH integration is currently Windows-only');
   }
   const powershell = powershellExecutable(env);
+  const target = {
+    LATTICE_REGISTRY_KEY: location.key,
+    LATTICE_REGISTRY_VALUE: location.value,
+  };
+  const openKey =
+    "$name=$env:LATTICE_REGISTRY_VALUE;" +
+    '$k=[Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($env:LATTICE_REGISTRY_KEY);';
   return {
     async read() {
       const script =
-        "$v=[Environment]::GetEnvironmentVariable('Path','User');" +
+        openKey +
+        'try{$v=$k.GetValue($name,$null,[Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)}' +
+        'finally{$k.Close()};' +
         "if($null -eq $v){[Console]::Out.Write('-')}else{" +
-        "[Console]::Out.Write([Convert]::ToBase64String(" +
-        '[Text.Encoding]::UTF8.GetBytes($v)))}';
+        '[Console]::Out.Write([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$v)))}';
       const result = await runManagedProcess(
         powershell,
         ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script],
-        {
-          env,
-          timeoutMs: 5_000,
-        },
+        { env: { ...env, ...target }, timeoutMs: 5_000 },
       );
       const encoded = result.stdout.trim();
       return encoded === '-'
@@ -328,18 +343,31 @@ export function windowsUserPathStore(
       const script =
         `$isNull=[Environment]::GetEnvironmentVariable('${USER_PATH_NULL_ENV}','Process');` +
         `$v=[Environment]::GetEnvironmentVariable('${USER_PATH_VALUE_ENV}','Process');` +
-        "if($isNull -eq '1'){$v=$null};" +
-        "[Environment]::SetEnvironmentVariable('Path',$v,'User')";
+        openKey +
+        'try{' +
+        "if($isNull -eq '1'){$k.DeleteValue($name,$false)}else{" +
+        '$kind=[Microsoft.Win32.RegistryValueKind]::ExpandString;' +
+        'if(($k.GetValueNames() -contains $name) -and ' +
+        '$k.GetValueKind($name) -eq [Microsoft.Win32.RegistryValueKind]::String -and ' +
+        "-not $v.Contains('%')){$kind=[Microsoft.Win32.RegistryValueKind]::String};" +
+        '$k.SetValue($name,$v,$kind)}' +
+        '}finally{$k.Close()};' +
+        // Deleting an absent variable through the documented API broadcasts
+        // WM_SETTINGCHANGE, so new terminals see the updated PATH.
+        (location.broadcast
+          ? "[Environment]::SetEnvironmentVariable('LATTICE_PATH_REFRESH',$null,'User')"
+          : '');
       await runManagedProcess(
         powershell,
         ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script],
         {
           env: {
             ...env,
+            ...target,
             [USER_PATH_VALUE_ENV]: value ?? '',
             [USER_PATH_NULL_ENV]: value === null ? '1' : '0',
           },
-          timeoutMs: 5_000,
+          timeoutMs: 15_000,
         },
       );
     },

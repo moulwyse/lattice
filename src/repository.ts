@@ -1,7 +1,8 @@
+import { execFile } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, parse, resolve } from 'node:path';
-import { execa } from 'execa';
+import { promisify } from 'node:util';
 
 export type RepositoryDiscovery =
   | {
@@ -35,23 +36,45 @@ export function unsafeAutomaticRoot(path: string) {
   );
 }
 
+// node:child_process instead of execa: discovery runs in every hook call,
+// where loading execa alone costs more than the Git process itself.
+const execGit = promisify(execFile);
+
 async function gitRoot(start: string, signal?: AbortSignal) {
   signal?.throwIfAborted();
   try {
-    const result = await execa('git', ['rev-parse', '--show-toplevel'], {
+    const result = await execGit('git', ['rev-parse', '--show-toplevel'], {
       cwd: start,
-      reject: false,
       timeout: 2_000,
-      cancelSignal: signal,
+      windowsHide: true,
+      ...(signal ? { signal } : {}),
     });
     signal?.throwIfAborted();
-    if (result.exitCode !== 0 || !result.stdout.trim()) return null;
-    const path = resolve(result.stdout.trim());
+    const stdout = result.stdout.trim();
+    if (!stdout) return null;
+    const path = resolve(stdout);
     return existsSync(path) ? realpathSync(path) : null;
   } catch (error) {
     if (signal?.aborted) throw signal.reason ?? error;
     return null;
   }
+}
+
+/**
+ * The Git top-level directory that contains `start`, or `start` itself outside
+ * Git. Task state, worktrees and patch paths are repository-relative, so a
+ * run started from a subdirectory must operate on the repository root.
+ */
+export async function repositoryRoot(start: string) {
+  const workspace = resolve(start);
+  const root = await gitRoot(workspace);
+  if (!root) return workspace;
+  try {
+    if (realpathSync(workspace) === root) return workspace;
+  } catch {
+    // A missing start directory is reported by the caller's own access.
+  }
+  return root;
 }
 
 function explicitProjectRoot(start: string, signal?: AbortSignal) {

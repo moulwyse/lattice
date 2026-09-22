@@ -1,11 +1,13 @@
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execa } from 'execa';
@@ -14,11 +16,13 @@ import { repositoryGrantIdentity } from '../src/edit-grants.js';
 import { fingerprint } from '../src/fingerprint.js';
 import { telemetry } from '../src/telemetry.js';
 import {
+  applyVerifiedPatch,
   assertMatchingWorktreeFingerprint,
   transact,
 } from '../src/transaction.js';
 import { repository, type TestRepository } from './helpers.js';
 import { removeDirectoryWithRetry } from '../src/cleanup.js';
+import { metadata } from '../src/core.js';
 import type { ChangeOperation, InternalPatchIR } from '../src/types.js';
 
 const repositories: TestRepository[] = [];
@@ -353,6 +357,310 @@ describe('Aegis transaction engine', () => {
     expect(result.status).toBe('failed');
     expect(existsSync(result.worktree)).toBe(true);
     await execa('git', ['worktree', 'remove', '--force', result.worktree], { cwd: repo.path });
+  });
+
+  it('verifies on top of uncommitted work and diffs only the transaction changes', async () => {
+    const repo = await repository({
+      'package.json': JSON.stringify({
+        private: true,
+        scripts: {
+          test: 'node -e "const fs=require(\'fs\');process.exit(fs.readFileSync(\'src/other.js\',\'utf8\')===\'dirty\\n\'&&fs.existsSync(\'notes.js\')&&!fs.existsSync(\'src/gone.js\')?0:7)"',
+        },
+      }),
+      'src/value.js': 'old\n',
+      'src/other.js': 'clean\n',
+      'src/gone.js': 'removed later\n',
+    });
+    repositories.push(repo);
+    writeFileSync(join(repo.path, 'src/other.js'), 'dirty\n');
+    writeFileSync(join(repo.path, 'notes.js'), 'untracked\n');
+    rmSync(join(repo.path, 'src/gone.js'));
+    const before = await fingerprint(repo.path, 'src/value.js');
+    const patch = await internalPatch(
+      repo.path,
+      [
+        {
+          path: 'src/value.js',
+          operation: 'modify',
+          expectedFingerprint: before.value,
+          replacementContent: 'new\n',
+        },
+      ],
+      ['npm test'],
+    );
+    const result = await transact(repo.path, patch, ['npm test'], telemetry());
+    expect(result.verification[0].stderr).toBe('');
+    expect(result.status).toBe('passed');
+    expect(result.diff).toContain('+new');
+    expect(result.diff).not.toContain('other.js');
+    expect(result.diff).not.toContain('notes.js');
+    expect(result.diff).not.toContain('gone.js');
+
+    await applyVerifiedPatch(repo.path, patch, result.diff);
+    expect(readFileSync(join(repo.path, 'src/value.js'), 'utf8')).toBe('new\n');
+    expect(readFileSync(join(repo.path, 'src/other.js'), 'utf8')).toBe('dirty\n');
+    expect(readFileSync(join(repo.path, 'notes.js'), 'utf8')).toBe('untracked\n');
+  });
+
+  it('runs verification against the workspace dependencies and never deletes them', async () => {
+    const repo = await repository({
+      'package.json': JSON.stringify({
+        private: true,
+        scripts: { test: 'node -e "process.exit(require(\'local-dep\')===42?0:5)"' },
+      }),
+      'src/value.js': 'old\n',
+    });
+    repositories.push(repo);
+    mkdirSync(join(repo.path, 'node_modules', 'local-dep'), { recursive: true });
+    writeFileSync(join(repo.path, 'node_modules', 'local-dep', 'index.js'), 'module.exports = 42;\n');
+    const before = await fingerprint(repo.path, 'src/value.js');
+    const result = await transact(
+      repo.path,
+      await internalPatch(repo.path, [
+        {
+          path: 'src/value.js',
+          operation: 'modify',
+          expectedFingerprint: before.value,
+          replacementContent: 'new\n',
+        },
+      ], ['npm test']),
+      ['npm test'],
+      telemetry(),
+    );
+    expect(result.status).toBe('passed');
+    expect(existsSync(result.worktree)).toBe(false);
+    expect(existsSync(join(repo.path, 'node_modules', 'local-dep', 'index.js'))).toBe(true);
+  });
+
+  it('creates and deletes files in the transaction and applies them to the workspace', async () => {
+    const repo = await repository({
+      'package.json': JSON.stringify({
+        private: true,
+        scripts: {
+          test: 'node -e "const fs=require(\'fs\');process.exit(fs.existsSync(\'src/new.js\')&&!fs.existsSync(\'src/old.js\')?0:4)"',
+        },
+      }),
+      'src/old.js': 'legacy\n',
+    });
+    repositories.push(repo);
+    const old = await fingerprint(repo.path, 'src/old.js');
+    const patch = await internalPatch(
+      repo.path,
+      [
+        { path: 'src/old.js', operation: 'delete', expectedFingerprint: old.value },
+        { path: 'src/new.js', operation: 'create', replacementContent: 'fresh\n' },
+      ],
+      ['npm test'],
+    );
+    const result = await transact(repo.path, patch, ['npm test'], telemetry());
+    expect(result.status).toBe('passed');
+    expect(result.changedFiles).toEqual(['src/old.js', 'src/new.js']);
+    expect(result.diff).toContain('deleted file mode');
+    expect(result.diff).toContain('new file mode');
+    expect(existsSync(join(repo.path, 'src/new.js'))).toBe(false);
+
+    await applyVerifiedPatch(repo.path, patch, result.diff);
+    expect(readFileSync(join(repo.path, 'src/new.js'), 'utf8')).toBe('fresh\n');
+    expect(existsSync(join(repo.path, 'src/old.js'))).toBe(false);
+  });
+
+  it('ignores untracked nested repositories when mirroring uncommitted work', async () => {
+    const repo = await repository({
+      'package.json': JSON.stringify({
+        private: true,
+        scripts: { test: 'node -e "process.exit(0)"' },
+      }),
+      'src/value.js': 'old\n',
+    });
+    repositories.push(repo);
+    mkdirSync(join(repo.path, 'tools', 'nested'), { recursive: true });
+    await execa('git', ['init'], { cwd: join(repo.path, 'tools', 'nested') });
+    writeFileSync(join(repo.path, 'tools', 'nested', 'a.txt'), 'nested\n');
+    writeFileSync(join(repo.path, 'notes.md'), 'untracked\n');
+    const before = await fingerprint(repo.path, 'src/value.js');
+    const result = await transact(
+      repo.path,
+      await internalPatch(repo.path, [
+        {
+          path: 'src/value.js',
+          operation: 'modify',
+          expectedFingerprint: before.value,
+          replacementContent: 'new\n',
+        },
+      ], ['npm test']),
+      ['npm test'],
+      telemetry(),
+    );
+    expect(result.status).toBe('passed');
+    expect(result.changedFiles).toEqual(['src/value.js']);
+  });
+
+  it('reports a hanging verification command as failed verification', async () => {
+    const repo = await repository({
+      'package.json': JSON.stringify({
+        private: true,
+        scripts: { test: 'node -e "setTimeout(() => {}, 60000)"' },
+      }),
+      'src/value.js': 'old\n',
+    });
+    repositories.push(repo);
+    const before = await fingerprint(repo.path, 'src/value.js');
+    const result = await transact(
+      repo.path,
+      await internalPatch(repo.path, [
+        {
+          path: 'src/value.js',
+          operation: 'modify',
+          expectedFingerprint: before.value,
+          replacementContent: 'new\n',
+        },
+      ], ['npm test']),
+      ['npm test'],
+      telemetry(),
+      false,
+      undefined,
+      1_500,
+    );
+    expect(result.status).toBe('failed');
+    expect(result.verification[0].exitCode).toBe(124);
+    expect(result.verification[0].stderr).toContain('verification timed out');
+  }, 30_000);
+
+  it('removes crashed-run worktrees and their dependency links, never the linked target', async () => {
+    const repo = await repository({
+      'package.json': JSON.stringify({
+        private: true,
+        scripts: { test: 'node -e "process.exit(0)"' },
+      }),
+      'src/value.js': 'old\n',
+    });
+    repositories.push(repo);
+    mkdirSync(join(repo.path, 'node_modules', 'dep'), { recursive: true });
+    writeFileSync(join(repo.path, 'node_modules', 'dep', 'index.js'), 'module.exports = 1;\n');
+    const worktrees = join(repo.path, '.lattice', 'worktrees');
+    const stale = join(worktrees, 'stale-run');
+    await execa('git', ['worktree', 'add', '--detach', stale, 'HEAD'], { cwd: repo.path });
+    symlinkSync(
+      join(repo.path, 'node_modules'),
+      join(stale, 'node_modules'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
+    const exited = spawnSync(process.execPath, ['-e', 'process.exit(0)']);
+    expect(Number.isInteger(exited.pid)).toBe(true);
+    writeFileSync(
+      join(worktrees, 'stale-run.owner.json'),
+      JSON.stringify({ schemaVersion: 1, pid: exited.pid, createdAt: new Date().toISOString() }),
+    );
+    const before = await fingerprint(repo.path, 'src/value.js');
+    const result = await transact(
+      repo.path,
+      await internalPatch(repo.path, [
+        {
+          path: 'src/value.js',
+          operation: 'modify',
+          expectedFingerprint: before.value,
+          replacementContent: 'new\n',
+        },
+      ], ['npm test']),
+      ['npm test'],
+      telemetry(),
+    );
+    expect(result.status).toBe('passed');
+    expect(existsSync(stale)).toBe(false);
+    expect(existsSync(join(worktrees, 'stale-run.owner.json'))).toBe(false);
+    expect(existsSync(join(repo.path, 'node_modules', 'dep', 'index.js'))).toBe(true);
+  }, 60_000);
+
+  it('removes dependency links from a retained worktree', async () => {
+    const repo = await repository({
+      'package.json': JSON.stringify({
+        private: true,
+        scripts: { test: 'node -e "process.exit(3)"' },
+      }),
+      'src/value.js': 'old\n',
+    });
+    repositories.push(repo);
+    mkdirSync(join(repo.path, 'node_modules', 'dep'), { recursive: true });
+    const before = await fingerprint(repo.path, 'src/value.js');
+    const result = await transact(
+      repo.path,
+      await internalPatch(repo.path, [
+        {
+          path: 'src/value.js',
+          operation: 'modify',
+          expectedFingerprint: before.value,
+          replacementContent: 'new\n',
+        },
+      ], ['npm test']),
+      ['npm test'],
+      telemetry(),
+      true,
+    );
+    expect(existsSync(result.worktree)).toBe(true);
+    expect(existsSync(join(result.worktree, 'node_modules'))).toBe(false);
+    expect(existsSync(join(repo.path, 'node_modules', 'dep'))).toBe(true);
+    await execa('git', ['worktree', 'remove', '--force', result.worktree], { cwd: repo.path });
+  });
+
+  it('keeps .lattice out of commits through the clone-local exclude file', async () => {
+    const repo = await repository({ 'src/value.js': 'old\n' });
+    repositories.push(repo);
+    writeFileSync(join(repo.path, '.gitignore'), '');
+    metadata(repo.path);
+    metadata(repo.path);
+    const exclude = readFileSync(join(repo.path, '.git', 'info', 'exclude'), 'utf8');
+    expect(exclude.match(/^\/\.lattice\/$/gm)).toHaveLength(1);
+    const status = await execa('git', ['status', '--porcelain', '--untracked-files=all'], {
+      cwd: repo.path,
+    });
+    expect(status.stdout).not.toContain('.lattice');
+  });
+
+  it('rejects creating a Git-ignored path', async () => {
+    const repo = await repository({ 'src/value.js': 'old\n' });
+    repositories.push(repo);
+    await expect(
+      transact(
+        repo.path,
+        await internalPatch(
+          repo.path,
+          [{ path: 'node_modules/x.js', operation: 'create', replacementContent: 'x\n' }],
+          [],
+        ),
+        [],
+        telemetry(),
+      ),
+    ).rejects.toThrow(/ignored by Git/);
+  });
+
+  it('refuses to apply a verified patch after the source changed', async () => {
+    const repo = await repository({
+      'package.json': JSON.stringify({
+        private: true,
+        scripts: { test: 'node -e "process.exit(0)"' },
+      }),
+      'src/value.js': 'old\n',
+    });
+    repositories.push(repo);
+    const before = await fingerprint(repo.path, 'src/value.js');
+    const patch = await internalPatch(
+      repo.path,
+      [
+        {
+          path: 'src/value.js',
+          operation: 'modify',
+          expectedFingerprint: before.value,
+          replacementContent: 'new\n',
+        },
+      ],
+      ['npm test'],
+    );
+    const result = await transact(repo.path, patch, ['npm test'], telemetry());
+    writeFileSync(join(repo.path, 'src/value.js'), 'edited meanwhile\n');
+    await expect(applyVerifiedPatch(repo.path, patch, result.diff)).rejects.toThrow(
+      /source changed since verification/,
+    );
+    expect(readFileSync(join(repo.path, 'src/value.js'), 'utf8')).toBe('edited meanwhile\n');
   });
 
   it('reports both identities, raw hashes, and lengths on a worktree mismatch', () => {

@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,7 +14,7 @@ import {
   validateHandoff,
 } from '../src/handoff.js';
 import { loadTask } from '../src/persistence.js';
-import { buildEvidence, runTask } from '../src/runtime.js';
+import { buildEvidence, runTask, verifiedTaskStatus } from '../src/runtime.js';
 import { compileTask } from '../src/task.js';
 import { recordTurnUsage, telemetry } from '../src/telemetry.js';
 import {
@@ -191,26 +191,39 @@ describe('verification evidence and runtime persistence', () => {
     expect(evidence[0].result).toBe('unresolved');
   });
 
-  it('satisfies passing-test criteria when required verification ends at 3/4', () => {
-    const task = compileTask(goal);
+  it('attributes criteria to named tests by shared vocabulary, not fixture rules', () => {
+    const task = compileTask(
+      'Add pagination: return the first page by default, clamp negative offsets, and document the limit option.',
+    );
+    expect(task.acceptanceCriteria.map((criterion) => criterion.text)).toEqual([
+      'Add pagination',
+      'return the first page by default',
+      'clamp negative offsets',
+      'document the limit option',
+    ]);
     const evidence = buildEvidence(
       task,
       'failed',
-      ['src/auth/token-repository.js', 'src/auth/service.js'],
+      ['src/paginate.ts'],
       'npm test',
       [
-        '\u2716 valid reset token can be consumed once (1ms)',
-        '\u2714 expired reset tokens cannot be consumed (1ms)',
-        '\u2714 successful password reset records audit event (1ms)',
-        '\u2714 login behavior remains unchanged (1ms)',
+        ' \u2713 returns the first page by default 3ms',
+        ' \u00d7 clamps negative offsets to zero 1ms',
+        'tests/test_paginate.py::test_pagination_defaults PASSED',
       ].join('\n'),
     );
-    expect(
-      evidence.filter((item) => item.result === 'passed').map((item) => item.criterionId),
-    ).toEqual(['ac-3', 'ac-4', 'ac-5']);
-    expect(
-      evidence.filter((item) => item.result === 'unresolved').map((item) => item.criterionId),
-    ).toEqual(['ac-1', 'ac-2']);
+    expect(evidence.map((item) => [item.criterionId, item.result])).toEqual([
+      ['ac-1', 'passed'],
+      ['ac-2', 'passed'],
+      ['ac-3', 'failed'],
+      ['ac-4', 'unresolved'],
+    ]);
+  });
+
+  it('decides task status from verification commands, not criterion attribution', () => {
+    expect(verifiedTaskStatus({ status: 'passed', verification: [{}] })).toBe('passed');
+    expect(verifiedTaskStatus({ status: 'failed', verification: [{}] })).toBe('failed');
+    expect(verifiedTaskStatus({ status: 'passed', verification: [] })).toBe('failed');
   });
 
   it('runs the mock worker through a real isolated transaction with complete telemetry', async () => {
@@ -239,7 +252,7 @@ describe('verification evidence and runtime persistence', () => {
     expect(result.telemetry.editGrantMappingSha256).toMatch(/^[a-f0-9]{64}$/);
     expect(result.telemetry.rejectedEditGrantReason).toBeNull();
     expect(result.telemetry.patchLoweringDurationMs).not.toBeNull();
-    expect(result.telemetry.providerProtocolVersion).toBe(4);
+    expect(result.telemetry.providerProtocolVersion).toBe(5);
     expect(result.telemetry.internalPatchVersion).toBe(1);
     expect(
       result.telemetry.runtimeStateTransitions.map(
@@ -258,7 +271,10 @@ describe('verification evidence and runtime persistence', () => {
       'VERIFYING',
       'PASSED',
     ]);
-    expect(result.telemetry.terminalStateReason).toContain('acceptance evidence passed');
+    expect(result.telemetry.terminalStateReason).toBe(
+      'required verification passed; acceptance evidence 5/5 attributed',
+    );
+    expect(result.applied).toBe(false);
     expect(result.telemetry.turnUsage).toEqual([
       expect.objectContaining({
         turnNumber: 1,
@@ -352,6 +368,14 @@ describe('verification evidence and runtime persistence', () => {
     expect(result.status).toBe('cancelled');
     expect(loadTask(repo.path, result.taskId).status).toBe('cancelled');
     expect(result.telemetry.workerTurns).toBe(0);
+  });
+
+  it('settles at the deadline even when the operation ignores its signal', async () => {
+    const started = Date.now();
+    await expect(
+      withTimeout(20, new AbortController().signal, () => new Promise(() => undefined)),
+    ).rejects.toThrow('worker timeout after 20ms');
+    expect(Date.now() - started).toBeLessThan(1_000);
   });
 
   it('enforces timeout cancellation without leaving a live timer', async () => {
@@ -484,6 +508,134 @@ describe('verification evidence and runtime persistence', () => {
     expect(repair.manifest.taskCharacters).toBe(0);
     expect(repair.manifest.repositoryMapCharacters).toBe(0);
     expect(repair.manifest.contextCharacters).toBe(0);
+  });
+});
+
+describe('generic tasks outside the reset-token fixture', () => {
+  it('passes, applies, and reports a new-file task on a dirty repository with dependencies', async () => {
+    const repo = await repository({
+      'package.json': JSON.stringify({
+        private: true,
+        scripts: { test: 'node --test' },
+      }),
+      'src/math.mjs': 'import { base } from \'local-base\';\nexport function double(value) {\n  return value * base;\n}\n',
+      'tests/double.test.mjs':
+        "import assert from 'node:assert/strict';\nimport test from 'node:test';\nimport { double } from '../src/math.mjs';\ntest('doubles a number', () => assert.equal(double(2), 4));\n",
+      'README.md': '# math\n',
+    });
+    repositories.push(repo);
+    mkdirSync(join(repo.path, 'node_modules', 'local-base'), { recursive: true });
+    writeFileSync(
+      join(repo.path, 'node_modules', 'local-base', 'package.json'),
+      JSON.stringify({ name: 'local-base', type: 'module', exports: './index.js' }),
+    );
+    writeFileSync(join(repo.path, 'node_modules', 'local-base', 'index.js'), 'export const base = 2;\n');
+    writeFileSync(join(repo.path, 'README.md'), '# math\n\nUncommitted notes.\n');
+
+    const handoff = await startHandoff(
+      repo.path,
+      'Add a clamp function to math: clamp values below min, clamp values above max.',
+    );
+    const math = handoff.pages.find((page) => page.path === 'src/math.mjs')!;
+    expect(math).toBeDefined();
+    const registry = loadEditGrantRegistry(repo.path, handoff.taskId);
+    writeJson(handoff.responsePath, {
+      kind: 'patch',
+      patch: {
+        summary: 'Add clamp with tests',
+        changes: [
+          {
+            editHandle: grantForPage(registry, math)!.handle,
+            operation: 'replace_text',
+            replacements: [
+              {
+                oldContent: '  return value * base;\n}\n',
+                newContent:
+                  '  return value * base;\n}\nexport function clamp(value, min, max) {\n  return Math.min(max, Math.max(min, value));\n}\n',
+              },
+            ],
+          },
+          {
+            operation: 'create_file',
+            path: 'tests/clamp.test.mjs',
+            content:
+              "import assert from 'node:assert/strict';\nimport test from 'node:test';\nimport { clamp } from '../src/math.mjs';\ntest('clamp values below min', () => assert.equal(clamp(-1, 0, 5), 0));\ntest('clamp values above max', () => assert.equal(clamp(9, 0, 5), 5));\n",
+          },
+        ],
+        verificationCommands: ['npm test'],
+      },
+    });
+    const finished = await continueHandoff(repo.path, handoff.taskId, { apply: true });
+    expect(finished.result?.error).toBeUndefined();
+    expect(finished.result?.status).toBe('passed');
+    expect(finished.result?.applied).toBe(true);
+    expect(
+      (finished.result?.evidence as { criterion: string; result: string }[]).map(
+        (item) => [item.criterion, item.result],
+      ),
+    ).toEqual([
+      ['Add a clamp function to math', 'unresolved'],
+      ['clamp values below min', 'passed'],
+      ['clamp values above max', 'passed'],
+    ]);
+    expect(readFileSync(join(repo.path, 'src/math.mjs'), 'utf8')).toContain('export function clamp');
+    expect(existsSync(join(repo.path, 'tests/clamp.test.mjs'))).toBe(true);
+    expect(readFileSync(join(repo.path, 'README.md'), 'utf8')).toContain('Uncommitted notes.');
+  }, 60_000);
+});
+
+describe('repository root resolution', () => {
+  it('runs a handoff started from a subdirectory against the repository root', async () => {
+    const repo = await repository({
+      'lib/package.json': JSON.stringify({ private: true }),
+      'package.json': JSON.stringify({
+        private: true,
+        scripts: { test: 'node -e "process.exit(0)"' },
+      }),
+      'lib/value.mjs': 'export const value = 1;\n',
+    });
+    repositories.push(repo);
+    const subdirectory = join(repo.path, 'lib');
+    const handoff = await startHandoff(subdirectory, 'Change value in lib value module to 2');
+    expect(handoff.workspace).toBe(repo.path);
+    const page = handoff.pages.find((candidate) => candidate.path === 'lib/value.mjs')!;
+    expect(page).toBeDefined();
+    const registry = loadEditGrantRegistry(repo.path, handoff.taskId);
+    writeJson(handoff.responsePath, {
+      kind: 'patch',
+      patch: {
+        summary: 'value 2',
+        changes: [
+          {
+            editHandle: grantForPage(registry, page)!.handle,
+            operation: 'replace_file',
+            replacementContent: 'export const value = 2;\n',
+          },
+        ],
+        verificationCommands: ['npm test'],
+      },
+    });
+    const finished = await continueHandoff(subdirectory, handoff.taskId, { apply: true });
+    expect(finished.result?.error).toBeUndefined();
+    expect(finished.result?.status).toBe('passed');
+    expect(readFileSync(join(subdirectory, 'value.mjs'), 'utf8')).toBe('export const value = 2;\n');
+  }, 60_000);
+
+  it('records a patch that cannot be lowered as a failed task instead of throwing', async () => {
+    const repo = await repository(fixtureFiles);
+    repositories.push(repo);
+    const handoff = await startHandoff(repo.path, goal);
+    writeJson(handoff.responsePath, {
+      kind: 'patch',
+      patch: {
+        summary: 'unknown handle',
+        changes: [{ editHandle: 'E999', operation: 'replace_file', replacementContent: 'x' }],
+        verificationCommands: ['npm test'],
+      },
+    });
+    const finished = await continueHandoff(repo.path, handoff.taskId);
+    expect(finished.result).toMatchObject({ status: 'failed', failureStage: 'patch_lowering' });
+    expect(loadTask(repo.path, handoff.taskId).status).toBe('failed');
   });
 });
 
@@ -819,8 +971,8 @@ describe('benchmark and CLI contracts', () => {
       ),
     ).toBe(true);
     expect(output.artifact.schemaVersion).toBe(1);
-    expect(output.artifact.result.telemetry.terminalStateReason).toContain(
-      'acceptance evidence passed',
+    expect(output.artifact.result.telemetry.terminalStateReason).toBe(
+      'required verification passed; acceptance evidence 5/5 attributed',
     );
     expect(existsSync(output.path)).toBe(true);
   }, 60_000);

@@ -143,6 +143,55 @@ function textToolValue(response: Awaited<ReturnType<LatticeMcpBridge['handle']>>
   };
 }
 
+describe('Lattice MCP bridge resilience', () => {
+  const search = (id: number) =>
+    rpc(id, 'tools/call', {
+      name: MCP_TOOL_NAMES.searchContext,
+      arguments: { query: 'AuthService' },
+    });
+
+  test('retries sidecar attachment after a failed attempt instead of caching the failure', async () => {
+    const fake = dependencies();
+    fake.ensure.mockRejectedValueOnce(new Error('sidecar startup timed out'));
+    const bridge = new LatticeMcpBridge({ dependencies: fake.dependencies });
+    await initialize(bridge);
+    const first = textToolValue(await bridge.handle(search(2)));
+    expect(first.result.isError).toBe(true);
+    const second = textToolValue(await bridge.handle(search(3)));
+    expect(second.result.isError).toBeUndefined();
+    expect(fake.ensure).toHaveBeenCalledTimes(2);
+  });
+
+  test('re-attaches once when the sidecar behind a lease has stopped', async () => {
+    const fake = dependencies();
+    fake.context.mockRejectedValueOnce(new Error('fetch failed'));
+    const bridge = new LatticeMcpBridge({ dependencies: fake.dependencies });
+    await initialize(bridge);
+    const response = textToolValue(await bridge.handle(search(2)));
+    expect(response.result.isError).toBeUndefined();
+    expect(fake.ensure).toHaveBeenCalledTimes(2);
+    expect(fake.stopHeartbeat).toHaveBeenCalled();
+  });
+
+  test('keeps the search tool schema free of top-level combinators', async () => {
+    const fake = dependencies();
+    const bridge = new LatticeMcpBridge({ dependencies: fake.dependencies });
+    await initialize(bridge);
+    const { tools } = resultOf(await bridge.handle(rpc(2, 'tools/list'))) as {
+      tools: { inputSchema: Record<string, unknown> }[];
+    };
+    for (const tool of tools) {
+      expect(tool.inputSchema).not.toHaveProperty('anyOf');
+      expect(tool.inputSchema).not.toHaveProperty('oneOf');
+      expect(tool.inputSchema).not.toHaveProperty('allOf');
+    }
+    const missing = await bridge.handle(
+      rpc(3, 'tools/call', { name: MCP_TOOL_NAMES.searchContext, arguments: {} }),
+    );
+    expect(missing).toHaveProperty('error.code', -32602);
+  });
+});
+
 describe('Lattice MCP server', () => {
   test('returns the canonical initialize response and server instructions', async () => {
     const fake = dependencies();

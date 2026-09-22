@@ -1,19 +1,26 @@
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   Codex,
   type CodexOptions,
   type Thread,
   type ThreadOptions,
 } from '@openai/codex-sdk';
+import { removeDirectoryWithRetry } from './cleanup.js';
 import { rawHash } from './core.js';
 import { grantForPage } from './edit-grants.js';
 import {
+  CODEX_WORKER_OUTPUT_SCHEMA,
   parseResponse,
   WorkerProtocolError,
 } from './providers/codex/protocol.js';
 import {
   buildContextFaultPrompt,
   buildInitialWorkerPrompt,
+  buildPatchRevisionPrompt,
   buildProtocolRepairPrompt,
+  type PatchRevisionFeedback,
 } from './providers/codex/prompt.js';
 import {
   recordProtocolDiagnostics,
@@ -23,6 +30,7 @@ import {
 import type {
   ContextPage,
   EditGrantRegistryIR,
+  PromptManifest,
   TaskIR,
   Telemetry,
   TurnKind,
@@ -33,11 +41,13 @@ import type { CodexModelOverrides } from './model-settings.js';
 export {
   buildContextFaultPrompt,
   buildInitialWorkerPrompt,
+  buildPatchRevisionPrompt,
   buildProtocolRepairPrompt,
   externalProtocol,
   STABLE_WORKER_PREFIX,
   STABLE_WORKER_PREFIX_SHA256,
 } from './providers/codex/prompt.js';
+export type { PatchRevisionFeedback } from './providers/codex/prompt.js';
 
 export type WorkerInput = {
   workspace: string;
@@ -54,6 +64,10 @@ export interface Worker {
   threadId?: string;
   run(input: WorkerInput): Promise<WorkerResponse>;
   continue(input: WorkerInput): Promise<WorkerResponse>;
+  /** Ask for a corrected patch after lowering or verification rejected one. */
+  revise?(input: WorkerInput, feedback: PatchRevisionFeedback): Promise<WorkerResponse>;
+  /** Release worker-owned resources such as scratch directories. */
+  dispose?(): Promise<void>;
 }
 
 export function selectNewContextPages(pages: ContextPage[], sentPageIds: Set<string>) {
@@ -190,6 +204,17 @@ export class MockWorker implements Worker {
   }
 }
 
+/** Per-turn provider deadline; LATTICE_WORKER_TIMEOUT_MS overrides it. */
+export function workerTurnTimeoutMs(env: NodeJS.ProcessEnv = process.env) {
+  const configured = Number(env.LATTICE_WORKER_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : 300_000;
+}
+
+/**
+ * Run `operation` with a deadline. The operation receives a signal that is
+ * aborted on timeout or parent cancellation, and the returned promise settles
+ * at that moment even if the operation ignores its signal.
+ */
 export async function withTimeout<T>(
   milliseconds: number,
   parentSignal: AbortSignal,
@@ -198,20 +223,34 @@ export async function withTimeout<T>(
   const controller = new AbortController();
   const abort = () => controller.abort(parentSignal.reason);
   parentSignal.addEventListener('abort', abort, { once: true });
+  if (parentSignal.aborted) abort();
   const timer = setTimeout(
     () => controller.abort(new Error(`worker timeout after ${milliseconds}ms`)),
     milliseconds,
   );
+  let stopWaiting: () => void = () => undefined;
+  const interrupted = new Promise<never>((_resolve, reject) => {
+    const onAbort = () => reject(controller.signal.reason);
+    if (controller.signal.aborted) onAbort();
+    controller.signal.addEventListener('abort', onAbort, { once: true });
+    stopWaiting = () => controller.signal.removeEventListener('abort', onAbort);
+  });
   try {
-    return await operation(controller.signal);
+    return await Promise.race([operation(controller.signal), interrupted]);
   } finally {
     clearTimeout(timer);
+    stopWaiting();
     parentSignal.removeEventListener('abort', abort);
   }
 }
 
+/**
+ * The Codex worker answers from the granted pages alone. It runs in an empty
+ * scratch directory, cannot write, reach the network or wait for approvals,
+ * so bounded context is enforced rather than merely suggested.
+ */
 export function codexThreadOptions(
-  workspace: string,
+  workingDirectory: string,
   modelSettings: CodexModelOverrides = {},
 ): ThreadOptions {
   return {
@@ -219,9 +258,30 @@ export function codexThreadOptions(
     ...(modelSettings.reasoningEffort
       ? { modelReasoningEffort: modelSettings.reasoningEffort }
       : {}),
-    workingDirectory: workspace,
+    workingDirectory,
+    skipGitRepoCheck: true,
     sandboxMode: 'read-only',
+    approvalPolicy: 'never',
+    networkAccessEnabled: false,
+    webSearchMode: 'disabled',
   };
+}
+
+/**
+ * Worker client configuration: the user's model and provider settings are
+ * inherited, but MCP servers, hooks and plugins are not. The Lattice-first
+ * hooks would otherwise deny the worker's own tool calls, and other servers
+ * would add untracked context and startup time.
+ */
+export function codexWorkerConfig(
+  config?: CodexOptions['config'],
+): NonNullable<CodexOptions['config']> {
+  return config ?? { mcp_servers: {}, features: { hooks: false, plugins: false } };
+}
+
+function isOutputSchemaRejection(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /output[_ ]?schema|json[_ ]?schema|response_format|invalid schema/i.test(message);
 }
 
 async function runProviderTurn<T extends { usage: ProviderUsage | null }>(
@@ -244,6 +304,8 @@ export class CodexWorker implements Worker {
   private readonly codex: Codex;
   private thread?: Thread;
   private repaired = false;
+  private useOutputSchema = true;
+  private scratchDirectory?: string;
   private readonly sentPageIds = new Set<string>();
   threadId?: string;
 
@@ -251,27 +313,61 @@ export class CodexWorker implements Worker {
     private readonly modelSettings: CodexModelOverrides = {},
     config?: CodexOptions['config'],
   ) {
-    this.codex = new Codex({ config });
+    this.codex = new Codex({ config: codexWorkerConfig(config) });
+  }
+
+  private threadOptions() {
+    this.scratchDirectory ??= mkdtempSync(join(tmpdir(), 'lattice-codex-worker-'));
+    return codexThreadOptions(this.scratchDirectory, this.modelSettings);
   }
 
   async run(input: WorkerInput) {
     this.sentPageIds.clear();
     this.repaired = false;
     this.thread = await withTimeout(30_000, input.signal, async () =>
-      this.codex.startThread(codexThreadOptions(input.workspace, this.modelSettings)),
+      this.codex.startThread(this.threadOptions()),
     );
     return this.turn(input, 'initial');
   }
 
   async continue(input: WorkerInput) {
+    this.resumeThread();
+    return this.turn(input, 'context_fault');
+  }
+
+  async revise(input: WorkerInput, feedback: PatchRevisionFeedback) {
+    this.resumeThread();
+    return this.exchange(input, 'patch_revision', buildPatchRevisionPrompt(input.metrics, feedback));
+  }
+
+  async dispose() {
+    if (this.scratchDirectory) await removeDirectoryWithRetry(this.scratchDirectory);
+    this.scratchDirectory = undefined;
+  }
+
+  private resumeThread() {
     if (!this.thread && this.threadId) {
-      this.thread = this.codex.resumeThread(
-        this.threadId,
-        codexThreadOptions(input.workspace, this.modelSettings),
-      );
+      this.thread = this.codex.resumeThread(this.threadId, this.threadOptions());
     }
     if (!this.thread) throw new Error('Codex worker has no active thread');
-    return this.turn(input, 'context_fault');
+  }
+
+  /**
+   * Structured output keeps Codex on the canonical envelope. If the provider
+   * rejects the schema itself, the first turn restarts once without it and the
+   * protocol parser plus one repair turn remain the safety net.
+   */
+  private async runThread(text: string, signal: AbortSignal, kind: TurnKind) {
+    if (this.useOutputSchema) {
+      try {
+        return await this.thread!.run(text, { signal, outputSchema: CODEX_WORKER_OUTPUT_SCHEMA });
+      } catch (error) {
+        if (signal.aborted || !isOutputSchemaRejection(error)) throw error;
+        this.useOutputSchema = false;
+        if (kind === 'initial') this.thread = this.codex.startThread(this.threadOptions());
+      }
+    }
+    return this.thread!.run(text, { signal });
   }
 
   private async turn(
@@ -283,10 +379,18 @@ export class CodexWorker implements Worker {
       kind === 'initial'
         ? buildInitialWorkerPrompt(input, grantedContextPages)
         : buildContextFaultPrompt(input.metrics, grantedContextPages, input.editGrants);
+    return this.exchange(input, kind, built);
+  }
+
+  private async exchange(
+    input: WorkerInput,
+    kind: TurnKind,
+    built: { text: string; manifest: PromptManifest },
+  ): Promise<WorkerResponse> {
     input.metrics.promptManifests.push(built.manifest);
     const result = await runProviderTurn(input, kind, () =>
-      withTimeout(120_000, input.signal, (signal) =>
-        this.thread!.run(built.text, { signal }),
+      withTimeout(workerTurnTimeoutMs(), input.signal, (signal) =>
+        this.runThread(built.text, signal, kind),
       ),
     );
     this.threadId = this.thread!.id ?? this.threadId;
@@ -303,8 +407,8 @@ export class CodexWorker implements Worker {
       const repair = buildProtocolRepairPrompt(input.metrics, error.message);
       input.metrics.promptManifests.push(repair.manifest);
       const repaired = await runProviderTurn(input, 'protocol_repair', () =>
-        withTimeout(120_000, input.signal, (signal) =>
-          this.thread!.run(repair.text, { signal }),
+        withTimeout(workerTurnTimeoutMs(), input.signal, (signal) =>
+          this.runThread(repair.text, signal, 'protocol_repair'),
         ),
       );
       return parseResponse(repaired.finalResponse, {

@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
@@ -35,7 +35,38 @@ export type InheritedProcessOptions = {
   env?: NodeJS.ProcessEnv;
   signal?: AbortSignal;
   forwardSignals?: readonly NodeJS.Signals[];
+  /**
+   * Signals the parent absorbs without forwarding. The terminal already
+   * delivers Ctrl+C to an inherited-console child; forwarding it again would
+   * look like a double press (exit) on POSIX and force-kill on Windows.
+   */
+  ignoreSignals?: readonly NodeJS.Signals[];
 };
+
+/**
+ * Wait for a spawned child to close. A spawn failure (for example ENOENT) is
+ * delivered through the child's 'error' event; the listener is attached
+ * before anything else can throw, so it never becomes an uncaught crash.
+ */
+function childClosed(child: ChildProcess) {
+  return new Promise<{ exitCode: number | null; signal: NodeJS.Signals | null }>(
+    (resolve, reject) => {
+      child.once('error', reject);
+      child.once('close', (exitCode, signal) => resolve({ exitCode, signal }));
+    },
+  );
+}
+
+async function spawnFailure(closed: Promise<unknown>, command: string, kind: string) {
+  try {
+    await closed;
+  } catch (error) {
+    return new Error(
+      `failed to start ${kind}: ${command}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  return new Error(`failed to start ${kind}: ${command}`);
+}
 
 export class ManagedProcessError extends Error {
   constructor(
@@ -237,8 +268,12 @@ export async function runManagedProcess(
     shell: false,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+  const closedPromise = childClosed(child);
   if (child.pid === undefined) {
-    throw new Error(`failed to start child process: ${command}`);
+    const failure = await spawnFailure(closedPromise, command, 'child process');
+    child.stdout?.destroy();
+    child.stderr?.destroy();
+    throw failure;
   }
   const pid = child.pid;
   const stdout: Buffer[] = [];
@@ -266,13 +301,7 @@ export async function runManagedProcess(
   if (options.signal?.aborted) cancel();
 
   try {
-    const closed = await new Promise<{
-      exitCode: number | null;
-      signal: NodeJS.Signals | null;
-    }>((resolve, reject) => {
-      child.once('error', reject);
-      child.once('close', (exitCode, signal) => resolve({ exitCode, signal }));
-    });
+    const closed = await closedPromise;
     await termination;
     const result: ManagedProcessResult = {
       pid,
@@ -330,8 +359,9 @@ export async function runInheritedProcess(
     shell: false,
     stdio: 'inherit',
   });
+  const closedPromise = childClosed(child);
   if (child.pid === undefined) {
-    throw new Error(`failed to start foreground process: ${command}`);
+    throw await spawnFailure(closedPromise, command, 'foreground process');
   }
   const pid = child.pid;
   let cancelled = false;
@@ -346,9 +376,18 @@ export async function runInheritedProcess(
   options.signal?.addEventListener('abort', cancel, { once: true });
   if (options.signal?.aborted) cancel();
 
-  const forwardedSignals =
-    options.forwardSignals ?? (['SIGINT', 'SIGTERM', 'SIGHUP'] as const);
+  const forwardedSignals = options.forwardSignals ?? (['SIGTERM', 'SIGHUP'] as const);
+  const ignoredSignals = (options.ignoreSignals ?? (['SIGINT'] as const)).filter(
+    (signal) => !forwardedSignals.includes(signal),
+  );
   const signalHandlers = new Map<NodeJS.Signals, () => void>();
+  for (const signal of ignoredSignals) {
+    // The child owns Ctrl+C (interrupt, then exit on a second press). The
+    // listener only keeps Node's default SIGINT exit from killing the parent.
+    const handler = () => undefined;
+    signalHandlers.set(signal, handler);
+    process.on(signal, handler);
+  }
   for (const signal of forwardedSignals) {
     const handler = () => {
       if (child.exitCode !== null || child.signalCode !== null) return;
@@ -364,13 +403,7 @@ export async function runInheritedProcess(
   }
 
   try {
-    const closed = await new Promise<{
-      exitCode: number | null;
-      signal: NodeJS.Signals | null;
-    }>((resolve, reject) => {
-      child.once('error', reject);
-      child.once('close', (exitCode, signal) => resolve({ exitCode, signal }));
-    });
+    const closed = await closedPromise;
     await termination;
     return {
       pid,

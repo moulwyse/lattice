@@ -20,9 +20,9 @@ import {
   discoverRepository,
   type RepositoryDiscovery,
 } from './repository.js';
+import { readCodexHookInput } from './hook-input.js';
 import { ensureSidecar, type SidecarLease } from './sidecar.js';
 
-const MAX_HOOK_INPUT_BYTES = 64 * 1024;
 const MAX_ROLLOUT_TAIL_BYTES = 512 * 1024;
 const MAX_ROLLOUT_SELECTION_AGE_MS = 60 * 1_000;
 export const CODEX_SESSION_MAX_AGE_MS = 12 * 60 * 60 * 1_000;
@@ -33,6 +33,7 @@ const ReasoningEffortSchema = z.enum([
   'medium',
   'high',
   'xhigh',
+  'max',
 ]);
 
 const CodexHookInputSchema = z
@@ -108,29 +109,7 @@ export function readCodexSessionModelState(
   }
 }
 
-export async function readCodexHookInput(input: Readable) {
-  const chunks: Buffer[] = [];
-  let bytes = 0;
-  for await (const chunk of input) {
-    const value = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    bytes += value.length;
-    if (bytes > MAX_HOOK_INPUT_BYTES) {
-      throw new Error(`Codex hook input exceeds ${MAX_HOOK_INPUT_BYTES} bytes`);
-    }
-    chunks.push(value);
-    const buffered = Buffer.concat(chunks).toString('utf8');
-    const newline = buffered.indexOf('\n');
-    const candidate = newline >= 0 ? buffered.slice(0, newline) : buffered;
-    try {
-      return JSON.parse(candidate) as unknown;
-    } catch (error) {
-      if (newline >= 0) throw error;
-      // The JSON value may span more than one stream chunk. Keep reading until
-      // it becomes complete, but never wait for EOF once it is parseable.
-    }
-  }
-  return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
-}
+export { readCodexHookInput };
 
 function topLevelTomlString(raw: string, key: string) {
   const assignment = new RegExp(`^${key}\\s*=\\s*(["'])(.*?)\\1\\s*(?:#.*)?$`);

@@ -43,6 +43,12 @@ export const externalProtocol = {
               },
             ],
           },
+          {
+            operation: 'create_file',
+            path: 'new/repository/relative/file',
+            content: 'complete file content',
+          },
+          { editHandle: 'E2', operation: 'delete_file' },
         ],
         verificationCommands: ['npm test'],
       },
@@ -56,14 +62,16 @@ const systemInstructions = [
   'Return pure JSON only, without Markdown or explanatory prose.',
   'Return exactly one top-level action with kind context_request or patch.',
   'Patch changes must use only granted editHandle values.',
-  'Patch responses must never return a path, fingerprint, repository identity, base commit, or transaction metadata.',
+  'Patch responses must never return a fingerprint, repository identity, base commit, or transaction metadata.',
   'Prefer replace_text for localized edits: oldContent must be exact, non-empty, and unique in the granted file.',
   'Use replace_file only when the complete file was granted and a broad rewrite is necessary.',
-  'Do not change files that were not granted as context.',
+  'Use delete_file with a granted editHandle only when its permissions include delete_file.',
+  'Use create_file only for a new, non-hidden repository-relative path that does not exist yet; it is the only change that carries a path.',
+  'Do not change existing files that were not granted as context.',
 ].join('\n');
 
 export const STABLE_WORKER_PREFIX = [
-  'LATTICE_WORKER_PROTOCOL_V4',
+  'LATTICE_WORKER_PROTOCOL_V5',
   systemInstructions,
   'CANONICAL_OUTPUT_PROTOCOL',
   protocolText,
@@ -189,6 +197,41 @@ export function buildContextFaultPrompt(
       contextCharacters: context.length,
       protocolCharacters: 0,
       continuationCharacters: instruction.length,
+    }),
+  };
+}
+
+export type PatchRevisionFeedback = {
+  /** Why the previous patch was rejected, e.g. `replacement_source_missing`. */
+  reason: string;
+  /** Bounded detail: the lowering error or the tail of verification output. */
+  detail: string;
+};
+
+/**
+ * Return the concrete rejection of the previous patch (edit-grant lowering or
+ * failed verification) so the worker can send one corrected patch.
+ */
+export function buildPatchRevisionPrompt(
+  metrics: Telemetry,
+  feedback: PatchRevisionFeedback,
+): BuiltPrompt {
+  const revision = JSON.stringify({
+    rejected: feedback.reason,
+    detail: feedback.detail,
+    instruction:
+      'The previous patch was not applied. Return one canonical JSON action: a complete corrected patch with every intended change relative to the originally granted files, or a context_request. Use granted handles and permitted operations only.',
+  });
+  const heading = 'PATCH_REVISION';
+  return {
+    text: `${heading}\n${revision}`,
+    manifest: manifest(metrics.turnUsage.length + 1, 'patch_revision', {
+      stablePrefixCharacters: 0,
+      taskCharacters: 0,
+      repositoryMapCharacters: 0,
+      contextCharacters: 0,
+      protocolCharacters: 0,
+      continuationCharacters: heading.length + 1 + revision.length,
     }),
   };
 }

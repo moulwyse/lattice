@@ -124,6 +124,30 @@ describe('Codex Lattice-first policy', () => {
     });
   });
 
+  test('denies at most once per turn so unavailable Lattice tools never deadlock a turn', async () => {
+    const { workspace, dependencies } = fixture();
+    await applyCodexLatticePolicy(hook(workspace, 'UserPromptSubmit'), dependencies);
+    await expect(
+      applyCodexLatticePolicy(hook(workspace, 'PreToolUse', { toolName: 'exec_command' }), dependencies),
+    ).resolves.toMatchObject({ hookSpecificOutput: { permissionDecision: 'deny' } });
+    await expect(
+      applyCodexLatticePolicy(hook(workspace, 'PreToolUse', { toolName: 'exec_command' }), dependencies),
+    ).resolves.toBeNull();
+    await expect(
+      applyCodexLatticePolicy(hook(workspace, 'PreToolUse', { toolName: 'apply_patch' }), dependencies),
+    ).resolves.toBeNull();
+  });
+
+  test('is disabled for raw Codex and raw Claude launches', async () => {
+    const { workspace, dependencies } = fixture();
+    for (const raw of [{ LATTICE_CODEX_RAW: '1' }, { LATTICE_CLAUDE_RAW: '1' }]) {
+      const rawDependencies = { ...dependencies, env: { ...dependencies.env, ...raw } };
+      await expect(
+        applyCodexLatticePolicy(hook(workspace, 'PreToolUse', { toolName: 'Bash' }), rawDependencies),
+      ).resolves.toBeNull();
+    }
+  });
+
   test('fails open outside a safe repository', async () => {
     const { workspace, dependencies } = fixture();
     const unsafe = {

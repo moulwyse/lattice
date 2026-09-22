@@ -108,7 +108,7 @@ function permissionsFor(page: ContextPage): readonly EditPermission[] {
   }
   return page.complete === false
     ? (['replace_text'] as const)
-    : (['replace_file', 'replace_text'] as const);
+    : (['replace_file', 'replace_text', 'delete_file'] as const);
 }
 
 function addGrant(registry: EditGrantRegistryIR, page: ContextPage) {

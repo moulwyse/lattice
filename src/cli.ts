@@ -92,6 +92,27 @@ function eventStream(json: boolean) {
   return events;
 }
 
+function printChanges(result: {
+  status: string;
+  changedFiles?: unknown;
+  unifiedDiff?: unknown;
+  applied?: unknown;
+  applyError?: unknown;
+}) {
+  const changedFiles = Array.isArray(result.changedFiles) ? (result.changedFiles as string[]) : [];
+  if (changedFiles.length > 0) console.log(`Changed files: ${changedFiles.join(', ')}`);
+  if (result.status !== 'passed') return;
+  if (result.applied === true) {
+    console.log('Applied: verified patch written to the workspace');
+  } else {
+    if (typeof result.applyError === 'string') console.log(`Apply failed: ${result.applyError}`);
+    else console.log('Applied: no (verification only)');
+    if (typeof result.unifiedDiff === 'string' && result.unifiedDiff) {
+      console.log(result.unifiedDiff);
+    }
+  }
+}
+
 function printResult(result: Awaited<ReturnType<typeof runTask>>, json: boolean) {
   if (json) {
     console.log(JSON.stringify(result));
@@ -100,6 +121,7 @@ function printResult(result: Awaited<ReturnType<typeof runTask>>, json: boolean)
   console.log(`Task: ${result.taskId}`);
   console.log(`Status: ${result.status}`);
   if (result.error) console.log(`Error: ${result.error}`);
+  printChanges(result);
   if (result.modelConfiguration) {
     const configuration = result.modelConfiguration as {
       modelSource: string;
@@ -128,6 +150,7 @@ export async function executeRun(
     modelPolicy?: string;
     maxBudgetUsd?: number;
     verifiedCache?: boolean;
+    apply?: boolean;
   },
 ) {
   const workspace = resolve(options.workspace ?? process.cwd());
@@ -179,6 +202,7 @@ export async function executeRun(
         : undefined,
       maxBudgetUsd: options.maxBudgetUsd,
       useVerifiedCache: options.verifiedCache,
+      apply: options.apply !== false,
       events,
     });
     printResult(result, Boolean(options.json));
@@ -205,12 +229,13 @@ program
   .option('--model-policy <policy>', 'inherit or adaptive')
   .option(
     '--max-budget-usd <usd>',
-    'hard Claude API spend cap across the complete Lattice run',
+    'Claude API spend cap for the whole run: no new turn starts after it is reached, and one turn can exceed it',
     positiveUsd,
   )
   .option('--json', 'emit one JSON result to stdout')
   .option('--retain-worktree', 'retain the isolated worktree for debugging')
   .option('--no-verified-cache', 'disable exact verified-patch reuse')
+  .option('--no-apply', 'verify only; do not apply the verified patch to the workspace')
   .action(async (goal, options) => {
     if (!['claude', 'codex', 'mock', 'manual'].includes(options.worker)) {
       throw new Error(`unsupported worker: ${options.worker}`);
@@ -224,8 +249,11 @@ program
   .argument('<task-id>')
   .option('--workspace <path>', 'repository workspace', process.cwd())
   .option('--json')
+  .option('--no-apply', 'verify only; do not apply the verified patch to the workspace')
   .action(async (taskId, options) => {
-    const output = await continueHandoff(resolve(options.workspace), taskId);
+    const output = await continueHandoff(resolve(options.workspace), taskId, {
+      apply: options.apply,
+    });
     if (options.json) console.log(JSON.stringify(output));
     else if (output.response.kind === 'context_request') {
       console.log('Additional context handoff required.');
@@ -235,6 +263,7 @@ program
     } else {
       console.log(`Task: ${taskId}`);
       console.log(`Status: ${output.result?.status}`);
+      if (output.result) printChanges(output.result);
     }
   });
 
@@ -522,6 +551,7 @@ claudeIntegration
     );
     console.log(`MCP: ${result.state.mcpPath}`);
     console.log(`Hooks: ${result.state.settingsPath}`);
+    for (const warning of result.warnings) console.log(`Warning: ${warning}`);
     console.log(
       'Raw bypass: lattice claude --raw',
     );
@@ -569,7 +599,7 @@ program
   .option('--model-policy <policy>', 'inherit or adaptive')
   .option(
     '--max-budget-usd <usd>',
-    'hard Claude API spend cap for this benchmark run',
+    'Claude API spend cap for this benchmark run: no new turn starts after it is reached, and one turn can exceed it',
     positiveUsd,
   )
   .option('--json')

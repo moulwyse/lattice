@@ -4,6 +4,7 @@ import type {
   WorkerResponse,
 } from '../../types.js';
 import {
+  assertDistinctHandles,
   ExternalResponseSchema,
   WorkerProtocolError,
   type ParseOptions,
@@ -64,6 +65,27 @@ const replaceTextSchema = {
   additionalProperties: false,
 } as const;
 
+const deleteFileSchema = {
+  type: 'object',
+  properties: {
+    editHandle: { type: 'string' },
+    operation: { type: 'string', enum: ['delete_file'] },
+  },
+  required: ['editHandle', 'operation'],
+  additionalProperties: false,
+} as const;
+
+const createFileSchema = {
+  type: 'object',
+  properties: {
+    operation: { type: 'string', enum: ['create_file'] },
+    path: { type: 'string' },
+    content: { type: 'string' },
+  },
+  required: ['operation', 'path', 'content'],
+  additionalProperties: false,
+} as const;
+
 const patchSchema = {
   type: 'object',
   properties: {
@@ -74,7 +96,9 @@ const patchSchema = {
         summary: { type: 'string' },
         changes: {
           type: 'array',
-          items: { oneOf: [replaceFileSchema, replaceTextSchema] },
+          items: {
+            oneOf: [replaceFileSchema, replaceTextSchema, deleteFileSchema, createFileSchema],
+          },
         },
         verificationCommands: {
           type: 'array',
@@ -133,14 +157,6 @@ function versionResponse(
       verificationCommands: parsed.patch.verificationCommands,
     },
   };
-}
-
-function assertDistinctHandles(response: WorkerResponse) {
-  if (response.kind !== 'patch') return;
-  const handles = response.patch.changes.map((change) => change.editHandle);
-  if (new Set(handles).size !== handles.length) {
-    throw new Error('duplicate conflicting edit handles');
-  }
 }
 
 /**

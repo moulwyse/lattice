@@ -258,20 +258,59 @@ describe('canonical handle-only worker protocol', () => {
     ).toThrow(new RegExp(`patch\\.changes\\.0.*${field}`));
   });
 
-  it('rejects unsupported create and delete operations', () => {
-    for (const operation of ['create_file', 'delete_file']) {
+  it('accepts handle-bound delete_file and path-bound create_file changes', () => {
+    const response = parseResponse(
+      JSON.stringify({
+        ...canonicalPatch,
+        patch: {
+          ...canonicalPatch.patch,
+          changes: [
+            { editHandle: 'E1', operation: 'delete_file' },
+            { operation: 'create_file', path: 'src/new.js', content: 'export {};\n' },
+          ],
+        },
+      }),
+    );
+    expect(response.kind === 'patch' && response.patch.changes).toEqual([
+      { editHandle: 'E1', operation: 'delete_file' },
+      { operation: 'create_file', path: 'src/new.js', content: 'export {};\n' },
+    ]);
+  });
+
+  it('rejects malformed create/delete changes and unknown operations', () => {
+    const changes = [
+      { ...canonicalPatch.patch.changes[0], operation: 'create_file' },
+      { ...canonicalPatch.patch.changes[0], operation: 'delete_file' },
+      { editHandle: 'E1', operation: 'rename_file', path: 'src/other.js' },
+      { editHandle: 'E1', operation: 'create_file', path: 'src/new.js', content: '' },
+    ];
+    for (const change of changes) {
       expect(() =>
         parseResponse(
           JSON.stringify({
             ...canonicalPatch,
-            patch: {
-              ...canonicalPatch.patch,
-              changes: [{ ...canonicalPatch.patch.changes[0], operation }],
-            },
+            patch: { ...canonicalPatch.patch, changes: [change] },
           }),
         ),
-      ).toThrow(/replace_file/);
+      ).toThrow(WorkerProtocolError);
     }
+  });
+
+  it('rejects duplicate create_file paths', () => {
+    expect(() =>
+      parseResponse(
+        JSON.stringify({
+          ...canonicalPatch,
+          patch: {
+            ...canonicalPatch.patch,
+            changes: [
+              { operation: 'create_file', path: 'src/new.js', content: 'a' },
+              { operation: 'create_file', path: 'SRC\\new.js', content: 'b' },
+            ],
+          },
+        }),
+      ),
+    ).toThrow(/duplicate create_file paths/);
   });
 
   it('does not accept old Shape A or Shape B as new live responses', () => {

@@ -94,6 +94,7 @@ export const SidecarContextPageSchema = z
     fingerprint: z.string().min(1),
     content: z.string(),
     reason: z.string(),
+    truncated: z.boolean().optional(),
   })
   .strict();
 

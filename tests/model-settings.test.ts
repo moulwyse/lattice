@@ -27,6 +27,15 @@ function workspace(config?: unknown) {
   return path;
 }
 
+// The worker answers from granted pages in an empty scratch directory.
+const isolatedWorkerThread = {
+  skipGitRepoCheck: true,
+  sandboxMode: 'read-only',
+  approvalPolicy: 'never',
+  networkAccessEnabled: false,
+  webSearchMode: 'disabled',
+};
+
 describe('Codex model synchronization', () => {
   it('inherits the normal Codex configuration by default', () => {
     const inherited = resolveCodexModelSettings(workspace());
@@ -37,9 +46,9 @@ describe('Codex model synchronization', () => {
       modelPolicySource: 'default',
       policyRisk: 'medium',
     });
-    expect(codexThreadOptions('C:/repo', inherited)).toEqual({
-      workingDirectory: 'C:/repo',
-      sandboxMode: 'read-only',
+    expect(codexThreadOptions('C:/scratch', inherited)).toEqual({
+      workingDirectory: 'C:/scratch',
+      ...isolatedWorkerThread,
     });
     expect(
       resolveCodexModelSettings(
@@ -69,12 +78,12 @@ describe('Codex model synchronization', () => {
       policyRisk: 'medium',
     });
     expect(
-      codexThreadOptions('C:/repo', resolveCodexModelSettings(path)),
+      codexThreadOptions('C:/scratch', resolveCodexModelSettings(path)),
     ).toEqual({
       model: 'gpt-project',
       modelReasoningEffort: 'low',
-      workingDirectory: 'C:/repo',
-      sandboxMode: 'read-only',
+      workingDirectory: 'C:/scratch',
+      ...isolatedWorkerThread,
     });
     expect(
       resolveCodexModelSettings(path, {

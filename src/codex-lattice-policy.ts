@@ -9,7 +9,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
 import {
@@ -70,9 +70,17 @@ const PolicyStateSchema = z
     attemptedAt: z.string().datetime().nullable(),
     attemptedTool: z.string().min(1).nullable(),
     succeededAt: z.string().datetime().nullable(),
+    deniedAt: z.string().datetime().nullable().optional(),
     updatedAt: z.string().datetime(),
   })
   .strict();
+
+/** Set for `lattice codex --raw` / `codex-raw` and `lattice claude --raw`. */
+export const LATTICE_CODEX_RAW_ENV = 'LATTICE_CODEX_RAW';
+
+export function latticeRawMode(env: NodeJS.ProcessEnv) {
+  return env.LATTICE_CLAUDE_RAW === '1' || env[LATTICE_CODEX_RAW_ENV] === '1';
+}
 
 type PolicyState = z.infer<typeof PolicyStateSchema>;
 
@@ -98,12 +106,14 @@ function isLatticeContextTool(toolName: string | undefined) {
 }
 
 function policyDirectory(env: NodeJS.ProcessEnv) {
-  return resolve(
-    env.LOCALAPPDATA ?? tmpdir(),
-    'Lattice',
-    'codex-integration',
-    'turn-policy',
-  );
+  // A per-user state directory: the shared /tmp would let another local user
+  // pre-create or tamper with the policy state.
+  const base =
+    env.LOCALAPPDATA ??
+    (process.platform === 'win32'
+      ? tmpdir()
+      : env.XDG_STATE_HOME ?? join(env.HOME ?? homedir(), '.local', 'state'));
+  return resolve(base, 'Lattice', 'codex-integration', 'turn-policy');
 }
 
 function policyStatePath(
@@ -199,7 +209,7 @@ function implicitTurnId(input: z.infer<typeof HookInputSchema>) {
 function denyRepositoryTool(toolName: string) {
   const reason =
     `Lattice-first policy blocked ${toolName}: call ` +
-    '`lattice_search_context` or `lattice_read_context` once for this repository turn, then retry. If Lattice fails, the attempted call unlocks normal fallback tools.';
+    '`lattice_search_context` or `lattice_read_context` once for this repository turn, then retry. If the Lattice tools are unavailable or fail, simply retry this tool: the policy blocks only once per turn.';
   return {
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
@@ -214,7 +224,7 @@ export async function applyCodexLatticePolicy(
   value: unknown,
   overrides: Partial<CodexLatticePolicyDependencies> = {},
 ) {
-  if ((overrides.env ?? process.env).LATTICE_CLAUDE_RAW === '1') return null;
+  if (latticeRawMode(overrides.env ?? process.env)) return null;
   const input = HookInputSchema.parse(value);
   const event = stringValue(input.hook_event_name);
   const toolName = stringValue(input.tool_name);
@@ -307,6 +317,24 @@ export async function applyCodexLatticePolicy(
   }
 
   if (event === 'PreToolUse' && toolName && !current?.attemptedAt) {
+    // Deny at most once per turn. If the Lattice tools are unavailable (MCP
+    // disabled, failed to start, or removed), a repeated denial would block
+    // every ordinary tool for the whole turn; one nudge is the policy.
+    if (current?.deniedAt) return null;
+    atomicState(
+      statePath,
+      PolicyStateSchema.parse({
+        schemaVersion: 1,
+        sessionId,
+        turnId,
+        workspace: repository.root,
+        attemptedAt: null,
+        attemptedTool: null,
+        succeededAt: null,
+        deniedAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      }),
+    );
     return denyRepositoryTool(toolName);
   }
   return null;

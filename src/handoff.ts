@@ -14,10 +14,11 @@ import { decodeLegacyHandoffResponse } from './legacy-handoff.js';
 import { lowerProviderPatch } from './patch-lowerer.js';
 import { loadTask, newSession, saveTask, type TaskResult } from './persistence.js';
 import { parseResponse } from './protocol.js';
-import { buildEvidence } from './runtime.js';
-import { compileTask } from './task.js';
+import { repositoryRoot } from './repository.js';
+import { buildEvidence, verifiedTaskStatus } from './runtime.js';
+import { compileTask, withRepositoryVerification } from './task.js';
 import { telemetry } from './telemetry.js';
-import { transact } from './transaction.js';
+import { applyVerifiedPatch, transact } from './transaction.js';
 import type { ContextPage, TaskIR, WorkerResponse } from './types.js';
 
 export type HandoffState = {
@@ -94,8 +95,10 @@ function persist(state: HandoffState) {
       'Return exactly one action: a canonical context_request or canonical patch.',
       'Never return contextRequest and patch together.',
       'Use editHandle values exactly as granted.',
-      'Patch responses must never return paths, fingerprints, repository identities, or transaction metadata.',
-      'Use complete-file replacements, not diffs.',
+      'Patch responses must never return fingerprints, repository identities, or transaction metadata.',
+      'Edit granted files with replace_file (complete content) or replace_text (exact unique oldContent), never diffs.',
+      'Remove a granted file with {"editHandle":"E1","operation":"delete_file"} when its permissions include delete_file.',
+      'Add a new, non-hidden file with {"operation":"create_file","path":"new/relative/path","content":"..."}; only create_file carries a path.',
       'Do not use Markdown code fences.',
       'Do not invent unseen repository contents.',
     ],
@@ -103,11 +106,13 @@ function persist(state: HandoffState) {
   writeJson(statePath(state.workspace, state.taskId), state);
 }
 
-export async function startHandoff(workspace: string, goal: string) {
+export async function startHandoff(requestedWorkspace: string, goal: string) {
+  const workspace = await repositoryRoot(requestedWorkspace);
   const task = compileTask(goal);
   const session = newSession(workspace, 'manual');
   const index = await buildIndex(workspace);
   if (index.files.length === 0) throw new Error('Fresh index contains zero source files.');
+  withRepositoryVerification(task, index.scripts);
   const kernel = new ContextKernel(workspace, index, task);
   const pages = kernel.initial();
   const registry = await createEditGrantRegistry(
@@ -177,9 +182,11 @@ export function validateHandoff(workspace: string, id: string) {
 }
 
 export async function continueHandoff(
-  workspace: string,
+  requestedWorkspace: string,
   id: string,
+  options: { apply?: boolean } = {},
 ): Promise<{ state: HandoffState; response: WorkerResponse; result?: TaskResult }> {
+  const workspace = await repositoryRoot(requestedWorkspace);
   const state = readJson<HandoffState>(statePath(workspace, id));
   if (state.task.schemaVersion !== 2) {
     state.task = { ...state.task, schemaVersion: 2 };
@@ -230,19 +237,40 @@ export async function continueHandoff(
 
   const persisted = loadTask(workspace, state.taskId);
   const metrics = persisted.telemetry ?? telemetry();
-  const internalPatch = lowerProviderPatch(
-    response.patch,
-    registry,
-    {
+  const failedAt = (failureStage: string, error: unknown) => {
+    const failed: TaskResult = {
+      schemaVersion: 2,
       taskId: state.taskId,
       sessionId: state.sessionId,
-      repositoryId: registry.repositoryId,
-      baseCommit: registry.baseCommit,
-      epoch: registry.epoch,
-    },
-    metrics,
-    workspace,
-  );
+      status: 'failed',
+      failureStage,
+      error: error instanceof Error ? error.message : String(error),
+      telemetry: metrics,
+      worker: 'manual',
+      model: null,
+      task: state.task,
+    };
+    saveTask(workspace, failed);
+    return { state, response, result: failed };
+  };
+  let internalPatch;
+  try {
+    internalPatch = lowerProviderPatch(
+      response.patch,
+      registry,
+      {
+        taskId: state.taskId,
+        sessionId: state.sessionId,
+        repositoryId: registry.repositoryId,
+        baseCommit: registry.baseCommit,
+        epoch: registry.epoch,
+      },
+      metrics,
+      workspace,
+    );
+  } catch (error) {
+    return failedAt('patch_lowering', error);
+  }
   let transaction;
   try {
     transaction = await transact(
@@ -252,20 +280,7 @@ export async function continueHandoff(
       metrics,
     );
   } catch (error) {
-    const failed: TaskResult = {
-      schemaVersion: 2,
-      taskId: state.taskId,
-      sessionId: state.sessionId,
-      status: 'failed',
-      failureStage: 'transaction',
-      error: error instanceof Error ? error.message : String(error),
-      telemetry: metrics,
-      worker: 'manual',
-      model: null,
-      task: state.task,
-    };
-    saveTask(workspace, failed);
-    return { state, response, result: failed };
+    return failedAt('transaction', error);
   }
   const commandOutput = transaction.verification
     .map((verification) => `${verification.stdout}\n${verification.stderr}`)
@@ -282,8 +297,8 @@ export async function continueHandoff(
     schemaVersion: 2,
     taskId: state.taskId,
     sessionId: state.sessionId,
-    status:
-      transaction.status === 'failed' ? 'failed' : unresolved.length > 0 ? 'partial' : 'passed',
+    status: verifiedTaskStatus(transaction),
+    ...(transaction.status === 'failed' ? { failureStage: 'verification' } : {}),
     telemetry: metrics,
     internalPatch,
     task: state.task,
@@ -293,7 +308,16 @@ export async function continueHandoff(
     transaction,
     evidence,
     unresolvedCriteria: unresolved,
+    applied: false,
   };
+  if (result.status === 'passed' && options.apply) {
+    try {
+      await applyVerifiedPatch(workspace, internalPatch, transaction.diff);
+      result.applied = true;
+    } catch (error) {
+      result.applyError = error instanceof Error ? error.message : String(error);
+    }
+  }
   saveTask(workspace, result);
   return { state, response, result };
 }

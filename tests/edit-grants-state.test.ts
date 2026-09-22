@@ -239,7 +239,7 @@ describe('Edit Grant Registry and PatchLowerer', () => {
 
   it('rejects an operation not granted by the handle', async () => {
     const value = await setup();
-    Object.assign(value.patch.changes[0], { operation: 'delete_file' });
+    Object.assign(value.patch.changes[0], { operation: 'rename_file' });
     expect(() =>
       lowerProviderPatch(value.patch, value.registry, value.identity, telemetry()),
     ).toThrow(/unsupported provider operation/);
@@ -251,7 +251,111 @@ describe('Edit Grant Registry and PatchLowerer', () => {
     value.patch.changes[0].editHandle = value.readOnlyGrant.handle;
     expect(() =>
       lowerProviderPatch(value.patch, value.registry, value.identity, telemetry()),
-    ).toThrow(/read-only/);
+    ).toThrow(/does not permit replace_file/);
+  });
+
+  it('does not permit deleting through a read-only test-page handle', async () => {
+    const value = await setup();
+    value.patch.changes = [{ editHandle: value.readOnlyGrant.handle, operation: 'delete_file' }];
+    expect(() =>
+      lowerProviderPatch(value.patch, value.registry, value.identity, telemetry()),
+    ).toThrow(/does not permit delete_file/);
+  });
+
+  it('lowers delete_file on a complete grant and create_file on a new path', async () => {
+    const value = await setup();
+    const handle = value.patch.changes[0].editHandle;
+    value.patch.changes = [
+      { editHandle: handle, operation: 'delete_file' },
+      { operation: 'create_file', path: 'src/created.js', content: 'module.exports = 3;\n' },
+    ];
+    const lowered = lowerProviderPatch(
+      value.patch,
+      value.registry,
+      value.identity,
+      telemetry(),
+      repo.path,
+    );
+    expect(lowered.changes).toEqual([
+      expect.objectContaining({ operation: 'delete', expectedFingerprint: expect.any(String) }),
+      { path: 'src/created.js', operation: 'create', replacementContent: 'module.exports = 3;\n' },
+    ]);
+  });
+
+  it('matches replace_text across CRLF checkouts and preserves file line endings', async () => {
+    const crlf = await repository(
+      {
+        'src/greet.js':
+          'function greet(name) {\r\n  return "Hello " + name;\r\n}\r\nmodule.exports = { greet };\r\n',
+      },
+      { autocrlf: 'true' },
+    );
+    try {
+      const task = compileTask('Make greet trim the name');
+      const index = await buildIndex(crlf.path);
+      const pages = new ContextKernel(crlf.path, index, task).initial();
+      const sessionId = `session-${task.id}`;
+      const registry = await createEditGrantRegistry(crlf.path, task.id, sessionId, pages);
+      const page = pages.find((candidate) => candidate.path === 'src/greet.js')!;
+      const editHandle = grantForPage(registry, page)!.handle;
+      const identity = {
+        taskId: task.id,
+        sessionId,
+        repositoryId: registry.repositoryId,
+        baseCommit: registry.baseCommit,
+        epoch: registry.epoch,
+      };
+      const lower = (change: ProviderPatchIR['changes'][number]) =>
+        lowerProviderPatch(
+          { schemaVersion: 1, summary: 'trim', changes: [change], verificationCommands: ['npm test'] },
+          registry,
+          identity,
+          telemetry(),
+          crlf.path,
+        ).changes[0].replacementContent;
+      expect(
+        lower({
+          editHandle,
+          operation: 'replace_text',
+          replacements: [
+            {
+              oldContent: '{\n  return "Hello " + name;\n}',
+              newContent: '{\n  return "Hello " + name.trim();\n}',
+            },
+          ],
+        }),
+      ).toBe('function greet(name) {\r\n  return "Hello " + name.trim();\r\n}\r\nmodule.exports = { greet };\r\n');
+      expect(
+        lower({
+          editHandle,
+          operation: 'replace_file',
+          replacementContent: 'const greet = (name) => `Hello ${name}`;\nmodule.exports = { greet };\n',
+        }),
+      ).toBe('const greet = (name) => `Hello ${name}`;\r\nmodule.exports = { greet };\r\n');
+    } finally {
+      await crlf.cleanup();
+    }
+  });
+
+  it('rejects hidden create_file paths that can carry executable tool configuration', async () => {
+    const value = await setup();
+    for (const path of ['.envrc', '.vscode/tasks.json', '.github/workflows/ci.yml', 'src/.hidden.js']) {
+      value.patch.changes = [{ operation: 'create_file', path, content: 'x' }];
+      expect(() =>
+        lowerProviderPatch(value.patch, value.registry, value.identity, telemetry(), repo.path),
+      ).toThrow(/hidden paths/);
+    }
+  });
+
+  it('rejects create_file paths that exist, escape, or touch metadata', async () => {
+    const value = await setup();
+    const existing = value.registry.grants[0].path;
+    for (const path of [existing, '../outside.js', '/abs.js', 'C:/abs.js', '.git/config', 'a/.lattice/x', 'a//b.js']) {
+      value.patch.changes = [{ operation: 'create_file', path, content: 'x' }];
+      expect(() =>
+        lowerProviderPatch(value.patch, value.registry, value.identity, telemetry(), repo.path),
+      ).toThrow(PatchLoweringError);
+    }
   });
 
   it('preserves handles and a stable digest after persistence and reload', async () => {
