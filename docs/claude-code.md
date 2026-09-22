@@ -32,7 +32,7 @@ The package is hosted as a GitHub Release asset. npm is only the local package
 installer; no npm account or login is required.
 
 ```sh
-npm install --global github:moulwyse/lattice#v2.0.0
+npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.0/lattice-v2-2.0.0.tgz
 lattice --version
 ```
 

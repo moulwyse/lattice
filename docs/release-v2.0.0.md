@@ -12,7 +12,7 @@ Defaults and the worker protocol changed incompatibly, hence the major version.
 Git and Node.js `20.19+` or `22.12+` are required:
 
 ```sh
-npm install --global github:moulwyse/lattice#v2.0.0
+npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.0/lattice-v2-2.0.0.tgz
 lattice --version
 lattice doctor --workspace .
 lattice benchmark --worker mock
@@ -73,8 +73,14 @@ re-run the paired drivers before citing savings for this release.
 
 ## Roll back
 
+v1.0.0 has no prebuilt package; install it from source with the installer:
+
+```powershell
+$env:LATTICE_REF = "v1.0.0"; irm https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/install.ps1 | iex
+```
+
 ```sh
-npm install --global github:moulwyse/lattice#v1.0.0
+curl -fsSL https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/install.sh | LATTICE_REF=v1.0.0 bash
 ```
 
 Disable integrations with the version that enabled them before rolling back.

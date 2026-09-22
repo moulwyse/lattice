@@ -62,10 +62,12 @@ irm https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/install.ps1 
 curl -fsSL https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/install.sh | bash
 ```
 
-Or install with npm (requires Git and appropriate npm security settings):
+Or install the prebuilt release package with npm. Installing straight from Git
+(`github:moulwyse/lattice#v2.0.0`) fails on npm 11 and later, because npm
+prepares a global Git dependency without the TypeScript build tools:
 
 ```sh
-npm install --global github:moulwyse/lattice#v2.0.0
+npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.0/lattice-v2-2.0.0.tgz
 ```
 
 Verify the command and run the no-model smoke test:

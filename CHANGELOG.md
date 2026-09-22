@@ -8,6 +8,13 @@ intends to use semantic versioning after the first public release.
 
 ## [Unreleased]
 
+### Fixed
+
+- Install instructions use the prebuilt release package. `npm install --global
+  github:moulwyse/lattice#<tag>` fails on npm 11 and later for every release,
+  because npm prepares a global Git dependency without its dev dependencies
+  and the TypeScript build cannot find `tsc`.
+
 ## [2.0.0] - 2026-09-23
 
 MAJOR release. Lattice now completes ordinary tasks on ordinary repositories:

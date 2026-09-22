@@ -65,7 +65,7 @@ lattice doctor --workspace .
 lattice benchmark --worker mock
 ```
 
-Direct `npm install --global github:moulwyse/lattice#v2.0.0` is supported on npm versions with remote Git execution permitted. Modern npm (such as npm 12) enforces strict security policies on remote Git lifecycle builds (`EALLOWGIT`/`EALLOWSCRIPTS`); use the automated installer script or clone directly.
+Or install the prebuilt release package: `npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.0/lattice-v2-2.0.0.tgz`. Installing straight from Git (`github:moulwyse/lattice#v2.0.0`) fails on npm 11 and later: npm prepares a global Git dependency without its dev dependencies, so the TypeScript build cannot find `tsc`.
 
 A healthy verification ends with `Status: passed`. The unified package includes
 the Codex and Claude Code adapters; each integration remains opt-in so Lattice
@@ -118,7 +118,7 @@ do not need an API key to install Lattice or run its local demo.
 Install the tagged GitHub release globally through npm on Windows, macOS, or Linux:
 
 ```sh
-npm install --global github:moulwyse/lattice#v2.0.0
+npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.0/lattice-v2-2.0.0.tgz
 lattice --version
 lattice benchmark --worker mock
 ```
@@ -256,7 +256,7 @@ commands and defaults remain unchanged.
 Install the same unified release through npm:
 
 ```sh
-npm install --global github:moulwyse/lattice#v2.0.0
+npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.0/lattice-v2-2.0.0.tgz
 lattice --version
 ```
 
