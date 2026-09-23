@@ -39,7 +39,7 @@ run on the current machine. It does not make a remote model call.
 
 - Node.js `^20.19.0` or `>=22.12.0`, matching the locked development toolchain;
 - npm with lockfile support;
-- Git for repository discovery, clean-state checks, and isolated worktrees;
+- Git for repository discovery, fingerprints, and isolated verification worktrees;
 - a writable local clone of the repository you want to work on.
 
 Codex is optional and is needed only for `--worker codex` or the optional Codex
@@ -243,7 +243,13 @@ lattice run "describe the bounded repository task" --worker codex
 
 ## Uninstall
 
-If a global link was created:
+If Lattice was installed from the release package or the installer:
+
+```sh
+npm uninstall --global lattice-v2
+```
+
+If a global link was created with `npm link`:
 
 ```sh
 npm unlink --global lattice-v2

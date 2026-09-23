@@ -39,16 +39,21 @@ invalid changes are rejected before transaction execution.
 ### Transaction and verification
 
 `transaction.ts` applies changes against expected fingerprints, preferentially
-inside an isolated Git worktree. Verification commands are matched against the
-allowlist and executed with bounded process controls. The result contains
-evidence for acceptance criteria, a unified diff, and telemetry.
+inside an isolated Git worktree that reproduces the workspace's uncommitted
+state and links its installed dependencies. Verification commands are matched
+against the allowlist and executed with bounded process controls. The result
+contains informational evidence for acceptance criteria, a unified diff, and
+telemetry. A passed patch is applied to the workspace with `git apply` after
+its source fingerprints are re-checked, unless `--no-apply` is used.
 
 ### Workers
 
 `worker.ts` defines the worker interface and includes:
 
 - a deterministic fixture-specific mock;
-- a Codex SDK worker with a versioned prompt/response protocol;
+- a Codex SDK worker with a versioned prompt/response protocol, isolated in an
+  empty scratch directory without user MCP servers, hooks or plugins;
+- a Claude Agent SDK worker with native tools disabled;
 - manual handoff through the persistence layer.
 
 The provider adapter does not own repository mutation. It proposes a response
@@ -78,7 +83,10 @@ and context primitives, not a separate authority model.
 7. satisfy bounded context faults or lower the patch;
 8. execute a fingerprint-checked transaction;
 9. run allowlisted verification;
-10. persist terminal state, evidence, diff, and diagnostics.
+10. return a rejected patch or failed verification to the worker (at most two
+    revisions);
+11. apply a verified patch to the workspace;
+12. persist terminal state, evidence, diff, and diagnostics.
 
 Every runtime transition is recorded. Cancellation, protocol repair, context
 faults, and verification failure have explicit states rather than being folded

@@ -424,9 +424,11 @@ describe('transparent Codex CLI passthrough', () => {
       ];
 
       for (const launcher of ['cmd-shim', 'powershell-shim'] as const) {
+        // Cold cmd/PowerShell starts on hosted Windows runners are slow.
         const result = await runCli(nativeArguments, {
           launcher,
           stdin: Buffer.from(`stdin-through-${launcher}\n`, 'utf8'),
+          timeoutMs: 40_000,
         });
 
         expect(
@@ -440,6 +442,7 @@ describe('transparent Codex CLI passthrough', () => {
         expect(readFakeArguments()).toEqual(nativeArguments);
       }
     },
+    90_000,
   );
 
   test('raw mode consumes only the Lattice flag and never starts a sidecar', async () => {

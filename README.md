@@ -30,6 +30,9 @@ results remain available; these are separate single-task runs, not a model ranki
 > diffs match, but full patches differ. The historical
 > [Sol](docs/evidence/owner-run-gpt-5.6-sol.md) and
 > [Luna](docs/evidence/owner-run-gpt-5.6-luna.md) records remain published.
+> These pairs were measured with v1.0.0, whose Lattice arm also received five
+> hand-written acceptance criteria for this fixture that the RAW arm did not;
+> they are not like-for-like and have not yet been re-measured with v2.0.0.
 
 [![Build and test](https://github.com/moulwyse/lattice/actions/workflows/ci.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/ci.yml)
 [![Quality](https://github.com/moulwyse/lattice/actions/workflows/quality.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/quality.yml)
@@ -53,6 +56,13 @@ irm https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/install.ps1 
 curl -fsSL https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/install.sh | bash
 ```
 
+Or install the prebuilt release package:
+
+```sh
+npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.0/lattice-v2-2.0.0.tgz
+lattice benchmark --worker mock
+```
+
 Or build from canonical source:
 
 ```sh
@@ -65,7 +75,7 @@ lattice doctor --workspace .
 lattice benchmark --worker mock
 ```
 
-Or install the prebuilt release package: `npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.0/lattice-v2-2.0.0.tgz`. Installing straight from Git (`github:moulwyse/lattice#v2.0.0`) fails on npm 11 and later: npm prepares a global Git dependency without its dev dependencies, so the TypeScript build cannot find `tsc`.
+Installing straight from Git (`github:moulwyse/lattice#v2.0.0`) fails on npm 11 and later: npm prepares a global Git dependency without its dev dependencies, so the TypeScript build cannot find `tsc`.
 
 A healthy verification ends with `Status: passed`. The unified package includes
 the Codex and Claude Code adapters; each integration remains opt-in so Lattice
@@ -78,7 +88,7 @@ This repository is the original and canonical home of Lattice.
 
 > **v2.0.0 scope:** review the [limitations](docs/limitations.md) and
 > [security model](SECURITY.md) before using Lattice on a sensitive repository.
-> Install the tagged GitHub release with npm; `@moulwyse/lattice` is not yet available in the public npm registry. Claude Code stays Beta;
+> Install the prebuilt release package or use the installer; `@moulwyse/lattice` is not yet available in the public npm registry. Claude Code stays Beta;
 > transparent Codex hooks stay experimental.
 > See the [release and upgrade guide](docs/release-v2.0.0.md).
 
@@ -115,7 +125,7 @@ do not need an API key to install Lattice or run its local demo.
 
 ### Run the unified v2.0.0 release
 
-Install the tagged GitHub release globally through npm on Windows, macOS, or Linux:
+Install the prebuilt release package globally through npm on Windows, macOS, or Linux:
 
 ```sh
 npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.0/lattice-v2-2.0.0.tgz
@@ -214,14 +224,14 @@ Windows:
 
 ```powershell
 lattice integration codex disable
-npm unlink --global lattice-v2
+npm uninstall --global lattice-v2   # after npm link: npm unlink --global lattice-v2
 ```
 
 Linux automatic integration:
 
 ```sh
 lattice integration codex disable
-npm unlink --global lattice-v2
+npm uninstall --global lattice-v2   # after npm link: npm unlink --global lattice-v2
 ```
 
 The disable command removes only integration state that Lattice recognizes as
@@ -234,7 +244,7 @@ its own. Full installation, troubleshooting, and safety notes are in the
 | --- | --- | --- |
 | Local repository discovery and index | Available | Respects repository boundaries and ignore rules. |
 | Bounded context pages and edit grants | Available | Local deterministic controls; covered by tests. |
-| Fingerprint-checked patch application | Available | Rejects stale or out-of-scope edits. |
+| Fingerprint-checked patch application | Available | Rejects stale or out-of-scope edits; a verified patch is applied to the workspace (`--no-apply` only verifies). |
 | Mock worker and deterministic fixture benchmark | Available | Runs without a model account or API credential. |
 | Manual handoff workflow | Available | The operator transfers a bounded request and response. |
 | Direct Codex SDK worker | Beta | Requires an authenticated Codex environment; exercised by published owner-run paired smoke tests. |
@@ -308,6 +318,7 @@ lattice run "<task>" --worker mock
 lattice run "<task>" --worker manual
 lattice run "<task>" --worker codex
 lattice run "<task>" --worker claude
+lattice run "<task>" --worker codex --no-apply
 lattice continue <task-id>
 lattice handoff validate <task-id>
 lattice session new|show|reset
@@ -355,9 +366,13 @@ adaptive behavior are documented in
    repository dump.
 4. An agent or manual operator proposes edits against explicit edit grants.
 5. Lattice checks fingerprints, applies the transaction in an isolated Git
-   worktree when available, and runs allowlisted verification commands.
-6. State and diagnostics are written beneath the repository-local `.lattice/`
-   directory, which must remain ignored and private.
+   worktree that reproduces your uncommitted work and installed dependencies,
+   and runs allowlisted verification commands. A rejected patch or a failed
+   verification is returned to the worker for up to two corrections.
+6. A verified patch is applied to your workspace with `git apply` after every
+   source fingerprint is re-checked (`--no-apply` only verifies).
+7. State and diagnostics are written beneath the repository-local `.lattice/`
+   directory, which Lattice adds to `.git/info/exclude`; keep it private.
 
 See [architecture](docs/architecture.md), [protocol](docs/protocol.md), and
 [persistence schemas](docs/persistence-schemas.md).
@@ -384,8 +399,9 @@ scanner is defense in depth, not proof that a repository is safe.
 Lattice reads source code in the repository you point it at. Context sent to a
 remote model is subject to that provider's terms, account settings, and
 retention policy. Local metadata can contain source excerpts, diffs, goals, and
-diagnostics. Treat `.lattice/` as sensitive, keep it out of version control,
-and remove it before sharing a repository copy.
+diagnostics. Treat `.lattice/` as sensitive: Lattice adds it to the clone-local
+`.git/info/exclude` so it is not committed, but remove it before sharing a
+repository copy.
 
 The optional transparent Codex integration can create Lattice-owned launch
 shims, an MCP registration, and Codex hooks in user-level configuration. It is
@@ -414,6 +430,8 @@ Read [SECURITY.md](SECURITY.md) and
 - The Astra, Luna and Sol results are single owner-run pairs on one fixed fixture.
 - The Opus 5 result is one community-operated reproduction on the same
   maintainer-supplied fixture; it is not independent task selection.
+- All published pairs were measured with v1.0.0, whose Lattice arm received
+  extra fixture-specific acceptance criteria; re-measure before citing them.
 
 The complete list is in [`docs/limitations.md`](docs/limitations.md).
 

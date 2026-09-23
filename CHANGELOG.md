@@ -14,6 +14,11 @@ intends to use semantic versioning after the first public release.
   github:moulwyse/lattice#<tag>` fails on npm 11 and later for every release,
   because npm prepares a global Git dependency without its dev dependencies
   and the TypeScript build cannot find `tsc`.
+- A launcher whose sidecar attach timed out on a slow host no longer leaks a
+  second lease when it retries: the client chooses the lease id, and a retried
+  attach refreshes the same lease.
+- The Windows shim passthrough test allows for slow cold cmd/PowerShell starts
+  on hosted CI runners.
 
 ## [2.0.0] - 2026-09-23
 

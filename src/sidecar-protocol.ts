@@ -68,6 +68,8 @@ export const SidecarEnvelopeSchema = z
 
 export const SidecarAttachRequestSchema = SidecarEnvelopeSchema.extend({
   clientKind: z.enum(['launcher', 'mcp', 'diagnostic']).default('launcher'),
+  /** Client-chosen id: a retried attach refreshes the same lease. */
+  leaseId: z.string().uuid().optional(),
 }).strict();
 
 export const SidecarDetachRequestSchema = SidecarEnvelopeSchema.extend({
