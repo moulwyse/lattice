@@ -16,7 +16,7 @@ Published one-pair records are documented for
 They are task-specific smoke tests, not population-level claims.
 
 For one **GPT-6 Astra / medium** pair on Windows, double-click
-`START-ASTRA-BENCHMARK.cmd` in the repository root. Doing so explicitly starts a
+`benchmarks/start-astra-benchmark.cmd`. Doing so explicitly starts a
 live, quota-consuming pair using your existing Codex login. The launcher keeps
 the console open and saves timestamped results under `.lattice/evaluation/`.
 It does not upload anything or initiate a login. From an ordinary terminal on
