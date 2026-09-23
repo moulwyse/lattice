@@ -11,7 +11,7 @@
   coding models can focus on solving the task.
 </p>
 
-![Lattice paired live results: GPT-6 Astra, GPT-5.6 Luna and Claude Opus 5](docs/assets/astra-cross-provider-results.png)
+![Lattice: don't send the repo, send what matters](docs/assets/brand-hero.jpg)
 
 One package now includes both the **Codex** and **Claude Code Beta** adapters.
 The latest Codex pair uses **GPT-6 Astra / medium**. Historical Claude and Codex
@@ -100,8 +100,6 @@ records local execution state. The optimization comes from moving deterministic
 repository operations outside the model loop while keeping context selection,
 edit authority, and verification visible.
 
-![Lattice: don't send the repo, send what matters](docs/assets/brand-hero.jpg)
-
 ![How Lattice bounds context and verifies a patch](docs/assets/lattice-flow.svg)
 
 ## Why Lattice
@@ -140,8 +138,6 @@ environment or repository.
 The benchmark is local, deterministic, credential-free, and makes no model
 call. It is a functional smoke test, not evidence of general quality or token
 savings.
-
-![Credential-free Lattice benchmark demonstration](docs/assets/terminal-demo.svg)
 
 ### Build from source
 
