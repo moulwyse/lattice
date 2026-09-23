@@ -1,6 +1,6 @@
 @echo off
 setlocal
-cd /d "%~dp0"
+cd /d "%~dp0.."
 if errorlevel 1 exit /b 1
 echo Lattice: one live RAW vs Lattice pair, GPT-6 Astra / medium.
 echo This uses your existing Codex login and consumes model quota.

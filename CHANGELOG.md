@@ -8,6 +8,12 @@ intends to use semantic versioning after the first public release.
 
 ## [Unreleased]
 
+### Changed
+
+- Historical release audit records moved from the repository root to
+  `docs/release/`, and the Windows Astra benchmark launcher moved to
+  `benchmarks/start-astra-benchmark.cmd`.
+
 ### Fixed
 
 - Install instructions use the prebuilt release package. `npm install --global
