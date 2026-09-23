@@ -194,6 +194,17 @@ describe('in-process sidecar server', () => {
     expect(result.bytesUsed).toBeLessThanOrEqual(40);
   });
 
+  test('a retried attach with the same lease id does not create a second lease', async () => {
+    const { server, state } = await fixtureServer();
+    const leaseId = '22222222-2222-4222-8222-222222222222';
+    const first = await attachSidecar(state, { heartbeat: false, leaseId });
+    const retried = await attachSidecar(state, { heartbeat: false, leaseId });
+    expect(retried.leaseId).toBe(first.leaseId);
+    expect(server.state().activeLeases).toBe(1);
+    expect(server.state().telemetry.attachCount).toBe(1);
+    await first.detach();
+  });
+
   test('tracks two concurrent leases independently', async () => {
     const { server, state } = await fixtureServer();
     const first = await attachSidecar(state, { heartbeat: false });

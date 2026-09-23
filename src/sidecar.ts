@@ -677,15 +677,20 @@ export async function startSidecarServer(
         if (value.repositoryId !== currentState.repositoryId) {
           throw new Error('repository identity mismatch');
         }
-        const leaseId = randomUUID();
+        // A client that timed out waiting for this response retries with the
+        // same id, so a slow host cannot leak duplicate leases.
+        const leaseId = value.leaseId ?? randomUUID();
+        const existingLease = leases.get(leaseId);
         leases.set(leaseId, {
           expiresAt: Date.now() + leaseTtlMs,
-          clientKind: value.clientKind,
+          clientKind: existingLease?.clientKind ?? value.clientKind,
         });
         cancelIdle();
-        currentState.telemetry.attachCount += 1;
-        if (value.clientKind === 'mcp') {
-          currentState.telemetry.bridgeInitializeCount += 1;
+        if (!existingLease) {
+          currentState.telemetry.attachCount += 1;
+          if (value.clientKind === 'mcp') {
+            currentState.telemetry.bridgeInitializeCount += 1;
+          }
         }
         currentState.telemetry.lastAttachMs =
           performance.now() - requestStarted;
@@ -1116,12 +1121,14 @@ export async function attachSidecar(
     heartbeat?: boolean;
     clientKind?: 'launcher' | 'mcp' | 'diagnostic';
     signal?: AbortSignal;
+    leaseId?: string;
   } = {},
 ): Promise<SidecarLease> {
   const data = (await clientRequest(state, '/v1/attach', {
     protocolVersion: SIDECAR_PROTOCOL_VERSION,
     repositoryId: state.repositoryId,
     clientKind: options.clientKind ?? 'launcher',
+    leaseId: options.leaseId ?? randomUUID(),
   }, 2_000, options.signal)) as {
     leaseId?: unknown;
     leaseTtlMs?: unknown;
@@ -1177,6 +1184,8 @@ export async function ensureSidecar(
   const binding = await repositoryBinding(workspace, options.signal);
   const root = binding.workspace;
   const paths = protectedSidecarPaths(root, true);
+  // One lease id for every attach attempt of this call (see /v1/attach).
+  const leaseId = randomUUID();
   const startupTimeoutMs = options.startupTimeoutMs ?? 4_000;
   let existing = readSidecarState(paths.state);
   if (existing && !stateMatchesRepository(existing, binding)) {
@@ -1190,6 +1199,7 @@ export async function ensureSidecar(
       heartbeat: options.heartbeat,
       clientKind: options.clientKind,
       signal: options.signal,
+      leaseId,
     });
   }
   if (existsSync(paths.lock)) {
@@ -1207,6 +1217,7 @@ export async function ensureSidecar(
           heartbeat: options.heartbeat,
           clientKind: options.clientKind,
           signal: options.signal,
+          leaseId,
         });
       } catch (error) {
         options.signal?.throwIfAborted();
@@ -1252,6 +1263,7 @@ export async function ensureSidecar(
       heartbeat: options.heartbeat,
       clientKind: options.clientKind,
       signal: options.signal,
+      leaseId,
     });
   } catch (error) {
     options.signal?.throwIfAborted();
@@ -1270,6 +1282,7 @@ export async function ensureSidecar(
           heartbeat: options.heartbeat,
           clientKind: options.clientKind,
           signal: options.signal,
+          leaseId,
         });
       } catch {
         options.signal?.throwIfAborted();
