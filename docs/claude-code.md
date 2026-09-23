@@ -77,9 +77,11 @@ lattice run "Make all existing tests pass" --worker claude \
 ```
 
 The direct worker disables native filesystem tools, accepts only the canonical
-Lattice protocol, applies edits in an isolated Git worktree, and records
-provider-reported usage and cost. `--max-budget-usd` is a total SDK budget for
-the complete Lattice run, including repair turns.
+Lattice protocol, verifies edits in an isolated Git worktree, applies a
+verified patch to the workspace (`--no-apply` only verifies), and records
+provider-reported usage and cost. `--max-budget-usd` caps the complete Lattice
+run, including repair and revision turns: no new turn starts once it is
+reached, but one turn can exceed it.
 
 ## RAW bypass
 

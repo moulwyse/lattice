@@ -60,11 +60,15 @@ lattice handoff validate <task-id>
 lattice continue <task-id>
 ```
 
+`continue` verifies the patch in an isolated worktree and, if verification
+passes, applies it to your workspace; add `--no-apply` to only verify.
+
 The manual workflow deliberately makes context transfer visible. The generated
 files may contain private source and must not be committed or posted publicly.
 
 ## 5. Clean local artifacts
 
-The `.lattice/` directory is runtime state. Keep it ignored. Remove it only
+The `.lattice/` directory is runtime state; Lattice adds it to
+`.git/info/exclude` so it is not committed. Remove it only
 after confirming that no active session, worktree, or audit artifact is needed.
 The public-export scanner reports runtime artifacts; it never deletes them.
