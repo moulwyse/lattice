@@ -13,7 +13,7 @@
 
 ![Lattice: don't send the repo, send what matters](docs/assets/brand-hero.jpg)
 
-One package now includes both the **Codex** and **Claude Code Beta** adapters.
+One package now includes both the **Codex** and **Claude Code ** adapters.
 The latest Codex pair uses **GPT-6 Astra / medium**. Historical Claude and Codex
 results remain available; these are separate single-task runs, not a model ranking:
 
@@ -80,7 +80,7 @@ Installing straight from Git (`github:moulwyse/lattice#v2.0.0`) fails on npm 11 
 A healthy verification ends with `Status: passed`. The unified package includes
 the Codex and Claude Code adapters; each integration remains opt-in so Lattice
 does not silently change either agent. Continue with the
-[Codex setup](docs/quick-start.md) or [Claude Code Beta setup](docs/claude-code.md).
+[Codex setup](docs/quick-start.md) or [Claude Code  setup](docs/claude-code.md).
 
 Created and led by **[Moulwyse](https://github.com/moulwyse)**.
 
@@ -88,7 +88,7 @@ This repository is the original and canonical home of Lattice.
 
 > **v2.0.0 scope:** review the [limitations](docs/limitations.md) and
 > [security model](SECURITY.md) before using Lattice on a sensitive repository.
-> Install the prebuilt release package or use the installer; `@moulwyse/lattice` is not yet available in the public npm registry. Claude Code stays Beta;
+> Install the prebuilt release package or use the installer; `@moulwyse/lattice` is not yet available in the public npm registry. Claude Code stays ;
 > transparent Codex hooks stay experimental.
 > See the [release and upgrade guide](docs/release-v2.0.0.md).
 
@@ -132,7 +132,7 @@ lattice benchmark --worker mock
 ```
 
 The package contains both provider adapters. Codex remains stable-by-default;
-Claude Code remains explicitly labeled Beta. Running the package enables neither integration until you choose it for your
+Claude Code remains explicitly labeled . Running the package enables neither integration until you choose it for your
 environment or repository.
 
 The benchmark is local, deterministic, credential-free, and makes no model
@@ -243,19 +243,19 @@ its own. Full installation, troubleshooting, and safety notes are in the
 | Fingerprint-checked patch application | Available | Rejects stale or out-of-scope edits; a verified patch is applied to the workspace (`--no-apply` only verifies). |
 | Mock worker and deterministic fixture benchmark | Available | Runs without a model account or API credential. |
 | Manual handoff workflow | Available | The operator transfers a bounded request and response. |
-| Direct Codex SDK worker | Beta | Requires an authenticated Codex environment; exercised by published owner-run paired smoke tests. |
+| Direct Codex SDK worker |  | Requires an authenticated Codex environment; exercised by published owner-run paired smoke tests. |
 | Transparent Codex launcher, hooks, sidecar, and MCP bridge | Experimental | Alters user-level integration state when explicitly enabled; inspect before use. |
 | Adaptive model selection and verified-patch cache | Experimental | Opt-in; exact behavior and limits are documented. |
-| Claude Code | [Beta](docs/claude-code.md) | Included in the same package; locally tested and exercised by a published community-run Opus 5 pair. |
+| Claude Code | [](docs/claude-code.md) | Included in the same package; locally tested and exercised by a published community-run Opus 5 pair. |
 | Gemini, Cursor, Grok, or other providers | Not implemented | No adapter for these providers is included in this repository. |
 
 “Available” describes implemented and locally tested behavior, not a production
 support guarantee. See [provider status](docs/providers.md) for the precise
 boundary.
 
-## Claude Code Beta
+## Claude Code 
 
-Claude Code is an opt-in Beta integration inside the main Lattice package.
+Claude Code is an opt-in  integration inside the main Lattice package.
 There is one package, one installation, and one CLI: `lattice`. Existing Codex
 commands and defaults remain unchanged.
 
@@ -279,7 +279,7 @@ bypassing Lattice for that child process. Undo only the project integration
 with `lattice integration claude disable --workspace .`; uninstall the unified
 package with `npm uninstall --global lattice-v2`.
 
-The Beta has passed local build and contract tests with Claude Agent SDK
+The  has passed local build and contract tests with Claude Agent SDK
 `0.3.220` and its bundled Claude Code `2.1.220`. A community-operated Opus 5
 pair on the public fixture observed 81.44% less fresh input plus output, 82.77%
 lower provider-reported cost, and 70.83% lower end-to-end time. Both independent
@@ -287,7 +287,7 @@ verification commands passed, but the legacy report did not preserve per-test
 counts or patch identity. This is one task-specific signal, not a universal
 Claude claim. Claude Code, Agent SDK, hook, and MCP behavior may change.
 
-Read the [Beta install, RAW bypass, and removal guide](docs/claude-code.md)
+Read the [ install, RAW bypass, and removal guide](docs/claude-code.md)
 before enabling it. Maintainers and reviewers can use the concise
 [Claude Code OSS project brief](docs/claude-for-oss.md).
 
