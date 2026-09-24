@@ -8,6 +8,17 @@ intends to use semantic versioning after the first public release.
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-09-24
+
+### Added
+
+- Sanitized owner-run Claude Opus 5.5 / high evidence: one plain Claude Code
+  versus Lattice pair on the reset-token fixture, 37,279 versus 4,747 fresh
+  input plus output tokens (87.3% less), $0.362 versus $0.048
+  provider-reported cost, 4/4 pristine acceptance in both arms. Both arms
+  received the same task text. The README now leads with this pair; the
+  v1.0.0 pairs remain as historical records.
+
 ### Changed
 
 - Historical release audit records moved from the repository root to
@@ -314,7 +325,8 @@ previous Claude Code Beta prerelease.
 - Other provider adapters are not included.
 - Public CLI, MCP, and persistence compatibility is not stable before 1.0.
 
-[Unreleased]: https://github.com/moulwyse/lattice/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/moulwyse/lattice/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/moulwyse/lattice/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/moulwyse/lattice/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/moulwyse/lattice/compare/v0.1.1...v1.0.0
 [0.1.1]: https://github.com/moulwyse/lattice/compare/v0.1.0...v0.1.1
