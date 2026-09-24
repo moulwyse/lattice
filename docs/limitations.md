@@ -39,8 +39,8 @@ explicit; they do not guarantee correct code, lower cost, or safe execution.
 
 ## Provider behavior
 
-- The unified prerelease package includes the stable Codex path and an opt-in
-  Claude Code Beta. Enabling Claude changes only project-scoped configuration;
+- The unified prerelease package includes the Codex path and an opt-in
+  Claude Code integration. Enabling Claude changes only project-scoped configuration;
   it does not replace Codex commands or defaults.
 - Live Codex inference was not run during the initial export validation. Two
   later owner-run, capped Windows compatibility smoke tests passed; they do not
@@ -51,12 +51,11 @@ explicit; they do not guarantee correct code, lower cost, or safe execution.
 - Retries, tool-mediated calls, subagents, and failed requests must be counted
   explicitly in any evaluation; Lattice cannot infer undisclosed external work.
 - Claude Code, Agent SDK, hook input, MCP startup, model identifiers, and effort
-  behavior may change independently of Lattice. The Beta is locally verified
+  behavior may change independently of Lattice. The integration is locally verified
   only against its disclosed pinned dependency pair.
-- The Claude Code Beta has one community-operated Opus 5 pair on one public
-  fixture. Both verification commands passed, but per-test counts and patch
-  identity were unavailable in the shared legacy report. It is not evidence of
-  population-level non-inferiority or universal savings.
+- The Claude Code integration has one owner-run Opus 5.5 pair on one small
+  public fixture, plus a historical v1.0.0 community-run Opus 5 pair. Neither
+  is evidence of population-level non-inferiority or universal savings.
 
 ## Optional integration
 

@@ -86,24 +86,23 @@ Windows and Linux (Bash, Zsh, Fish). Windows was audited against Codex CLI
 `0.145.0`. Linux has a native lifecycle smoke test using a local Codex stand-in;
 a full live Omarchy session remains unverified. See [installation](installation.md#platform-support).
 
-## Claude Code adapter — beta
+## Claude Code adapter — available
 
-The Claude Code Beta is included as an opt-in provider inside the main
-`lattice-v2` prerelease package. It uses the same `lattice` CLI. The stable
+The Claude Code adapter is included as an opt-in provider inside the main
+`lattice-v2` package. It uses the same `lattice` CLI. The stable
 Codex commands, integration state, and default worker are not replaced.
 
 The local build and contract suite is verified with Claude Agent SDK `0.3.281`
-and bundled Claude Code `2.1.281`. A separate community-operated Opus 5 pair on
-the public reset-token fixture passed both independent verification commands
-and observed 81.44% less fresh input plus output, 82.77% lower
-provider-reported cost, and 70.83% lower end-to-end time. The legacy report did
-not preserve per-test counts or patch identity. This is one task-specific
-reproduction, not a general Claude performance claim.
+and bundled Claude Code `2.1.281`. An owner-run Opus 5.5 pair on the public
+reset-token fixture passed 4/4 pristine acceptance tests in both arms and
+observed 87.3% less fresh input plus output, 86.8% lower provider-reported
+cost, and 70.4% lower end-to-end time. This is one task-specific pair, not a
+general Claude performance claim.
 
 Installation, removal, RAW bypass, version boundaries, and the broader paired
 evaluation protocol are documented in the
-[Claude Code Beta overview](claude-code.md) and the
-[sanitized community-run record](evidence/community-run-claude-opus-5.md).
+[Claude Code overview](claude-code.md) and the
+[sanitized Opus 5.5 record](evidence/owner-run-claude-opus-5-5.md).
 
 ## Other providers not included
 

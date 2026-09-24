@@ -7,8 +7,10 @@ log_warn() { printf "\033[33m!\033[0m %s\n" "$1"; }
 log_fail() { printf "\033[31m✖\033[0m %s\n" "$1"; exit 1; }
 
 REPOSITORY_URL="https://github.com/moulwyse/lattice.git"
-# Branch or tag to install; `curl ... | bash` users can set LATTICE_REF.
-REF="${LATTICE_REF:-main}"
+# Release tag to install by default; `curl ... | bash` users can set LATTICE_REF
+# to another tag or to `main` for unreleased code.
+DEFAULT_REF="v2.1.0"
+REF="${LATTICE_REF:-$DEFAULT_REF}"
 
 log_step "Checking environment prerequisites..."
 

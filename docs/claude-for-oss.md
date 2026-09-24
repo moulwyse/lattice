@@ -10,7 +10,7 @@ Repository: <https://github.com/moulwyse/lattice>
 ## Claude Code integration
 
 The main `lattice-v2` package contains both the Codex and Claude Code adapters.
-Claude Code remains an opt-in Beta and does not replace the stable Codex path.
+Claude Code is an opt-in integration and does not replace the Codex path.
 The integration includes:
 
 - project-scoped MCP and lifecycle hooks;
@@ -23,7 +23,7 @@ The integration includes:
 
 The checked dependency pair is Claude Agent SDK `0.3.281` with bundled Claude
 Code `2.1.281`. API, model, hook, and MCP behavior may change, which is why the
-integration is visibly labeled Beta.
+dependency pair is pinned exactly.
 
 ## Current public evidence
 
@@ -54,7 +54,7 @@ than to hide a private evaluation:
 2. run capped paired evaluations across a larger public task set;
 3. publish successes, failures, provider usage, cost, and acceptance evidence;
 4. improve Windows, macOS, and Linux installation and removal paths;
-5. keep the Beta useful to contributors without requiring them to finance all
+5. keep the integration useful to contributors without requiring them to finance all
    compatibility testing individually.
 
 No contributor is asked to share an API key. Raw provider sessions, local
@@ -63,7 +63,7 @@ paths, credentials, and private source remain excluded from public evidence.
 ## Install and inspect
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.1/lattice-v2-2.0.1.tgz
+npm install --global https://github.com/moulwyse/lattice/releases/download/v2.1.0/lattice-v2-2.1.0.tgz
 lattice benchmark --worker mock
 lattice integration claude enable --workspace .
 lattice claude

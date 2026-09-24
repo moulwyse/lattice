@@ -1,4 +1,4 @@
-# Claude Code Beta live-evaluation protocol
+# Claude Code live-evaluation protocol
 
 This protocol remains the standard for broader paid evaluation. A single
 community-run Opus 5 pair is now published separately as

@@ -13,32 +13,34 @@
 
 ![Lattice: don't send the repo, send what matters](docs/assets/brand-hero.jpg)
 
-One package includes both the **Codex** and **Claude Code Beta** adapters.
+One package includes both the **Codex** and **Claude Code** adapters.
 
-Latest live pair: **Claude Opus 5.5** (effort `high`), plain Claude Code versus
-Lattice on the same task, measured with v2.0.1:
+Live paired results on the same reset-token task, plain agent versus Lattice.
+These are separate single-task runs, not a model ranking:
 
-| | Plain Claude Code | Lattice | Reduction |
-| --- | ---: | ---: | ---: |
-| Fresh input + output tokens | 37,279 | 4,747 | **87.3%** |
-| Provider-reported cost | $0.362 | $0.048 | **86.8%** |
-| End-to-end time | 35.0 s | 10.3 s | **70.4%** |
-| Model turns | 8 | 1 | — |
-| Pristine acceptance tests | 4/4 | 4/4 | — |
+| Pair | Fresh input + output | Cost | End-to-end time | Acceptance |
+| --- | ---: | ---: | ---: | --- |
+| **Claude Opus 5.5** / high, v2.0.1 | 37,279 → 4,747 (**87.3% less**) | $0.362 → $0.048 (**86.8% less**) | 35.0 s → 10.3 s (**70.4% less**) | 4/4 both arms |
+| **GPT-6 Astra** / medium, v1.0.0 | 16,872 → 4,005 (**76.3% less**) | Not measured | 70.2 s → 27.0 s (**61.6% less**) | 4/4 both arms |
 
-> **Evidence boundary:** one owner-run pair on one small, maintainer-authored
-> fixture (five source files). This is not independent task selection or a
-> general savings claim. Most of the difference comes from Lattice finishing in
-> one model turn where Claude Code used eight on this task; the ratio will
-> differ on larger repositories and harder tasks. Both arms received the same
-> task text, and both patches are functionally equivalent. Read the
-> [Opus 5.5 record](docs/evidence/owner-run-claude-opus-5-5.md) for controls and
-> limitations. Earlier Codex pairs ([Astra](docs/evidence/owner-run-gpt-6-astra.md),
+> **Evidence boundary:** each row is one owner-run pair on one small,
+> maintainer-authored fixture (five source files), not independent task
+> selection or a general savings claim. The ratio will differ on larger
+> repositories and harder tasks.
+>
+> - **Opus 5.5:** both arms received the same task text, and the patches are
+>   functionally equivalent. Most of the difference comes from Lattice finishing
+>   in one model turn where Claude Code used eight.
+>   [Record](docs/evidence/owner-run-claude-opus-5-5.md).
+> - **Astra:** measured with v1.0.0, whose Lattice arm also received five
+>   hand-written acceptance criteria that the plain arm did not, so it is not
+>   like-for-like. Arm time excludes setup, checkpoint and cleanup.
+>   [Record](docs/evidence/owner-run-gpt-6-astra.md).
+>
+> Historical v1.0.0 records for
 > [Sol](docs/evidence/owner-run-gpt-5.6-sol.md),
-> [Luna](docs/evidence/owner-run-gpt-5.6-luna.md)) and the community-run
-> [Opus 5 pair](docs/evidence/community-run-claude-opus-5.md) were measured with
-> v1.0.0, whose Lattice arm received extra acceptance criteria; they remain as
-> historical records.
+> [Luna](docs/evidence/owner-run-gpt-5.6-luna.md) and the community-run
+> [Opus 5](docs/evidence/community-run-claude-opus-5.md) pair remain published.
 
 [![Build and test](https://github.com/moulwyse/lattice/actions/workflows/ci.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/ci.yml)
 [![Quality](https://github.com/moulwyse/lattice/actions/workflows/quality.yml/badge.svg)](https://github.com/moulwyse/lattice/actions/workflows/quality.yml)
@@ -65,7 +67,7 @@ curl -fsSL https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/insta
 Or install the prebuilt release package:
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.1/lattice-v2-2.0.1.tgz
+npm install --global https://github.com/moulwyse/lattice/releases/download/v2.1.0/lattice-v2-2.1.0.tgz
 lattice benchmark --worker mock
 ```
 
@@ -81,21 +83,21 @@ lattice doctor --workspace .
 lattice benchmark --worker mock
 ```
 
-Installing straight from Git (`github:moulwyse/lattice#v2.0.1`) fails on npm 11 and later: npm prepares a global Git dependency without its dev dependencies, so the TypeScript build cannot find `tsc`.
+Installing straight from Git (`github:moulwyse/lattice#v2.1.0`) fails on npm 11 and later: npm prepares a global Git dependency without its dev dependencies, so the TypeScript build cannot find `tsc`.
 
 A healthy verification ends with `Status: passed`. The unified package includes
 the Codex and Claude Code adapters; each integration remains opt-in so Lattice
 does not silently change either agent. Continue with the
-[Codex setup](docs/quick-start.md) or [Claude Code Beta setup](docs/claude-code.md).
+[Codex setup](docs/quick-start.md) or [Claude Code setup](docs/claude-code.md).
 
 Created and led by **[Moulwyse](https://github.com/moulwyse)**.
 
 This repository is the original and canonical home of Lattice.
 
-> **v2.0.1 scope:** review the [limitations](docs/limitations.md) and
+> **v2.1.0 scope:** review the [limitations](docs/limitations.md) and
 > [security model](SECURITY.md) before using Lattice on a sensitive repository.
-> Install the prebuilt release package or use the installer; `@moulwyse/lattice` is not yet available in the public npm registry. Claude Code stays Beta;
-> transparent Codex hooks stay experimental.
+> Install the prebuilt release package or use the installer; `@moulwyse/lattice` is not yet available in the public npm registry. Transparent Codex
+> hooks stay experimental.
 > See the [release and upgrade guide](docs/release-v2.0.0.md).
 
 ## How it works
@@ -127,19 +129,20 @@ You need [Git](https://git-scm.com/downloads) and a supported
 [Node.js](https://nodejs.org/en/download) version (`20.19+` or `22.12+`). You
 do not need an API key to install Lattice or run its local demo.
 
-### Run the unified v2.0.1 release
+### Run the unified v2.1.0 release
 
 Install the prebuilt release package globally through npm on Windows, macOS, or Linux:
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.1/lattice-v2-2.0.1.tgz
+npm install --global https://github.com/moulwyse/lattice/releases/download/v2.1.0/lattice-v2-2.1.0.tgz
 lattice --version
 lattice benchmark --worker mock
 ```
 
-The package contains both provider adapters. Codex remains stable-by-default;
-Claude Code remains explicitly labeled Beta. Running the package enables neither integration until you choose it for your
-environment or repository.
+The package contains both provider adapters. Codex is the default worker, and
+the Claude Code integration is available alongside it. Running the package
+enables neither integration until you choose it for your environment or
+repository.
 
 The benchmark is local, deterministic, credential-free, and makes no model
 call. It is a functional smoke test, not evidence of general quality or token
@@ -252,23 +255,23 @@ its own. Full installation, troubleshooting, and safety notes are in the
 | Direct Codex SDK worker | Beta | Requires an authenticated Codex environment; exercised by published owner-run paired smoke tests. |
 | Transparent Codex launcher, hooks, sidecar, and MCP bridge | Experimental | Alters user-level integration state when explicitly enabled; inspect before use. |
 | Adaptive model selection and verified-patch cache | Experimental | Opt-in; exact behavior and limits are documented. |
-| Claude Code | [Beta](docs/claude-code.md) | Included in the same package; locally tested and exercised by published Opus 5.5 and Opus 5 pairs. |
+| Claude Code | [Available](docs/claude-code.md) | Included in the same package; locally tested and exercised by published Opus 5.5 and Opus 5 pairs. |
 | Gemini, Cursor, Grok, or other providers | Not implemented | No adapter for these providers is included in this repository. |
 
 “Available” describes implemented and locally tested behavior, not a production
 support guarantee. See [provider status](docs/providers.md) for the precise
 boundary.
 
-## Claude Code Beta
+## Claude Code
 
-Claude Code is an opt-in Beta integration inside the main Lattice package.
+Claude Code is an opt-in integration inside the main Lattice package.
 There is one package, one installation, and one CLI: `lattice`. Existing Codex
 commands and defaults remain unchanged.
 
 Install the same unified release through npm:
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.1/lattice-v2-2.0.1.tgz
+npm install --global https://github.com/moulwyse/lattice/releases/download/v2.1.0/lattice-v2-2.1.0.tgz
 lattice --version
 ```
 
@@ -285,14 +288,14 @@ bypassing Lattice for that child process. Undo only the project integration
 with `lattice integration claude disable --workspace .`; uninstall the unified
 package with `npm uninstall --global lattice-v2`.
 
-The Beta has passed local build and contract tests with Claude Agent SDK
+The integration has passed local build and contract tests with Claude Agent SDK
 `0.3.281` and its bundled Claude Code `2.1.281`. An owner-run Opus 5.5 pair on
 the public fixture observed 87.3% less fresh input plus output, 86.8% lower
 provider-reported cost, and 70.4% lower end-to-end time, with 4/4 pristine
 acceptance tests in both arms. This is one task-specific signal, not a universal
 Claude claim. Claude Code, Agent SDK, hook, and MCP behavior may change.
 
-Read the [Beta install, RAW bypass, and removal guide](docs/claude-code.md)
+Read the [install, RAW bypass, and removal guide](docs/claude-code.md)
 before enabling it. Maintainers and reviewers can use the concise
 [Claude Code OSS project brief](docs/claude-for-oss.md).
 

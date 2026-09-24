@@ -217,7 +217,7 @@ export async function executeRun(
 
 program
   .command('run')
-  .description('Run a task through Codex, Claude Code Beta, mock, or manual handoff')
+  .description('Run a task through Codex, Claude Code, mock, or manual handoff')
   .argument('<goal>', 'task goal')
   .option('--worker <worker>', 'codex, claude, mock, or manual', 'codex')
   .option('--workspace <path>', 'repository workspace', process.cwd())
@@ -375,7 +375,7 @@ program
 program
   .command('claude')
   .description(
-    'Launch Claude Code through the Beta integration; --raw bypasses only Lattice for this process',
+    'Launch Claude Code through the Lattice integration; --raw bypasses only Lattice for this process',
   )
   .allowUnknownOption(true)
   .allowExcessArguments(true);
@@ -534,10 +534,10 @@ codexIntegration
 
 const claudeIntegration = integration
   .command('claude')
-  .description('Manage the project-scoped Claude Code Beta MCP and hooks');
+  .description('Manage the project-scoped Claude Code MCP and hooks');
 claudeIntegration
   .command('enable')
-  .description('Enable the Beta Lattice MCP and Lattice-first hooks for this Claude project')
+  .description('Enable the Lattice MCP and Lattice-first hooks for this Claude project')
   .option('--workspace <path>', 'Claude project', process.cwd())
   .action(async (options) => {
     const result = await enableClaudeIntegration({
@@ -546,8 +546,8 @@ claudeIntegration
     });
     console.log(
       result.changed
-        ? 'Claude Code Beta integration enabled for this project.'
-        : 'Claude Code Beta integration is already enabled for this project.',
+        ? 'Claude Code integration enabled for this project.'
+        : 'Claude Code integration is already enabled for this project.',
     );
     console.log(`MCP: ${result.state.mcpPath}`);
     console.log(`Hooks: ${result.state.settingsPath}`);
@@ -559,14 +559,14 @@ claudeIntegration
   });
 claudeIntegration
   .command('disable')
-  .description('Remove only the project entries owned by the Claude Code Beta')
+  .description('Remove only the project entries owned by the Claude Code integration')
   .option('--workspace <path>', 'Claude project', process.cwd())
   .action(async (options) => {
     const result = await disableClaudeIntegration(resolve(options.workspace));
     console.log(
       result.changed
-        ? 'Claude Code Beta integration disabled for this project.'
-        : 'Claude Code Beta integration is not configured for this project.',
+        ? 'Claude Code integration disabled for this project.'
+        : 'Claude Code integration is not configured for this project.',
     );
     for (const warning of result.warnings) console.log(`Cleanup warning: ${warning}`);
   });
@@ -579,7 +579,7 @@ claudeIntegration
     if (options.json) console.log(JSON.stringify(status));
     else {
       console.log(
-        `Claude Code Beta integration: ${status.enabled ? 'enabled' : 'disabled'}`,
+        `Claude Code integration: ${status.enabled ? 'enabled' : 'disabled'}`,
       );
       console.log(`MCP definition: ${status.mcpMatched ? 'matched' : 'missing or changed'}`);
       console.log(`Hooks: ${status.hooksMatched ? 'matched' : 'missing or changed'}`);
@@ -588,7 +588,7 @@ claudeIntegration
 
 program
   .command('benchmark')
-  .description('Run a Beta benchmark (mock is local and makes no model call)')
+  .description('Run a benchmark (mock is local and makes no model call)')
   .option('--worker <worker>', 'mock, claude, or codex', 'mock')
   .option('--workspace <path>', 'artifact workspace', process.cwd())
   .option('--model <model>', 'override provider model; omit to inherit provider config')

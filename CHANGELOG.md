@@ -8,6 +8,22 @@ intends to use semantic versioning after the first public release.
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-09-24
+
+### Changed
+
+- The Claude Code integration is no longer labeled Beta. CLI help and status
+  messages, the Agent SDK client identifier (`lattice-claude-code/<version>`)
+  and the documentation now describe it as an available, opt-in integration.
+  It stays verified only against the pinned Claude Agent SDK `0.3.281` /
+  Claude Code `2.1.281` pair. The direct Codex SDK worker stays Beta and the
+  transparent Codex hooks stay experimental.
+- The installers install the latest release tag (`v2.1.0`) by default instead
+  of the `main` branch, and move an existing installation to that tag when run
+  again. `LATTICE_REF=main` still installs unreleased code.
+- The README results table shows the GPT-6 Astra pair again next to the
+  Opus 5.5 pair, labeled as a v1.0.0 measurement that is not like-for-like.
+
 ## [2.0.1] - 2026-09-24
 
 ### Added
@@ -325,7 +341,8 @@ previous Claude Code Beta prerelease.
 - Other provider adapters are not included.
 - Public CLI, MCP, and persistence compatibility is not stable before 1.0.
 
-[Unreleased]: https://github.com/moulwyse/lattice/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/moulwyse/lattice/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/moulwyse/lattice/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/moulwyse/lattice/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/moulwyse/lattice/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/moulwyse/lattice/compare/v0.1.1...v1.0.0

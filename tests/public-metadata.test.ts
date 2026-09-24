@@ -26,7 +26,7 @@ describe('public release metadata', () => {
       repository: { url: string };
     };
 
-    expect(packageJson.version).toBe('2.0.1');
+    expect(packageJson.version).toBe('2.1.0');
     expect(packageJson.private).toBeUndefined();
     expect(packageJson.publishConfig).toEqual({
       access: 'public',
