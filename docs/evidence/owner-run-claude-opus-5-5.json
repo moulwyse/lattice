@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "kind": "owner-run-single-task-paired-smoke-test",
+  "date": "2026-09-24",
+  "latticeVersion": "2.0.1",
+  "model": "claude-opus-5-5",
+  "reasoningEffort": "high",
+  "maxBudgetUsdPerArm": 1,
+  "claudeAgentSdkVersion": "0.3.281",
+  "claudeCodeVersion": "2.1.281",
+  "fixture": "fixtures/reset-token",
+  "baselineCommit": "f6c505fee72f1a32bc19ac63cc5418383ddf5e71",
+  "order": [
+    "raw",
+    "lattice"
+  ],
+  "repetitions": 1,
+  "valid": true,
+  "metrics": {
+    "freshInputTokens": {
+      "raw": 35194,
+      "lattice": 3941
+    },
+    "outputTokens": {
+      "raw": 2085,
+      "lattice": 806
+    },
+    "freshPlusOutputTokens": {
+      "raw": 37279,
+      "lattice": 4747,
+      "reductionPercent": 87.26628933179538
+    },
+    "cachedInputTokens": {
+      "raw": 194670,
+      "lattice": 0
+    },
+    "totalInputTokens": {
+      "raw": 229864,
+      "lattice": 3941
+    },
+    "costUsd": {
+      "raw": 0.36213,
+      "lattice": 0.04764,
+      "reductionPercent": 86.8445033551487
+    },
+    "providerTurns": {
+      "raw": 8,
+      "lattice": 1
+    },
+    "modelElapsedMs": {
+      "raw": 23873,
+      "lattice": 7503
+    },
+    "elapsedMs": {
+      "raw": 35001,
+      "lattice": 10344,
+      "reductionPercent": 70.44655866975229
+    },
+    "latticeContextFaults": 0,
+    "latticeProtocolRepairTurns": 0
+  },
+  "acceptance": {
+    "baseline": {
+      "passed": 2,
+      "total": 4
+    },
+    "raw": {
+      "passed": 4,
+      "total": 4
+    },
+    "lattice": {
+      "passed": 4,
+      "total": 4
+    },
+    "pristineTests": true
+  },
+  "patchIdentity": {
+    "changedFilesMatch": true,
+    "fullDiffMatch": false,
+    "functionallyEquivalent": true,
+    "rawNormalizedDiffSha256": "16950e90f531146371559c6f9cae51f2a8c1ef55a7bd2e8785ade89442f32fd8",
+    "latticeNormalizedDiffSha256": "b8baf1cb6f9727b7d3d795beabbcbc0b01104a273be69da2deae9385eb8ae5b0"
+  },
+  "limitations": [
+    "One fixed five-file task, one RAW-first pair; not independent task selection.",
+    "Most of the saving comes from one Lattice model turn versus eight plain Claude Code turns.",
+    "Two earlier same-day attempts made no model call (login, unsupported bundled Claude Code) and are excluded.",
+    "Private provider transcripts are excluded."
+  ]
+}

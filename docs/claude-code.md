@@ -15,16 +15,19 @@ used by Codex, and Codex remains the default worker.
   passed.
 - Verified dependency pair: Claude Agent SDK `0.3.281`, with bundled Claude
   Code `2.1.281`.
-- Community-run live Claude pair: **passed in both arms**.
-- Observed on one Opus 5 fixture pair: **81.44% less fresh input + output**,
-  **82.77% lower provider-reported cost**, and **70.83% lower end-to-end time**.
+- Owner-run live Opus 5.5 pair (v2.0.1): **4/4 pristine acceptance tests in
+  both arms**.
+- Observed on that fixture pair: **87.3% less fresh input + output**,
+  **86.8% lower provider-reported cost**, and **70.4% lower end-to-end time**.
 
 Codex benchmark figures do not transfer to Claude. The published Claude result
 comes from its own reproducible paired RAW and Lattice run with equal model,
 effort, task, repository state, limits, usage accounting, and independent
-pristine-test verification. It remains one fixed-task community reproduction,
+pristine-test verification. It remains one fixed-task, maintainer-run pair,
 not a universal claim. See the
-[sanitized Opus 5 record](evidence/community-run-claude-opus-5.md).
+[sanitized Opus 5.5 record](evidence/owner-run-claude-opus-5-5.md). The earlier
+[community-run Opus 5 record](evidence/community-run-claude-opus-5.md) was
+measured with v1.0.0 and is kept as a historical record.
 
 ## Install the unified Beta package
 
@@ -32,7 +35,7 @@ The package is hosted as a GitHub Release asset. npm is only the local package
 installer; no npm account or login is required.
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.0/lattice-v2-2.0.0.tgz
+npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.1/lattice-v2-2.0.1.tgz
 lattice --version
 ```
 

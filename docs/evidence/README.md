@@ -6,6 +6,9 @@ sessions, private repository content, or claims about general model quality.
 
 It also contains sanitized live paired records:
 
+- [`owner-run-claude-opus-5-5.md`](owner-run-claude-opus-5-5.md) and its
+  [JSON summary](owner-run-claude-opus-5-5.json) document one owner-run plain
+  Claude Code versus Lattice pair with Opus 5.5, measured with v2.0.1;
 - [`owner-run-gpt-5.6-luna.md`](owner-run-gpt-5.6-luna.md) documents one RAW
   Codex versus Lattice pair on the public reset-token fixture;
 - [`owner-run-gpt-5.6-luna.json`](owner-run-gpt-5.6-luna.json) is the

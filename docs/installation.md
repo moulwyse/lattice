@@ -15,7 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/insta
 
 The installers clone into `%LOCALAPPDATA%\lattice-agent` or
 `~/.local/share/lattice-agent` and update that checkout when run again. Set
-`LATTICE_REF` to install a specific branch or tag (for example `v2.0.0`) and
+`LATTICE_REF` to install a specific branch or tag (for example `v2.0.1`) and
 `LATTICE_INSTALL_DIR` to use another directory. They never delete an existing
 directory that is not a Lattice checkout, and they stop on the first failed
 `git` or `npm` step.
@@ -63,11 +63,11 @@ curl -fsSL https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/insta
 ```
 
 Or install the prebuilt release package with npm. Installing straight from Git
-(`github:moulwyse/lattice#v2.0.0`) fails on npm 11 and later, because npm
+(`github:moulwyse/lattice#v2.0.1`) fails on npm 11 and later, because npm
 prepares a global Git dependency without the TypeScript build tools:
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.0/lattice-v2-2.0.0.tgz
+npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.1/lattice-v2-2.0.1.tgz
 ```
 
 Verify the command and run the no-model smoke test:
