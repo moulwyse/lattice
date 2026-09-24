@@ -92,8 +92,8 @@ The Claude Code Beta is included as an opt-in provider inside the main
 `lattice-v2` prerelease package. It uses the same `lattice` CLI. The stable
 Codex commands, integration state, and default worker are not replaced.
 
-The local build and contract suite is verified with Claude Agent SDK `0.3.220`
-and bundled Claude Code `2.1.220`. A separate community-operated Opus 5 pair on
+The local build and contract suite is verified with Claude Agent SDK `0.3.281`
+and bundled Claude Code `2.1.281`. A separate community-operated Opus 5 pair on
 the public reset-token fixture passed both independent verification commands
 and observed 81.44% less fresh input plus output, 82.77% lower
 provider-reported cost, and 70.83% lower end-to-end time. The legacy report did

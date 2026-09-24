@@ -66,7 +66,7 @@
     "package:check": "npm pack --dry-run"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "0.3.220",
+    "@anthropic-ai/claude-agent-sdk": "0.3.281",
     "@openai/codex-sdk": "0.153.4",
     "commander": "^13.0.0",
     "execa": "^9.5.2",

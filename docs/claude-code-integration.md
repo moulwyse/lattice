@@ -37,8 +37,8 @@ Disable removes only entries that still match the receipt.
 
 ## Verified versions
 
-The local suite uses Claude Agent SDK `0.3.220`, pinned exactly, with bundled
-Claude Code `2.1.220`. The unified package supports Node.js `^20.19.0` or
+The local suite uses Claude Agent SDK `0.3.281`, pinned exactly, with bundled
+Claude Code `2.1.281`. The unified package supports Node.js `^20.19.0` or
 `>=22.12.0`. No later Claude version is declared verified until the same suite
 has been rerun.
 
