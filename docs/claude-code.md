@@ -13,8 +13,8 @@ used by Codex, and Codex remains the default worker.
 - Local TypeScript build: passed.
 - Credential-free unit, integration, lifecycle, MCP, policy, and mock tests:
   passed.
-- Verified dependency pair: Claude Agent SDK `0.3.220`, with bundled Claude
-  Code `2.1.220`.
+- Verified dependency pair: Claude Agent SDK `0.3.281`, with bundled Claude
+  Code `2.1.281`.
 - Community-run live Claude pair: **passed in both arms**.
 - Observed on one Opus 5 fixture pair: **81.44% less fresh input + output**,
   **82.77% lower provider-reported cost**, and **70.83% lower end-to-end time**.

@@ -9,7 +9,7 @@ own license files.
 
 | Package | Requested | Locked | Declared license | Source | Compatibility caveat |
 | --- | --- | --- | --- | --- | --- |
-| `@anthropic-ai/claude-agent-sdk` | `0.3.220` | `0.3.220` | SEE LICENSE IN README.md | [npm](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk) | Claude Code Beta hooks, API, authentication, and usage fields can change independently of Lattice. Read the package's license terms. |
+| `@anthropic-ai/claude-agent-sdk` | `0.3.281` | `0.3.281` | SEE LICENSE IN README.md | [npm](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk) | Claude Code Beta hooks, API, authentication, and usage fields can change independently of Lattice. Read the package's license terms. |
 | `@openai/codex-sdk` | `0.153.4` | `0.153.4` | Apache-2.0 | [npm](https://www.npmjs.com/package/@openai/codex-sdk) | Pinned SDK/CLI with GPT-6 Astra support. External provider API, authentication, and usage fields can change independently of Lattice. |
 | `commander` | `^13.0.0` | `13.1.0` | MIT | [npm](https://www.npmjs.com/package/commander) | CLI parsing behavior must be retested before a major upgrade. |
 | `execa` | `^9.5.2` | `9.6.1` | MIT | [npm](https://www.npmjs.com/package/execa) | Process cancellation and Windows command behavior are part of Lattice's execution boundary. |

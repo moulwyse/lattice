@@ -16,6 +16,11 @@ intends to use semantic versioning after the first public release.
 
 ### Fixed
 
+- Claude Opus 5.5 works with the Claude Code integration and the direct
+  Claude worker. Claude Agent SDK is updated from `0.3.220` to `0.3.281`
+  (bundled Claude Code `2.1.281`); the previously bundled Claude Code
+  `2.1.220` was rejected by the API with "does not support this model;
+  version 2.1.280 or newer is required".
 - Install instructions use the prebuilt release package. `npm install --global
   github:moulwyse/lattice#<tag>` fails on npm 11 and later for every release,
   because npm prepares a global Git dependency without its dev dependencies

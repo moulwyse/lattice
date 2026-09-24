@@ -280,7 +280,7 @@ with `lattice integration claude disable --workspace .`; uninstall the unified
 package with `npm uninstall --global lattice-v2`.
 
 The Beta has passed local build and contract tests with Claude Agent SDK
-`0.3.220` and its bundled Claude Code `2.1.220`. A community-operated Opus 5
+`0.3.281` and its bundled Claude Code `2.1.281`. A community-operated Opus 5
 pair on the public fixture observed 81.44% less fresh input plus output, 82.77%
 lower provider-reported cost, and 70.83% lower end-to-end time. Both independent
 verification commands passed, but the legacy report did not preserve per-test

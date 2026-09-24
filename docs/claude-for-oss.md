@@ -21,8 +21,8 @@ The integration includes:
 - reversible enable, disable, and uninstall paths;
 - credential-free contract tests and spend-gated live benchmark drivers.
 
-The checked dependency pair is Claude Agent SDK `0.3.220` with bundled Claude
-Code `2.1.220`. API, model, hook, and MCP behavior may change, which is why the
+The checked dependency pair is Claude Agent SDK `0.3.281` with bundled Claude
+Code `2.1.281`. API, model, hook, and MCP behavior may change, which is why the
 integration is visibly labeled Beta.
 
 ## Current public evidence
