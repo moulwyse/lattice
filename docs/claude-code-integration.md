@@ -1,4 +1,4 @@
-# Claude Code Beta: trust boundary and compatibility
+# Claude Code: trust boundary and compatibility
 
 The provider-neutral Lattice core retains the local index, bounded context
 grants, canonical patch protocol, fingerprint checks, isolated transaction,

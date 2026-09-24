@@ -1,14 +1,16 @@
 [CmdletBinding()]
 param(
-  # Branch or tag to install. `irm ... | iex` cannot pass parameters, so the
-  # LATTICE_REF and LATTICE_INSTALL_DIR environment variables are honored too.
+  # Branch or tag to install; defaults to the latest release tag. `irm ... | iex`
+  # cannot pass parameters, so the LATTICE_REF and LATTICE_INSTALL_DIR
+  # environment variables are honored too. Use `main` for unreleased code.
   [string]$Ref = "",
   [string]$InstallDir = ""
 )
 
 $ErrorActionPreference = "Stop"
 $RepositoryUrl = "https://github.com/moulwyse/lattice.git"
-if (-not $Ref) { $Ref = if ($env:LATTICE_REF) { $env:LATTICE_REF } else { "main" } }
+$DefaultRef = "v2.1.0"
+if (-not $Ref) { $Ref = if ($env:LATTICE_REF) { $env:LATTICE_REF } else { $DefaultRef } }
 if (-not $InstallDir -and $env:LATTICE_INSTALL_DIR) { $InstallDir = $env:LATTICE_INSTALL_DIR }
 
 function Write-Step {

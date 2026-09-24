@@ -48,7 +48,7 @@ export function claudeQueryOptions(
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     CLAUDE_AGENT_SDK_CLIENT_APP:
-      `lattice-claude-code-beta/${LATTICE_VERSION}`,
+      `lattice-claude-code/${LATTICE_VERSION}`,
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
   };
   if (opus5) delete env.CLAUDE_CODE_DISABLE_THINKING;

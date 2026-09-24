@@ -1,8 +1,9 @@
-# Claude Code integration — Beta
+# Claude Code integration
 
-> [!WARNING]
-> This integration is Beta. Claude Code, the Claude Agent SDK, hooks, MCP
-> configuration, model identifiers, and provider behavior may change.
+> [!NOTE]
+> Claude Code, the Claude Agent SDK, hooks, MCP configuration, model
+> identifiers, and provider behavior can change independently of Lattice.
+> Lattice is verified against the pinned dependency pair listed below.
 
 Claude Code is an opt-in section of the main Lattice package. It is not a
 separate product or npm package: installation provides the same `lattice` CLI
@@ -29,13 +30,13 @@ not a universal claim. See the
 [community-run Opus 5 record](evidence/community-run-claude-opus-5.md) was
 measured with v1.0.0 and is kept as a historical record.
 
-## Install the unified Beta package
+## Install the unified package
 
 The package is hosted as a GitHub Release asset. npm is only the local package
 installer; no npm account or login is required.
 
 ```sh
-npm install --global https://github.com/moulwyse/lattice/releases/download/v2.0.1/lattice-v2-2.0.1.tgz
+npm install --global https://github.com/moulwyse/lattice/releases/download/v2.1.0/lattice-v2-2.1.0.tgz
 lattice --version
 ```
 
@@ -110,7 +111,7 @@ lattice integration claude disable --workspace .
 
 Disable removes only MCP and hook entries that still match Lattice's ownership
 receipt. Changed or unrelated user configuration is preserved. Repeat it for
-every repository where the Beta was enabled.
+every repository where the integration was enabled.
 
 Uninstall the single package only when you no longer want either provider path:
 

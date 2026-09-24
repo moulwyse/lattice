@@ -82,7 +82,7 @@ If that exact model identifier is unavailable, select an available model and
 publish the new identifier with the result. Do not label a run with a model it
 did not use.
 
-## Run one Claude Code Beta pair
+## Run one Claude Code pair
 
 This command creates two fresh temporary copies of the bundled reset-token
 fixture and runs RAW Claude Code against Lattice Claude. It does not run either
