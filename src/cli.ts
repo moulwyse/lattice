@@ -43,7 +43,7 @@ import {
 } from './sidecar-command.js';
 import { LATTICE_VERSION } from './version.js';
 import { isLanguage, LANGUAGES, translate } from './i18n.js';
-import { runMenu } from './menu.js';
+import { runStartScreen } from './dashboard.js';
 import { repositoryRoot } from './repository.js';
 import { collectStats, formatStats } from './stats.js';
 import {
@@ -598,11 +598,6 @@ claudeIntegration
   });
 
 program
-  .command('menu')
-  .description('Open the interactive menu (also opened by `lattice` in a terminal)')
-  .action(async () => runMenu({ cliPath }));
-
-program
   .command('stats')
   .description('Show Lattice stats for a repository (agents: ask for "Lattice stats")')
   .option('--workspace <path>', 'repository workspace', process.cwd())
@@ -740,8 +735,8 @@ if (isCliEntrypoint(process.argv[1])) {
       if (raw) forwarded.shift();
       await runClaudeCommand(forwarded, { raw });
     } else if (process.argv.length === 2) {
-      // A terminal gets the menu; without one, show help instead of reading tasks.
-      if (stdin.isTTY && stdout.isTTY) await runMenu({ cliPath });
+      // A terminal gets the start screen; without one, show help instead of reading tasks.
+      if (stdin.isTTY && stdout.isTTY) await runStartScreen({ cliPath });
       else program.help();
     } else {
       await program.parseAsync();

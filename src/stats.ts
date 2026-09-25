@@ -17,6 +17,15 @@ import { LATTICE_VERSION } from './version.js';
 const USAGE_LOG = 'mcp-usage.jsonl';
 const USAGE_LOG_LIMIT_BYTES = 2 * 1024 * 1024;
 
+export type RecentTask = {
+  name: string;
+  status: 'passed' | 'failed' | 'other';
+  files: number;
+  verificationMs: number | null;
+  reason: string | null;
+  at: string;
+};
+
 export type LatticeStats = {
   schemaVersion: 1;
   version: string;
@@ -35,7 +44,9 @@ export type LatticeStats = {
     costUsd: number;
     verifiedCacheHits: number;
     lastTaskAt: string | null;
+    contextCharacters: number;
   };
+  recentTasks: RecentTask[];
   integrations: { claude: boolean; codex: boolean | null };
 };
 
@@ -94,7 +105,28 @@ function contextUsage(base: string) {
   return totals;
 }
 
+/** A short, readable task name such as `fix-reset-token` from its goal text. */
+export function taskName(goal: unknown, fallback: string) {
+  if (typeof goal !== 'string') return fallback;
+  const slug = goal
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
+    .split('-')
+    .slice(0, 4)
+    .join('-');
+  return (slug || fallback).slice(0, 28);
+}
+
+function failureReason(task: Record<string, unknown>, telemetry: Record<string, unknown>) {
+  const reason = [task.error, telemetry.rejectedEditGrantReason, telemetry.terminalStateReason].find(
+    (value): value is string => typeof value === 'string' && value.trim() !== '',
+  );
+  return reason ? reason.split(/\r?\n/)[0].slice(0, 60) : null;
+}
+
 function taskTotals(base: string) {
+  const recent: RecentTask[] = [];
   const totals: LatticeStats['tasks'] = {
     total: 0,
     passed: 0,
@@ -106,9 +138,10 @@ function taskTotals(base: string) {
     costUsd: 0,
     verifiedCacheHits: 0,
     lastTaskAt: null,
+    contextCharacters: 0,
   };
   const directory = join(base, 'tasks');
-  if (!existsSync(directory)) return totals;
+  if (!existsSync(directory)) return { totals, recent };
   for (const name of readdirSync(directory)) {
     if (!name.endsWith('.json')) continue;
     const path = join(directory, name);
@@ -123,6 +156,7 @@ function taskTotals(base: string) {
     totals.cachedInputTokens += numberOrZero(telemetry.cachedInputTokens);
     totals.outputTokens += numberOrZero(telemetry.outputTokens);
     totals.costUsd += numberOrZero(telemetry.costUsd);
+    totals.contextCharacters += numberOrZero(telemetry.loadedContextCharacters);
     if (telemetry.verifiedPatchCacheHit === true) totals.verifiedCacheHits += 1;
     const transitions = Array.isArray(telemetry.runtimeStateTransitions)
       ? (telemetry.runtimeStateTransitions as { at?: unknown }[])
@@ -130,8 +164,20 @@ function taskTotals(base: string) {
     const last = transitions.at(-1)?.at;
     const at = typeof last === 'string' ? last : statSync(path).mtime.toISOString();
     if (!totals.lastTaskAt || at > totals.lastTaskAt) totals.lastTaskAt = at;
+    const nested = (task.task ?? {}) as Record<string, unknown>;
+    const status = task.status === 'passed' || task.status === 'failed' ? task.status : 'other';
+    recent.push({
+      name: taskName(task.goal ?? nested.goal, String(task.taskId ?? name).slice(0, 8)),
+      status,
+      files: numberOrZero(telemetry.changedFileCount),
+      verificationMs:
+        typeof telemetry.verificationDurationMs === 'number' ? telemetry.verificationDurationMs : null,
+      reason: status === 'passed' ? null : failureReason(task, telemetry),
+      at,
+    });
   }
-  return totals;
+  recent.sort((left, right) => right.at.localeCompare(left.at));
+  return { totals, recent: recent.slice(0, 5) };
 }
 
 function indexTotals(base: string) {
@@ -159,6 +205,7 @@ export function collectStats(
   env: NodeJS.ProcessEnv = process.env,
 ): LatticeStats {
   const base = join(repositoryRoot, '.lattice');
+  const tasks = taskTotals(base);
   return {
     schemaVersion: 1,
     version: LATTICE_VERSION,
@@ -166,7 +213,8 @@ export function collectStats(
     repository: repositoryRoot,
     index: indexTotals(base),
     context: contextUsage(base),
-    tasks: taskTotals(base),
+    tasks: tasks.totals,
+    recentTasks: tasks.recent,
     integrations: {
       claude: readClaudeIntegrationState(repositoryRoot) !== null,
       codex: codexEnabled(env),

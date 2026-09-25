@@ -314,16 +314,19 @@ tests the public repository on Ubuntu, Windows, and macOS with Node.js 20 and
 Hosted CI is valuable compatibility evidence, but it is not the same as a full
 interactive Codex integration test on every platform.
 
-## Interactive menu and stats
+## Start screen and stats
 
-Run `lattice` in a terminal to open the menu. It starts with a language choice
-(English, Русский, Українська, Polski, Deutsch, Español), shows the installed
-version, and on every start checks GitHub for a newer release and asks whether
-to install it. From the menu you can run a task, view stats, start Claude Code
-or Codex through Lattice, manage integrations, run diagnostics and the
-self-test, and change the language. Use the arrow keys, Enter, number
-shortcuts, Esc to go back and Q to quit. Without a terminal, `lattice` prints
-its help.
+Run `lattice` in a terminal to see the start screen: the version, project,
+Git branch and active agent integration, a **Metrics** box (context sent
+against the indexed repository size, tokens, provider-reported cost) and a
+**Worktree pipeline** box with the latest tasks, their changed files and
+whether each patch was verified or rejected. Every number is measured; the
+screen does not estimate savings.
+
+The first start asks for a language (English, Русский, Українська, Polski,
+Deutsch, Español); change it later with `lattice language <code>`. On every
+start Lattice checks GitHub and, only when a newer release exists, asks whether
+to install it. Without a terminal, `lattice` prints its help.
 
 Inside Codex or Claude Code, ask for **Lattice stats**: the agent calls the
 `lattice_stats` MCP tool and shows the same report as `lattice stats`. The

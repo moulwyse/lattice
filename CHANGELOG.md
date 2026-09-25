@@ -10,14 +10,16 @@ intends to use semantic versioning after the first public release.
 
 ### Added
 
-- `lattice` in a terminal opens an interactive menu: language choice on first
-  start (English, Russian, Ukrainian, Polish, German, Spanish), the installed
-  version, and a GitHub release check on every start that asks whether to
-  install a newer version. The menu runs tasks, shows stats, starts Claude Code
-  or Codex through Lattice, manages integrations and sessions, and runs
-  diagnostics and the self-test. The old line-based `lattice>` prompt, which
-  ran every typed line as a Codex task, is removed; without a terminal
-  `lattice` prints its help.
+- `lattice` in a terminal prints a start screen: a pixel logo, version,
+  project, Git branch and active integration, a Metrics box (context sent
+  against the indexed repository size, tokens, provider-reported cost) and a
+  Worktree pipeline box with the latest tasks. Only measured numbers are shown.
+  The first start asks for a language (English, Russian, Ukrainian, Polish,
+  German, Spanish), and a start with a newer GitHub release available asks
+  whether to install it. The old line-based `lattice>` prompt, which ran every
+  typed line as a Codex task, is removed; without a terminal `lattice` prints
+  its help.
+- Task results store their goal text, so the start screen can name tasks.
 - `lattice stats [--json]` and the `lattice_stats` MCP tool: asking an agent
   for "Lattice stats" shows index size, context served over MCP, tasks,
   tokens, provider cost and integration status in the chosen language. The

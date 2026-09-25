@@ -196,6 +196,7 @@ export async function runTask(requestedWorkspace: string, goal: string, options:
     taskId: task.id,
     sessionId: session.id,
     status: 'running',
+    goal: task.goal,
     telemetry: metrics,
     worker: options.worker,
     model: modelSettings?.model ?? null,

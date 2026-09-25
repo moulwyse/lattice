@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { LANGUAGES, MESSAGES, translate, languageFromLocale } from '../src/i18n.js';
+import { fileCount, LANGUAGES, MESSAGES, translate, languageFromLocale } from '../src/i18n.js';
 import {
   LatticeMcpBridge,
   MCP_PROTOCOL_VERSION,
@@ -11,8 +11,8 @@ import {
   MCP_TOOL_NAMES,
   type McpBridgeDependencies,
 } from '../src/mcp-server.js';
-import { renderMenu, runMenu } from '../src/menu.js';
-import { collectStats, formatBytes, formatStats, recordContextUsage } from '../src/stats.js';
+import { renderDashboard, renderLogo, runStartScreen, type DashboardData } from '../src/dashboard.js';
+import { collectStats, formatBytes, formatStats, recordContextUsage, taskName } from '../src/stats.js';
 import { compareVersions, fetchLatestRelease } from '../src/update-check.js';
 import { readUserSettings, updateUserSettings } from '../src/user-settings.js';
 
@@ -48,6 +48,7 @@ function repositoryWithState() {
     join(base, 'tasks', 'a.json'),
     JSON.stringify({
       status: 'passed',
+      goal: 'Fix reset token behavior: consume once',
       telemetry: {
         modelInputTokens: 1_000,
         cachedInputTokens: 200,
@@ -93,7 +94,7 @@ describe('translations', () => {
   });
 
   test('fills placeholders and maps locales', () => {
-    expect(translate('ru', 'version', { version: '2.1.0' })).toBe('Версия 2.1.0');
+    expect(translate('ru', 'dashSent', { count: '5' })).toBe('5 отправлено');
     expect(languageFromLocale('uk-UA')).toBe('uk');
     expect(languageFromLocale('pt-BR')).toBeNull();
   });
@@ -187,6 +188,15 @@ describe('stats', () => {
     expect(text.match(/none yet/g)).toHaveLength(2);
   });
 
+  test('names recent tasks from their goal, newest first', () => {
+    const stats = collectStats(repositoryWithState(), settingsEnv());
+    expect(stats.recentTasks.map((task) => [task.name, task.status])).toEqual([
+      ['b.json', 'failed'],
+      ['fix-reset-token-behavior', 'passed'],
+    ]);
+    expect(taskName('Исправь сброс токена!', 'x')).toBe('исправь-сброс-токена');
+  });
+
   test('records usage counts only', () => {
     const root = temporaryDirectory();
     recordContextUsage(root, { tool: 'lattice_read_context', pages: 1, bytes: 42 });
@@ -228,14 +238,52 @@ describe('lattice_stats MCP tool', () => {
   });
 });
 
-describe('interactive menu', () => {
-  test('renders numbered items with the selection marked', () => {
-    const text = renderMenu({ header: ['Lattice'], title: 'Main', labels: ['One', 'Two'], selected: 1, hint: 'hint' });
-    expect(text).toContain('1  One');
-    expect(text).toMatch(/›.*2 {2}Two/);
+describe('start screen', () => {
+  const sample = (): DashboardData => ({
+    project: 'my-project',
+    branch: 'main',
+    engine: 'claude-code',
+    stats: {
+      ...collectStats(repositoryWithState(), settingsEnv()),
+      recentTasks: [
+        { name: 'fix-reset-token', status: 'passed', files: 3, verificationMs: 2_100, reason: null, at: '2' },
+        { name: 'refactor-auth', status: 'failed', files: 1, verificationMs: null, reason: 'stale fingerprint', at: '1' },
+      ],
+    },
   });
 
-  test('asks for a language first, opens stats and quits', async () => {
+  test('draws the logo, status line, metrics and pipeline with aligned boxes', () => {
+    const text = renderDashboard(sample(), 'en', false);
+    expect(renderLogo(false)).toHaveLength(8);
+    expect(text).toContain('my-project · git:main · engine:claude-code');
+    expect(text).toContain('┌─ METRICS');
+    expect(text).toContain('1,500 sent');
+    expect(text).toContain('$0.015');
+    expect(text).toMatch(/✓ fix-reset-token\s+3 files\s+verified 2\.1s · isolated wt/);
+    expect(text).toMatch(/✗ refactor-auth\s+1 file\s+failed: stale fingerprint/);
+    expect(text).toContain('● ready');
+    const boxLines = text.split('\n').filter((line) => /^\s*[┌│└]/.test(line));
+    expect(new Set(boxLines.map((line) => [...line].length)).size).toBe(1);
+  });
+
+  test('uses localized labels and plural forms', () => {
+    const text = renderDashboard(sample(), 'ru', false);
+    expect(text).toContain('МЕТРИКИ');
+    expect(text).toContain('3 файла');
+    expect(text).toContain('1 файл ');
+    expect(fileCount('ru', 5)).toBe('5 файлов');
+    expect(fileCount('uk', 2)).toBe('2 файли');
+    expect(fileCount('en', 1)).toBe('1 file');
+  });
+
+  test('outside a repository it only shows the logo, status and a warning', () => {
+    const text = renderDashboard({ stats: null, project: 'tmp', branch: null, engine: null }, 'en', false);
+    expect(text).not.toContain('METRICS');
+    expect(text).toContain('not a Git repository');
+    expect(text).toContain('engine:none');
+  });
+
+  test('asks for a language on the first start, then prints the screen', async () => {
     const root = repositoryWithState();
     const env = settingsEnv();
     const input = new PassThrough() as PassThrough & NodeJS.ReadStream;
@@ -245,33 +293,29 @@ describe('interactive menu', () => {
     output.on('data', (chunk: Buffer) => {
       written += chunk.toString('utf8');
     });
-    const done = runMenu({ cliPath: 'unused', cwd: root, env, terminal: { input, output } });
-    // Send each key only once its screen is drawn, so slow hosts cannot race.
-    let seen = 0;
-    const after = async (text: string, keys: string) => {
-      const deadline = Date.now() + 10_000;
-      for (;;) {
-        const found = written.indexOf(text, seen);
-        if (found >= 0) {
-          seen = found + text.length;
-          break;
-        }
-        if (Date.now() > deadline) throw new Error(`menu never showed: ${text}`);
-        await new Promise((resolveWait) => setTimeout(resolveWait, 10));
-      }
-      // Let the prompt attach its listener after the screen is written.
-      await new Promise((resolveWait) => setTimeout(resolveWait, 20));
-      input.write(keys);
-    };
-    await after('Choose your language', '2'); // Русский
-    await after('Главное меню', '2'); // Статистика
-    await after('Нажмите Enter', '\r'); // back from the stats screen
-    await after('Главное меню', 'q');
+    const done = runStartScreen({ cliPath: 'unused', cwd: root, env, terminal: { input, output } });
+    const deadline = Date.now() + 10_000;
+    while (!written.includes('Choose your language')) {
+      if (Date.now() > deadline) throw new Error('language picker never appeared');
+      await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+    }
+    input.write('2');
     await done;
     expect(readUserSettings(env).language).toBe('ru');
-    expect(written).toContain('Choose your language');
-    expect(written).toContain('Главное меню');
-    expect(written).toContain('Статистика Lattice');
-    expect(written).toContain('всего 2: 1 успешно');
+    expect(written).toContain('МЕТРИКИ');
+    expect(written).toContain('● готов');
+  });
+
+  test('a later start prints the screen without asking', async () => {
+    const env = settingsEnv('en');
+    const output = new PassThrough() as PassThrough & NodeJS.WriteStream;
+    let written = '';
+    output.on('data', (chunk: Buffer) => {
+      written += chunk.toString('utf8');
+    });
+    const input = new PassThrough() as PassThrough & NodeJS.ReadStream;
+    await runStartScreen({ cliPath: 'unused', cwd: repositoryWithState(), env, terminal: { input, output } });
+    expect(written).not.toContain('Choose your language');
+    expect(written).toContain('WORKTREE PIPELINE');
   });
 });
