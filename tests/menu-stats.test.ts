@@ -439,10 +439,15 @@ describe('start screen', () => {
       await new Promise((resolveWait) => setTimeout(resolveWait, 10));
     }
     input.write('2');
+    // The savings menu opens and stays until q.
+    while (!written.includes('ИСТОРИЯ')) {
+      if (Date.now() > deadline) throw new Error('the menu never appeared');
+      await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+    }
+    input.write('q');
     await done;
     expect(readUserSettings(env).language).toBe('ru');
-    expect(written).toContain('МЕТРИКИ');
-    expect(written).toContain('● готов');
+    expect(written).toContain('┌─ ЭКОНОМИЯ');
   });
 
   test('a later start prints the screen without asking', async () => {
@@ -455,6 +460,8 @@ describe('start screen', () => {
     const input = new PassThrough() as PassThrough & NodeJS.ReadStream;
     await runStartScreen({ cliPath: 'unused', cwd: repositoryWithState(), env, terminal: { input, output } });
     expect(written).not.toContain('Choose your language');
-    expect(written).toContain('WORKTREE PIPELINE');
+    // Without a keyboard the menu is printed once.
+    expect(written).toContain('┌─ SAVINGS');
+    expect(written).toContain('HISTORY (0)');
   });
 });

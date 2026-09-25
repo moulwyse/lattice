@@ -1,9 +1,8 @@
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { PassThrough } from 'node:stream';
 import { describe, expect, test } from 'vitest';
-import { renderDashboard, runStartScreen } from '../src/dashboard.js';
+import { dashboardData, renderDashboard } from '../src/dashboard.js';
 import { claudeMessageCost, claudePrice } from '../src/pricing.js';
 import { knownRepositoriesPath, readKnownRepositories, rememberRepository } from '../src/repositories.js';
 import { collectAllProjects, collectStats, combineStats, formatStats } from '../src/stats.js';
@@ -151,7 +150,7 @@ describe('all projects', () => {
     expect(report).not.toContain('Репозиторий:');
   });
 
-  test('the start screen outside a repository shows every project', async () => {
+  test('lattice stats outside a repository shows every project', async () => {
     const env = environment();
     const alpha = project('alpha', [
       { status: 'passed', goal: 'Fix login redirect', at: '2026-09-20T10:00:00.000Z', input: 1_000, cost: 0.01, source: 50_000, loaded: 10_000 },
@@ -159,13 +158,7 @@ describe('all projects', () => {
     ]);
     rememberRepository(alpha, env);
     writeFileSync(env.LATTICE_SETTINGS_PATH, JSON.stringify({ schemaVersion: 1, language: 'en' }));
-    const output = new PassThrough() as PassThrough & NodeJS.WriteStream;
-    let written = '';
-    output.on('data', (chunk: Buffer) => {
-      written += chunk.toString('utf8');
-    });
-    const input = new PassThrough() as PassThrough & NodeJS.ReadStream;
-    await runStartScreen({ cliPath: 'unused', cwd: directory(), env, terminal: { input, output } });
+    const written = renderDashboard(await dashboardData(directory(), env), 'en', false);
     expect(written).toContain('all projects (1)');
     expect(written).toMatch(/│ Tokens\s+1,500 sent\s+~10,000 pruned \(est\.\)\s+│/);
     expect(written).toMatch(/│ Est\. cost\s+\$0\.015\s+~\$0\.10 saved \(est\.\)\s+│/);

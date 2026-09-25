@@ -176,7 +176,7 @@ export function taskName(goal: unknown, fallback: string) {
 }
 
 /** The first line of the error without the provider's generic wrapper text. */
-function failureReason(task: Record<string, unknown>, telemetry: Record<string, unknown>) {
+export function failureReason(task: Record<string, unknown>, telemetry: Record<string, unknown>) {
   const reason = [task.error, telemetry.rejectedEditGrantReason, telemetry.terminalStateReason].find(
     (value): value is string => typeof value === 'string' && value.trim() !== '',
   );

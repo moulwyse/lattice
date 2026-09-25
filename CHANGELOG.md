@@ -10,6 +10,12 @@ intends to use semantic versioning after the first public release.
 
 ### Added
 
+- `lattice` opens a savings menu that does not depend on the current folder:
+  the total saving over every Claude Code and Codex chat and every
+  `lattice run` task, and a history where ↑/↓ and Enter open one task's full
+  saving (Lattice requests, context sent, whole files, tokens, percent, dollars)
+  and spending. Chat savings are read from the agents' own logs, so earlier
+  chats count too. `lattice history [number] [--json]` prints the same.
 - `lattice` in a terminal prints a start screen: a pixel logo, version,
   project, Git branch and active integration, a Metrics box (context sent
   against the indexed repository size, tokens, provider-reported cost) and a

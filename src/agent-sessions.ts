@@ -45,7 +45,7 @@ function number(value: unknown) {
 }
 
 /** Parsed JSONL entries; `mustContain` skips unrelated lines before parsing. */
-function jsonLines(path: string, mustContain?: string) {
+export function jsonLines(path: string, mustContain?: string) {
   let text: string;
   try {
     text = readFileSync(path, 'utf8');
@@ -64,7 +64,7 @@ function jsonLines(path: string, mustContain?: string) {
   return values;
 }
 
-function files(directory: string, suffix: string, depth = 4): string[] {
+export function logFiles(directory: string, suffix: string, depth = 4): string[] {
   if (depth < 0 || !existsSync(directory)) return [];
   const found: string[] = [];
   let entries;
@@ -75,13 +75,13 @@ function files(directory: string, suffix: string, depth = 4): string[] {
   }
   for (const entry of entries) {
     const path = join(directory, entry.name);
-    if (entry.isDirectory()) found.push(...files(path, suffix, depth - 1));
+    if (entry.isDirectory()) found.push(...logFiles(path, suffix, depth - 1));
     else if (entry.name.endsWith(suffix)) found.push(path);
   }
   return found;
 }
 
-function claudeSurface(entrypoint: unknown): AgentUsage['surface'] | null {
+export function claudeSurface(entrypoint: unknown): AgentUsage['surface'] | null {
   if (entrypoint === 'claude-desktop') return 'desktop';
   if (entrypoint === 'cli') return 'cli';
   if (typeof entrypoint === 'string' && /vscode|jetbrains|ide/i.test(entrypoint)) return 'ide';
@@ -116,7 +116,7 @@ function emptyRecord(agent: AgentUsage['agent'], id: string, cwd: string): Sessi
 function claudeSessions(env: NodeJS.ProcessEnv) {
   const base = join(env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), 'projects');
   const records: SessionRecord[] = [];
-  for (const path of files(base, '.jsonl')) {
+  for (const path of logFiles(base, '.jsonl')) {
     const seen = new Set<string>();
     const byDirectory = new Map<string, SessionRecord>();
     for (const entry of jsonLines(path, '"assistant"')) {
@@ -152,7 +152,7 @@ function claudeSessions(env: NodeJS.ProcessEnv) {
   return records;
 }
 
-function codexSurface(originator: unknown): AgentUsage['surface'] {
+export function codexSurface(originator: unknown): AgentUsage['surface'] {
   if (typeof originator !== 'string') return 'other';
   if (/desktop/i.test(originator)) return 'desktop';
   if (/vscode|jetbrains|ide/i.test(originator)) return 'ide';
@@ -168,7 +168,7 @@ function codexSurface(originator: unknown): AgentUsage['surface'] {
 function codexSessions(env: NodeJS.ProcessEnv) {
   const base = join(env.CODEX_HOME ?? join(homedir(), '.codex'), 'sessions');
   const records: SessionRecord[] = [];
-  for (const path of files(base, '.jsonl')) {
+  for (const path of logFiles(base, '.jsonl')) {
     const entries = jsonLines(path);
     const meta = entries.find((entry) => entry.type === 'session_meta')?.payload as
       | Record<string, unknown>
@@ -200,6 +200,11 @@ function codexSessions(env: NodeJS.ProcessEnv) {
   }
   return records;
 }
+
+export const claudeProjectsDirectory = (env: NodeJS.ProcessEnv) =>
+  join(env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), 'projects');
+export const codexSessionsDirectory = (env: NodeJS.ProcessEnv) =>
+  join(env.CODEX_HOME ?? join(homedir(), '.codex'), 'sessions');
 
 /** Every session record in both agents' logs. Unreadable logs are skipped. */
 export function scanAgentSessions(env: NodeJS.ProcessEnv = process.env): SessionRecord[] {

@@ -11,6 +11,8 @@ import {
   translate,
   type Language,
 } from './i18n.js';
+import { collectHistory } from './history.js';
+import { renderHistoryList, runHistoryMenu } from './menu.js';
 import { discoverRepository } from './repository.js';
 import { rememberRepository } from './repositories.js';
 import {
@@ -432,7 +434,8 @@ export async function dashboardData(
 
 /**
  * `lattice` in a terminal: pick a language on the first start, offer a newer
- * release when one exists, then print the start screen.
+ * release when one exists, then open the savings menu: the total over every
+ * chat and task, and the history, where Enter opens one task's savings.
  */
 export async function runStartScreen(options: {
   cliPath: string;
@@ -451,7 +454,14 @@ export async function runStartScreen(options: {
     updateUserSettings({ language }, env);
   }
   if (!(await offerUpdate(terminal, options.cliPath, language, env))) return;
-  const data = await dashboardData(options.cwd ?? process.cwd(), env);
+  const entries = collectHistory(env);
+  // A keyboard opens the menu; otherwise the list is printed once.
+  if (terminal.input.isTTY && typeof terminal.input.setRawMode === 'function') {
+    await runHistoryMenu({ terminal, language, env, entries });
+    return;
+  }
   const color = Boolean(terminal.output.isTTY) && !env.NO_COLOR;
-  terminal.output.write(`${renderDashboard(data, language, color)}\n`);
+  terminal.output.write(
+    `${renderHistoryList(entries, { view: 'list', selected: -1, offset: 0 }, language, color, 40)}\n`,
+  );
 }

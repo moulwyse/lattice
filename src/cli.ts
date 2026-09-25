@@ -46,6 +46,8 @@ import { isLanguage, LANGUAGES, translate } from './i18n.js';
 import { dashboardData, renderDashboard, runStartScreen } from './dashboard.js';
 import { rememberRepository } from './repositories.js';
 import { formatStats } from './stats.js';
+import { collectHistory, historyTotals } from './history.js';
+import { renderHistoryDetail, renderHistoryList } from './menu.js';
 import {
   checkForUpdate,
   detectInstallation,
@@ -595,6 +597,30 @@ claudeIntegration
       console.log(`MCP definition: ${status.mcpMatched ? 'matched' : 'missing or changed'}`);
       console.log(`Hooks: ${status.hooksMatched ? 'matched' : 'missing or changed'}`);
     }
+  });
+
+program
+  .command('history')
+  .description('Savings of every chat and lattice run task; with a number, one task in full')
+  .argument('[number]', 'position in the list, 1 = newest')
+  .option('--json', 'print machine-readable JSON')
+  .action((position: string | undefined, options) => {
+    const language = readUserSettings().language ?? 'en';
+    const entries = collectHistory();
+    const color = Boolean(stdout.isTTY) && !process.env.NO_COLOR;
+    if (position === undefined) {
+      console.log(
+        options.json
+          ? JSON.stringify({ totals: historyTotals(entries), entries }, null, 2)
+          : renderHistoryList(entries, { view: 'list', selected: -1, offset: 0 }, language, color, entries.length + 30),
+      );
+      return;
+    }
+    const entry = entries[Number(position) - 1];
+    if (!Number.isInteger(Number(position)) || !entry) {
+      throw new Error(`No task ${position}: the history has ${entries.length}.`);
+    }
+    console.log(options.json ? JSON.stringify(entry, null, 2) : renderHistoryDetail(entry, language, color));
   });
 
 program

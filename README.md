@@ -314,9 +314,31 @@ tests the public repository on Ubuntu, Windows, and macOS with Node.js 20 and
 Hosted CI is valuable compatibility evidence, but it is not the same as a full
 interactive Codex integration test on every platform.
 
+## Savings menu
+
+Run `lattice` in a terminal to open the savings menu. It does not depend on the
+folder you are in: it covers every Claude Code and Codex chat on this machine
+and every `lattice run` task of the projects Lattice knows.
+
+- **Savings** at the top: the total saved over everything (≈ tokens and an
+  estimate in dollars), context sent against the whole files it came from, how
+  many tasks used Lattice, and what was spent.
+- **History** below: every chat and task, newest first, each with its own
+  saving. Move with ↑/↓ (PgUp/PgDn, Home/End) and press Enter to open a task:
+  where and when it ran, the model, the Lattice requests, context sent, whole
+  files, the saving in tokens, percent and dollars, and tokens and cost spent.
+  In a task, ↑/↓ open the previous or next one, Esc goes back, q quits.
+
+Chat savings are read back from the agents' own logs: every
+`lattice_search_context` or `lattice_read_context` result there lists its pages
+and the bytes sent, which are compared with the current size of those files.
+So chats from before this version count too, and a chat that never called
+Lattice shows `—`. `lattice history` prints the same list, `lattice history 3`
+the third task, and `--json` either as JSON.
+
 ## Start screen and stats
 
-Run `lattice` in a terminal to see the start screen: the version, project,
+`lattice stats` shows the stats screen: the version, project,
 Git branch and active agent integration, a **Metrics** box (context sent
 against the indexed repository size; tokens sent with the context pruned;
 estimated cost with the estimated saving; all tasks with how many passed and
@@ -379,6 +401,7 @@ update check are stored in `%LOCALAPPDATA%\Lattice\settings.json` or
 
 ```text
 lattice
+lattice history [number] [--json]
 lattice stats [--all] [--details] [--json]
 lattice update [--yes]
 lattice language [en|ru|uk|pl|de|es]
