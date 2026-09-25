@@ -315,6 +315,7 @@ describe('Lattice MCP server', () => {
       MCP_TOOL_NAMES.status,
       MCP_TOOL_NAMES.searchContext,
       MCP_TOOL_NAMES.readContext,
+      MCP_TOOL_NAMES.stats,
     ]);
     for (const tool of response.tools) {
       expect(tool.inputSchema).toMatchObject({

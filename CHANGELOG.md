@@ -8,6 +8,25 @@ intends to use semantic versioning after the first public release.
 
 ## [Unreleased]
 
+### Added
+
+- `lattice` in a terminal opens an interactive menu: language choice on first
+  start (English, Russian, Ukrainian, Polish, German, Spanish), the installed
+  version, and a GitHub release check on every start that asks whether to
+  install a newer version. The menu runs tasks, shows stats, starts Claude Code
+  or Codex through Lattice, manages integrations and sessions, and runs
+  diagnostics and the self-test. Piped input keeps the line-based prompt.
+- `lattice stats [--json]` and the `lattice_stats` MCP tool: asking an agent
+  for "Lattice stats" shows index size, context served over MCP, tasks,
+  tokens, provider cost and integration status in the chosen language. The
+  MCP bridge now records per-call counts (pages and bytes, never content) in
+  `.lattice/logs/mcp-usage.jsonl`.
+- `lattice update [--yes]` installs the latest release: a global npm package
+  from the release asset, an installer checkout by moving to the new tag.
+  Development checkouts are never changed; the command prints the Git steps.
+- `lattice language [code]` shows or sets the interface language.
+  `LATTICE_NO_UPDATE_CHECK=1` disables the start-up check.
+
 ## [2.1.0] - 2026-09-24
 
 ### Changed
