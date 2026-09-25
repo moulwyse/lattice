@@ -40,6 +40,8 @@ import type {
   PatchResponse,
   TaskIR,
 } from './types.js';
+import { rememberRepository } from './repositories.js';
+import { sourceFileBytes } from './source-bytes.js';
 
 export type RunOptions = {
   worker: 'codex' | 'claude' | 'mock';
@@ -186,6 +188,7 @@ export async function runTask(requestedWorkspace: string, goal: string, options:
   const machine = new RuntimeStateMachine(metrics);
   machine.transition('COMPILED');
   const session = newSession(workspace, options.worker);
+  rememberRepository(workspace);
   const events = options.events ?? new Events();
   const lifecycleEvents: Event[] = [];
   const stopRecording = events.on((event) => lifecycleEvents.push(event));
@@ -249,6 +252,7 @@ export async function runTask(requestedWorkspace: string, goal: string, options:
     );
     metrics.loadedPageCount = pages.length;
     metrics.loadedContextCharacters = metrics.initialContextCharacters;
+    metrics.sourceFileBytes = sourceFileBytes(workspace, pages.map((page) => page.path));
     machine.transition('CONTEXT_GRANTED');
     events.emit('context.initial_selected', `Loaded ${pages.length} pages`);
 
@@ -381,6 +385,10 @@ export async function runTask(requestedWorkspace: string, goal: string, options:
           metrics.loadedContextCharacters = kernel.pages.reduce(
             (total, page) => total + page.content.length,
             0,
+          );
+          metrics.sourceFileBytes = sourceFileBytes(
+            workspace,
+            kernel.pages.map((page) => page.path),
           );
           events.emit('context.page_fault', `Resolved context fault ${metrics.pageFaults}`);
           machine.transition('CONTEXT_GRANTED');

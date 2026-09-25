@@ -241,11 +241,17 @@ describe('stats', () => {
       'en',
       false,
     );
-    expect(screen).toMatch(/│ Saved\s+7\.8 KB \(75%\)\s+≈2,000 tokens fewer\s+│/);
+    expect(screen).toMatch(/│ Tokens\s+1,500 sent\s+~2,000 pruned \(est\.\)\s+│/);
+    // Without session prices, the tasks' effective rate ($0.015 / 1,500) values it.
+    expect(stats.estimates.savedUsd).toBeCloseTo(0.02);
+    expect(screen).toMatch(/│ Est\. cost\s+\$0\.015\s+~\$0\.02 saved \(est\.\)\s+│/);
     for (const { code } of LANGUAGES) {
-      // The detail column has 29 cells; a compact token count is at most six.
-      const detail = translate(code, 'dashSavedDetail', { tokens: '999.9K' });
-      expect([...detail].length, code).toBeLessThanOrEqual(29);
+      // The detail column has 29 cells; a compact count is at most six.
+      for (const key of ['dashPruned', 'dashSavedUsd'] as const) {
+        const detail = translate(code, key, { count: '999.9K', amount: '$999.999' });
+        expect([...detail].length, `${code}.${key}`).toBeLessThanOrEqual(29);
+      }
+      expect([...translate(code, 'dashEstCost')].length, code).toBeLessThanOrEqual(11);
     }
     const boxLines = screen.split('\n').filter((line) => /^\s*[┌│└]/.test(line));
     expect(new Set(boxLines.map((line) => [...line].length)).size).toBe(1);
@@ -255,7 +261,7 @@ describe('stats', () => {
     const stats = collectStats(repositoryWithState(), settingsEnv());
     expect(formatStats(stats, 'en')).not.toContain('Saved against');
     expect(renderDashboard({ stats, project: 'p', branch: null, engine: null }, 'en', false)).not.toContain(
-      '│ Saved',
+      'pruned',
     );
   });
 

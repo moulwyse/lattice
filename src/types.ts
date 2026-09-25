@@ -243,6 +243,8 @@ export type Telemetry = Usage & {
   initialContextEstimatedTokens: number;
   loadedPageCount: number;
   loadedContextCharacters: number;
+  /** Size of the whole files behind the loaded pages; absent in older task records. */
+  sourceFileBytes?: number;
   pageFaults: number;
   workerTurns: number;
   protocolRepairTurns: number;

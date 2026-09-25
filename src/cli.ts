@@ -44,8 +44,9 @@ import {
 import { LATTICE_VERSION } from './version.js';
 import { isLanguage, LANGUAGES, translate } from './i18n.js';
 import { runStartScreen } from './dashboard.js';
-import { repositoryRoot } from './repository.js';
-import { collectStats, formatStats } from './stats.js';
+import { discoverRepository } from './repository.js';
+import { rememberRepository } from './repositories.js';
+import { collectAllProjects, collectStats, combineStats, formatStats } from './stats.js';
 import {
   checkForUpdate,
   detectInstallation,
@@ -599,16 +600,28 @@ claudeIntegration
 
 program
   .command('stats')
-  .description('Show Lattice stats for a repository (agents: ask for "Lattice stats")')
+  .description('Show Lattice stats for a repository, or for every project outside one (agents: ask for "Lattice stats")')
   .option('--workspace <path>', 'repository workspace', process.cwd())
+  .option('--all', 'every project Lattice knows, with a list per project')
   .option('--json', 'print machine-readable JSON')
   .action(async (options) => {
-    const stats = collectStats(await repositoryRoot(resolve(options.workspace)));
-    console.log(
-      options.json
-        ? JSON.stringify(stats, null, 2)
-        : formatStats(stats, readUserSettings().language ?? 'en'),
-    );
+    const language = readUserSettings().language ?? 'en';
+    const repository = options.all
+      ? null
+      : await discoverRepository(resolve(options.workspace)).catch(() => null);
+    if (!repository?.safe) {
+      const projects = collectAllProjects();
+      const total = combineStats(projects);
+      console.log(
+        options.json
+          ? JSON.stringify({ ...total, projects }, null, 2)
+          : formatStats(total, language, projects),
+      );
+      return;
+    }
+    rememberRepository(repository.root);
+    const stats = collectStats(repository.root);
+    console.log(options.json ? JSON.stringify(stats, null, 2) : formatStats(stats, language));
   });
 
 program

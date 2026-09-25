@@ -18,6 +18,7 @@ import { repositoryRoot } from './repository.js';
 import { buildEvidence, verifiedTaskStatus } from './runtime.js';
 import { compileTask, withRepositoryVerification } from './task.js';
 import { telemetry } from './telemetry.js';
+import { sourceFileBytes } from './source-bytes.js';
 import { applyVerifiedPatch, transact } from './transaction.js';
 import type { ContextPage, TaskIR, WorkerResponse } from './types.js';
 
@@ -143,6 +144,7 @@ export async function startHandoff(requestedWorkspace: string, goal: string) {
   );
   metrics.loadedContextCharacters = metrics.initialContextCharacters;
   metrics.loadedPageCount = pages.length;
+  metrics.sourceFileBytes = sourceFileBytes(workspace, pages.map((page) => page.path));
   metrics.editGrantCount = registry.grants.length;
   metrics.editGrantMappingSha256 = registry.mappingSha256;
   saveTask(workspace, {
@@ -226,6 +228,10 @@ export async function continueHandoff(
     taskResult.telemetry.loadedContextCharacters = state.pages.reduce(
       (total, page) => total + page.content.length,
       0,
+    );
+    taskResult.telemetry.sourceFileBytes = sourceFileBytes(
+      workspace,
+      state.pages.map((page) => page.path),
     );
     taskResult.telemetry.editGrantCount = registry.grants.length;
     taskResult.telemetry.editGrantMappingSha256 = registry.mappingSha256;

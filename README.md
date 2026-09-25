@@ -318,23 +318,40 @@ interactive Codex integration test on every platform.
 
 Run `lattice` in a terminal to see the start screen: the version, project,
 Git branch and active agent integration, a **Metrics** box (context sent
-against the indexed repository size, all tokens, provider-reported cost of
-`lattice run` tasks), an **Agent sessions** box and a **Worktree pipeline** box
-with the latest tasks, their changed files and whether each patch was verified
-or rejected. Every number is measured.
+against the indexed repository size; tokens sent with the context pruned;
+estimated cost with the estimated saving; all tasks with how many passed and
+failed), an **Agent sessions** box and a **Worktree pipeline** box with the
+latest tasks, their changed files and whether each patch was verified or
+rejected. Numbers marked *est.* are estimates; everything else is measured.
 
-**Saved** counts what Lattice kept out of chats: every `lattice_search_context`
-or `lattice_read_context` call records the bytes it sent and the current size
-of the whole files its pages came from, and the difference is the saving
-(tokens are shown as bytes / 4). It is a per-response comparison with reading
-those files whole, not a comparison with a plain agent run.
+Outside a repository (for example in your home folder) the screen shows every
+project Lattice knows, summed, with a **Projects** box listing each one and the
+latest tasks of all projects. A project is known once Lattice ran in it (a
+chat used the Lattice MCP tools, a `lattice run` task, or `lattice` / `lattice
+stats` inside it) or an agent session ran in a folder with `.lattice` state.
+`lattice stats` does the same outside a repository, and `lattice stats --all`
+from anywhere.
+
+**Estimates.** *Pruned* is the context Lattice kept out of the model: the
+whole files behind each served page minus what was sent, in chats and in
+`lattice run` tasks, at 4 bytes per token. *Est. cost* is the provider-reported
+cost of `lattice run` tasks plus Claude Code sessions at first-party Claude
+API list prices per model (Codex sessions and unknown models have no cost
+estimate). *Saved* values the pruned tokens at the sessions' average uncached
+input price, or at the tasks' effective rate when no session was priced.
+
+For chats, every `lattice_search_context` or `lattice_read_context` call
+records the bytes it sent and the current size of the whole files its pages
+came from; `lattice run` tasks record the same for their loaded pages. This is
+a per-response comparison with reading those files whole, not a comparison
+with a plain agent run.
 
 Tokens include ordinary Claude Code and Codex sessions in the repository,
 whether they ran in the desktop app, a terminal or an IDE. Lattice reads the
 session logs both agents keep locally (`~/.claude/projects` or
 `CLAUDE_CONFIG_DIR`, `~/.codex/sessions` or `CODEX_HOME`); it only reads token
-counts and never copies them anywhere. Those logs record tokens but not cost,
-so cost covers `lattice run` tasks only.
+counts and model names and never copies them anywhere. The list of known
+projects is kept in `repositories.json` next to the settings file below.
 
 The first start asks for a language (English, Русский, Українська, Polski,
 Deutsch, Español); change it later with `lattice language <code>`. On every
@@ -357,7 +374,7 @@ update check are stored in `%LOCALAPPDATA%\Lattice\settings.json` or
 
 ```text
 lattice
-lattice stats [--json]
+lattice stats [--all] [--json]
 lattice update [--yes]
 lattice language [en|ru|uk|pl|de|es]
 lattice run "<task>" --worker mock

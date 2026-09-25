@@ -5,18 +5,22 @@ import { execa } from 'execa';
 import {
   fileCount,
   LANGUAGES,
+  taskCount,
   languageFromLocale,
   sessionCount,
   translate,
   type Language,
 } from './i18n.js';
 import { discoverRepository } from './repository.js';
+import { rememberRepository } from './repositories.js';
 import {
   agentLabel,
-  BYTES_PER_TOKEN,
+  collectAllProjects,
   collectStats,
+  combineStats,
   formatBytes,
   type LatticeStats,
+  type ProjectStats,
   type RecentTask,
 } from './stats.js';
 import {
@@ -112,6 +116,8 @@ export type DashboardData = {
   project: string;
   branch: string | null;
   engine: string | null;
+  /** Set outside a repository: every known project, summed into `stats`. */
+  projects?: ProjectStats[];
 };
 
 function contextRow(stats: LatticeStats, language: Language, colors: Palette) {
@@ -148,7 +154,8 @@ function pipelineRow(task: RecentTask, language: Language, colors: Palette) {
     }).format(milliseconds / 1000);
   const mark =
     task.status === 'passed' ? colors.green('✓') : task.status === 'failed' ? colors.red('✗') : colors.yellow('•');
-  const head = `${mark} ${pad(fit(task.name, 18), 19)}${pad(fileCount(language, task.files), 11)}`;
+  const name = task.project ? `${task.project}/${task.name}` : task.name;
+  const head = `${mark} ${pad(fit(name, 18), 19)}${pad(fileCount(language, task.files), 11)}`;
   const room = INNER_WIDTH - 32;
   if (task.status === 'passed') {
     const time = task.verificationMs === null ? '—' : seconds(task.verificationMs);
@@ -157,6 +164,11 @@ function pipelineRow(task: RecentTask, language: Language, colors: Palette) {
   const detail = translate(language, 'dashFailed', { reason: task.reason ?? '—' });
   return head + (task.status === 'failed' ? colors.red(fit(detail, room)) : colors.dim(fit(detail, room)));
 }
+
+const sentTokens = (stats: LatticeStats) =>
+  stats.tasks.inputTokens + stats.agents.reduce((sum, group) => sum + group.inputTokens, 0);
+
+const MAX_PROJECT_ROWS = 10;
 
 export function renderDashboard(data: DashboardData, language: Language, color: boolean) {
   const colors = palette(color);
@@ -168,64 +180,89 @@ export function renderDashboard(data: DashboardData, language: Language, color: 
       notation: value >= 100_000 ? 'compact' : 'standard',
       maximumFractionDigits: 1,
     }).format(value);
+  const money = (value: number) =>
+    new Intl.NumberFormat(language, {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: value >= 100 ? 0 : 3,
+    }).format(value);
   const lines = ['', ...renderLogo(color).map((line) => `  ${line}`), ''];
+  const projects = data.projects;
   const status = [
     `v${LATTICE_VERSION}`,
-    data.project,
+    projects ? t('dashAllProjects', { count: projects.length }) : data.project,
     ...(data.branch ? [`git:${data.branch}`] : []),
     `engine:${data.engine ?? t('dashNone')}`,
   ].join(' · ');
   lines.push(`  ${colors.dim(status)}`, '');
+  const section = (title: string, rows: string[]) =>
+    lines.push(...box(title, rows, colors).map((line) => `  ${line}`), '');
 
   const stats = data.stats;
-  if (stats) {
+  const empty = projects !== undefined && projects.length === 0;
+  if (stats && !empty) {
+    const estimates = stats.estimates;
     const metrics = [contextRow(stats, language, colors)];
-    // Chat savings: MCP responses against the whole files their pages came from.
-    if (stats.context.fileBytes > 0) {
-      const share = new Intl.NumberFormat(language, {
-        style: 'percent',
-        maximumFractionDigits: 0,
-      }).format(stats.context.savedBytes / stats.context.fileBytes);
+    // Tokens cover everything: `lattice run` tasks and ordinary agent sessions.
+    const sent = sentTokens(stats);
+    const received =
+      stats.tasks.outputTokens + stats.agents.reduce((sum, group) => sum + group.outputTokens, 0);
+    if (sent + received > 0 || stats.tasks.total > 0) {
       metrics.push(
-        pad(t('dashSaved'), 12) +
-          pad(`${formatBytes(stats.context.savedBytes, language)} (${share})`, 23) +
+        pad(t('dashTokens'), 12) +
+          pad(t('dashSent', { count: tokens(sent) }), 23) +
           colors.dim(
             fit(
-              t('dashSavedDetail', {
-                tokens: tokens(Math.round(stats.context.savedBytes / BYTES_PER_TOKEN)),
-              }),
+              estimates.prunedTokens > 0
+                ? t('dashPruned', { count: tokens(estimates.prunedTokens) })
+                : t('dashReceived', { count: tokens(received) }),
               INNER_WIDTH - 35,
             ),
           ),
       );
-    }
-    // Tokens cover everything: `lattice run` tasks and ordinary agent sessions.
-    const sent =
-      stats.tasks.inputTokens + stats.agents.reduce((sum, group) => sum + group.inputTokens, 0);
-    const received =
-      stats.tasks.outputTokens + stats.agents.reduce((sum, group) => sum + group.outputTokens, 0);
-    if (sent + received > 0) {
-      metrics.push(
-        pad(t('dashTokens'), 12) +
-          pad(t('dashSent', { count: tokens(sent) }), 23) +
-          colors.dim(t('dashReceived', { count: tokens(received) })),
-      );
     } else {
       metrics.push(pad(t('dashTokens'), 12) + colors.dim(t('dashNoTasks')));
     }
-    if (stats.tasks.total > 0) {
-      const money = new Intl.NumberFormat(language, {
-        style: 'currency',
-        currency: 'USD',
-        maximumFractionDigits: 3,
-      }).format(stats.tasks.costUsd);
+    if (estimates.costUsd > 0 || stats.tasks.total > 0) {
       metrics.push(
-        pad(t('dashCost'), 12) +
-          pad(money, 23) +
-          colors.dim(fit(t('dashCostTasksOnly'), INNER_WIDTH - 35)),
+        pad(t('dashEstCost'), 12) +
+          pad(money(estimates.costUsd), 23) +
+          (estimates.savedUsd !== null && estimates.savedUsd > 0
+            ? colors.dim(fit(t('dashSavedUsd', { amount: money(estimates.savedUsd) }), INNER_WIDTH - 35))
+            : ''),
       );
     }
-    lines.push(...box(t('dashMetrics'), metrics, colors).map((line) => `  ${line}`), '');
+    if (stats.tasks.total > 0) {
+      const counts = [
+        colors.green(`✓ ${stats.tasks.passed}`),
+        colors.red(`✗ ${stats.tasks.failed}`),
+        ...(stats.tasks.other > 0 ? [colors.yellow(`• ${stats.tasks.other}`)] : []),
+      ].join('  ');
+      metrics.push(
+        pad(t('dashTasks'), 12) + pad(t('dashTasksTotal', { count: stats.tasks.total }), 23) + counts,
+      );
+    }
+    section(t('dashMetrics'), metrics);
+
+    if (projects) {
+      const rows = projects.slice(0, MAX_PROJECT_ROWS).map((project) => {
+        const pruned = project.stats.estimates.prunedTokens;
+        return (
+          pad(fit(project.name, 20), 21) +
+          pad(taskCount(language, project.stats.tasks.total), 11) +
+          colors.dim(
+            fit(
+              `${tokens(sentTokens(project.stats))}${pruned > 0 ? ` · ~${tokens(pruned)}` : ''}`,
+              INNER_WIDTH - 32,
+            ),
+          )
+        );
+      });
+      if (projects.length > MAX_PROJECT_ROWS) {
+        rows.push(colors.dim(`… +${projects.length - MAX_PROJECT_ROWS}`));
+      }
+      section(t('dashProjects'), rows);
+    }
 
     const sessions =
       stats.agents.length > 0
@@ -235,18 +272,21 @@ export function renderDashboard(data: DashboardData, language: Language, color: 
               pad(sessionCount(language, group.sessions), 13) +
               colors.dim(`${tokens(group.inputTokens)} · ${tokens(group.outputTokens)}`),
           )
-        : [colors.dim(fit(t('dashNoSessions'), INNER_WIDTH))];
-    lines.push(...box(t('dashSessions'), sessions, colors).map((line) => `  ${line}`), '');
+        : [colors.dim(fit(t(projects ? 'dashNoSessionsAll' : 'dashNoSessions'), INNER_WIDTH))];
+    section(t('dashSessions'), sessions);
     const pipeline =
       stats.recentTasks.length > 0
         ? stats.recentTasks.map((task) => pipelineRow(task, language, colors))
         : [colors.dim(t('dashNoTasks'))];
-    lines.push(...box(t('dashPipeline'), pipeline, colors).map((line) => `  ${line}`), '');
+    section(t('dashPipeline'), pipeline);
+  } else if (empty) {
+    lines.push(`  ${colors.dim(t('dashNoProjects'))}`, '');
   }
 
-  const state = stats
-    ? `${colors.green('●')} ${colors.green(t('dashReady'))}`
-    : `${colors.yellow('●')} ${colors.yellow(t('dashNoRepository'))}`;
+  const state =
+    stats && !empty
+      ? `${colors.green('●')} ${colors.green(t('dashReady'))}`
+      : `${colors.yellow('●')} ${colors.yellow(t('dashNoRepository'))}`;
   lines.push(`  ${state}    ${colors.dim('lattice run "…"    lattice doctor    --help')}`, '');
   return lines.join('\n');
 }
@@ -339,8 +379,18 @@ async function offerUpdate(terminal: Terminal, cliPath: string, language: Langua
 async function dashboardData(cwd: string, env: NodeJS.ProcessEnv): Promise<DashboardData> {
   const repository = await discoverRepository(cwd).catch(() => null);
   if (!repository?.safe) {
-    return { stats: null, project: basename(cwd), branch: null, engine: null };
+    // Outside a repository: every project Lattice knows, summed.
+    const projects = collectAllProjects(env);
+    const stats = combineStats(projects, env);
+    return {
+      stats,
+      project: basename(cwd),
+      branch: null,
+      engine: stats.integrations.claude ? 'claude-code' : stats.integrations.codex ? 'codex' : null,
+      projects,
+    };
   }
+  rememberRepository(repository.root, env);
   const stats = collectStats(repository.root, env);
   const branch = await execa('git', ['-C', repository.root, 'rev-parse', '--abbrev-ref', 'HEAD'], {
     reject: false,

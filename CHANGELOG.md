@@ -20,6 +20,18 @@ intends to use semantic versioning after the first public release.
   typed line as a Codex task, is removed; without a terminal `lattice` prints
   its help.
 - Task results store their goal text, so the start screen can name tasks.
+- `lattice` outside a repository (for example in the home folder) no longer
+  shows an empty screen: it sums every project Lattice knows and lists each
+  one in a Projects box, with the latest tasks of all projects in the
+  pipeline. `lattice stats` does the same outside a repository and with
+  `--all`. Projects are remembered in `repositories.json` next to the user
+  settings and also found from agent sessions in folders with `.lattice`.
+- The Metrics box follows the start-screen design: tokens sent with
+  `~N pruned (est.)`, `Est. cost` with `~$N saved (est.)`, and a Tasks row with
+  the total and how many passed and failed. Claude Code session cost is
+  estimated from first-party list prices per model; `lattice run` tasks now
+  record the size of the whole files behind their pages, so their pruned
+  context counts too. The pipeline lists the latest ten tasks.
 - Chat savings: Lattice stats and the start screen show how much context the
   `lattice_search_context` and `lattice_read_context` MCP calls saved against
   the whole files their pages came from, in bytes, percent and approximate

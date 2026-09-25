@@ -3,17 +3,25 @@ import {
   existsSync,
   readdirSync,
   readFileSync,
-  realpathSync,
   renameSync,
   statSync,
 } from 'node:fs';
-import { join, resolve, sep } from 'node:path';
-import { collectAgentSessions, type AgentUsage } from './agent-sessions.js';
+import { basename, join } from 'node:path';
+import {
+  collectAgentSessions,
+  scanAgentSessions,
+  type AgentUsage,
+  type SessionRecord,
+} from './agent-sessions.js';
 import { metadata } from './core.js';
 import { readClaudeIntegrationState } from './claude-integration.js';
 import { codexIntegrationPaths, readCodexIntegrationState } from './codex-integration.js';
-import { sessionCount, translate, type Language, type MessageKey } from './i18n.js';
+import { sessionCount, taskCount, translate, type Language, type MessageKey } from './i18n.js';
+import { discoverRepositories, rememberRepository } from './repositories.js';
+import { sourceFileBytes } from './source-bytes.js';
 import { readUserSettings } from './user-settings.js';
+
+export { sourceFileBytes };
 import { LATTICE_VERSION } from './version.js';
 
 const USAGE_LOG = 'mcp-usage.jsonl';
@@ -26,6 +34,24 @@ export type RecentTask = {
   verificationMs: number | null;
   reason: string | null;
   at: string;
+  /** Set when tasks of several projects are listed together. */
+  project?: string;
+};
+
+/**
+ * Estimates, marked as such wherever they are shown. Pruned context is what
+ * Lattice kept out of the model compared with sending the whole files its
+ * pages came from, in chats and in `lattice run` tasks.
+ */
+export type StatsEstimates = {
+  prunedBytes: number;
+  prunedTokens: number;
+  /** Provider-reported task cost plus Claude Code sessions at list prices. */
+  costUsd: number;
+  /** Pruned tokens at the average uncached input price; null without a price. */
+  savedUsd: number | null;
+  /** Some sessions (Codex, unknown models) have tokens but no cost estimate. */
+  unpricedSessions: boolean;
 };
 
 export type LatticeStats = {
@@ -55,40 +81,22 @@ export type LatticeStats = {
     verifiedCacheHits: number;
     lastTaskAt: string | null;
     contextCharacters: number;
+    /** Whole files behind the pages of tasks that recorded them, minus the pages. */
+    prunedBytes: number;
   };
   recentTasks: RecentTask[];
   agents: AgentUsage[];
   integrations: { claude: boolean; codex: boolean | null };
+  estimates: StatsEstimates;
 };
+
+/** One project in the view across all repositories. */
+export type ProjectStats = { name: string; stats: LatticeStats };
+
+const RECENT_TASKS = 10;
 
 /** Rough size of a token for `lattice stats`; provider tokenizers differ. */
 export const BYTES_PER_TOKEN = 4;
-
-/**
- * Current size of the distinct repository files behind the served pages: what
- * an agent reading those files whole would have received. Paths outside the
- * repository and unreadable files count as zero.
- */
-export function sourceFileBytes(repositoryRoot: string, paths: readonly string[]) {
-  let root: string;
-  try {
-    root = realpathSync.native(repositoryRoot);
-  } catch {
-    return 0;
-  }
-  let total = 0;
-  for (const path of new Set(paths)) {
-    try {
-      const file = realpathSync.native(resolve(root, path));
-      if (!file.startsWith(`${root}${sep}`)) continue;
-      const stat = statSync(file);
-      if (stat.isFile()) total += stat.size;
-    } catch {
-      // A file deleted since indexing simply has nothing to compare against.
-    }
-  }
-  return total;
-}
 
 /**
  * Append one context-serving event for `lattice stats`. Only counts are kept,
@@ -98,6 +106,7 @@ export function recordContextUsage(
   repositoryRoot: string,
   entry: { tool: string; pages: number; bytes: number; fileBytes?: number },
 ) {
+  rememberRepository(repositoryRoot);
   try {
     const path = join(metadata(repositoryRoot), 'logs', USAGE_LOG);
     if (existsSync(path) && statSync(path).size > USAGE_LOG_LIMIT_BYTES) {
@@ -192,6 +201,7 @@ function taskTotals(base: string) {
     verifiedCacheHits: 0,
     lastTaskAt: null,
     contextCharacters: 0,
+    prunedBytes: 0,
   };
   const directory = join(base, 'tasks');
   if (!existsSync(directory)) return { totals, recent };
@@ -210,6 +220,12 @@ function taskTotals(base: string) {
     totals.outputTokens += numberOrZero(telemetry.outputTokens);
     totals.costUsd += numberOrZero(telemetry.costUsd);
     totals.contextCharacters += numberOrZero(telemetry.loadedContextCharacters);
+    if (typeof telemetry.sourceFileBytes === 'number') {
+      totals.prunedBytes += Math.max(
+        0,
+        telemetry.sourceFileBytes - numberOrZero(telemetry.loadedContextCharacters),
+      );
+    }
     if (telemetry.verifiedPatchCacheHit === true) totals.verifiedCacheHits += 1;
     const transitions = Array.isArray(telemetry.runtimeStateTransitions)
       ? (telemetry.runtimeStateTransitions as { at?: unknown }[])
@@ -234,7 +250,7 @@ function taskTotals(base: string) {
     });
   }
   recent.sort((left, right) => right.at.localeCompare(left.at));
-  return { totals, recent: recent.slice(0, 5) };
+  return { totals, recent: recent.slice(0, RECENT_TASKS) };
 }
 
 function indexTotals(base: string) {
@@ -256,15 +272,45 @@ function codexEnabled(env: NodeJS.ProcessEnv) {
   }
 }
 
+export function estimate(stats: Omit<LatticeStats, 'estimates'>): StatsEstimates {
+  const prunedBytes = stats.context.savedBytes + stats.tasks.prunedBytes;
+  const prunedTokens = Math.round(prunedBytes / BYTES_PER_TOKEN);
+  let costUsd = stats.tasks.costUsd;
+  let pricedTokens = 0;
+  let pricedUsd = 0;
+  let unpricedSessions = false;
+  for (const group of stats.agents) {
+    if (group.estimatedCostUsd !== null) costUsd += group.estimatedCostUsd;
+    pricedTokens += group.pricedInputTokens;
+    pricedUsd += group.pricedInputUsd;
+    if (group.inputTokens > group.pricedInputTokens) unpricedSessions = true;
+  }
+  // Prefer the sessions' own model mix; otherwise the tasks' effective rate.
+  const inputPrice =
+    pricedTokens > 0
+      ? pricedUsd / pricedTokens
+      : stats.tasks.costUsd > 0 && stats.tasks.inputTokens > 0
+        ? stats.tasks.costUsd / stats.tasks.inputTokens
+        : null;
+  return {
+    prunedBytes,
+    prunedTokens,
+    costUsd,
+    savedUsd: inputPrice === null ? null : prunedTokens * inputPrice,
+    unpricedSessions,
+  };
+}
+
 /** Read-only: nothing is created in `repositoryRoot`. */
 export function collectStats(
   repositoryRoot: string,
   env: NodeJS.ProcessEnv = process.env,
+  sessions?: SessionRecord[],
 ): LatticeStats {
   const base = join(repositoryRoot, '.lattice');
   const tasks = taskTotals(base);
-  return {
-    schemaVersion: 1,
+  const stats = {
+    schemaVersion: 1 as const,
     version: LATTICE_VERSION,
     latestVersion: readUserSettings(env).lastUpdateCheck?.latestVersion ?? null,
     repository: repositoryRoot,
@@ -272,12 +318,121 @@ export function collectStats(
     context: contextUsage(base),
     tasks: tasks.totals,
     recentTasks: tasks.recent,
-    agents: collectAgentSessions(repositoryRoot, env),
+    agents: collectAgentSessions(repositoryRoot, env, sessions),
     integrations: {
       claude: readClaudeIntegrationState(repositoryRoot) !== null,
       codex: codexEnabled(env),
     },
   };
+  return { ...stats, estimates: estimate(stats) };
+}
+
+/** Sums several projects into one view; `repository` is empty. */
+export function combineStats(projects: ProjectStats[], env: NodeJS.ProcessEnv = process.env): LatticeStats {
+  const sum = <K extends string>(items: Record<K, unknown>[], keys: K[]) => {
+    const total = {} as Record<K, number>;
+    for (const key of keys) {
+      total[key] = 0;
+      for (const item of items) total[key] += numberOrZero(item[key]);
+    }
+    return total;
+  };
+  const all = projects.map((project) => project.stats);
+  const indexes = all.flatMap((stats) => (stats.index ? [stats.index] : []));
+  const agents = new Map<string, AgentUsage>();
+  for (const group of all.flatMap((stats) => stats.agents)) {
+    const key = `${group.agent}:${group.surface}`;
+    const current = agents.get(key);
+    if (!current) {
+      agents.set(key, { ...group });
+      continue;
+    }
+    current.sessions += group.sessions;
+    current.inputTokens += group.inputTokens;
+    current.cachedInputTokens += group.cachedInputTokens;
+    current.outputTokens += group.outputTokens;
+    current.pricedInputTokens += group.pricedInputTokens;
+    current.pricedInputUsd += group.pricedInputUsd;
+    if (group.estimatedCostUsd !== null) {
+      current.estimatedCostUsd = (current.estimatedCostUsd ?? 0) + group.estimatedCostUsd;
+    }
+    if (group.lastAt && (!current.lastAt || group.lastAt > current.lastAt)) current.lastAt = group.lastAt;
+  }
+  const lastTaskAt = all
+    .map((stats) => stats.tasks.lastTaskAt)
+    .filter((value): value is string => value !== null)
+    .sort()
+    .at(-1);
+  const stats = {
+    schemaVersion: 1 as const,
+    version: LATTICE_VERSION,
+    latestVersion: readUserSettings(env).lastUpdateCheck?.latestVersion ?? null,
+    repository: '',
+    index: indexes.length > 0 ? sum(indexes, ['files', 'bytes']) : null,
+    context: sum(
+      all.map((stats) => stats.context),
+      ['calls', 'pages', 'bytes', 'fileBytes', 'savedBytes'],
+    ),
+    tasks: {
+      ...sum(
+        all.map((stats) => stats.tasks),
+        [
+          'total',
+          'passed',
+          'failed',
+          'other',
+          'inputTokens',
+          'cachedInputTokens',
+          'outputTokens',
+          'costUsd',
+          'verifiedCacheHits',
+          'contextCharacters',
+          'prunedBytes',
+        ],
+      ),
+      lastTaskAt: lastTaskAt ?? null,
+    },
+    recentTasks: projects
+      .flatMap((project) => project.stats.recentTasks.map((task) => ({ ...task, project: project.name })))
+      .sort((left, right) => right.at.localeCompare(left.at))
+      .slice(0, RECENT_TASKS),
+    agents: [...agents.values()].sort((left, right) => right.inputTokens - left.inputTokens),
+    integrations: {
+      claude: all.some((stats) => stats.integrations.claude),
+      codex: all.find((stats) => stats.integrations.codex !== null)?.integrations.codex ?? null,
+    },
+  };
+  return { ...stats, estimates: estimate(stats) };
+}
+
+/**
+ * Every project Lattice knows: remembered repositories and the directories of
+ * agent sessions that hold Lattice state. Session logs are read once.
+ */
+export function collectAllProjects(env: NodeJS.ProcessEnv = process.env): ProjectStats[] {
+  const sessions = scanAgentSessions(env);
+  const roots = discoverRepositories(
+    sessions.map((session) => session.cwd),
+    env,
+  );
+  const names = new Map<string, number>();
+  for (const root of roots) names.set(basename(root), (names.get(basename(root)) ?? 0) + 1);
+  return roots
+    .map((root) => ({
+      // Two projects with the same folder name show their parent too.
+      name: (names.get(basename(root)) ?? 0) > 1 ? `${basename(join(root, '..'))}/${basename(root)}` : basename(root),
+      stats: collectStats(root, env, sessions),
+    }))
+    .sort(
+      (left, right) =>
+        right.stats.tasks.total - left.stats.tasks.total ||
+        activity(right.stats) - activity(left.stats) ||
+        left.name.localeCompare(right.name),
+    );
+}
+
+function activity(stats: LatticeStats) {
+  return stats.agents.reduce((sum, group) => sum + group.inputTokens, stats.tasks.inputTokens);
 }
 
 const SURFACE_KEYS: Record<AgentUsage['surface'], MessageKey> = {
@@ -305,7 +460,11 @@ export function formatBytes(bytes: number, language: Language) {
   return `${new Intl.NumberFormat(language, { maximumFractionDigits: digits }).format(value)} ${units[unit]}`;
 }
 
-export function formatStats(stats: LatticeStats, language: Language) {
+/**
+ * The `lattice stats` report. With `projects`, `stats` is their sum and the
+ * report lists each project instead of one repository path.
+ */
+export function formatStats(stats: LatticeStats, language: Language, projects?: ProjectStats[]) {
   const t = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) =>
     translate(language, key, values);
   const number = (value: number) => new Intl.NumberFormat(language).format(value);
@@ -318,7 +477,28 @@ export function formatStats(stats: LatticeStats, language: Language) {
 
   row(t('statsVersion'), stats.version);
   row(t('statsLatest'), stats.latestVersion ?? t('unknown'));
-  row(t('statsRepository'), stats.repository);
+  if (projects) {
+    lines.push('', t('statsProjectsTitle', { count: number(projects.length) }));
+    if (projects.length === 0) {
+      lines.push(`  ${t('statsNoProjects')}`);
+      return lines.join('\n');
+    }
+    for (const project of projects) {
+      row(
+        project.name,
+        t('statsProjectValue', {
+          tasks: taskCount(language, project.stats.tasks.total),
+          tokens: number(
+            project.stats.agents.reduce((sum, group) => sum + group.inputTokens, project.stats.tasks.inputTokens),
+          ),
+          pruned: number(project.stats.estimates.prunedTokens),
+        }),
+      );
+    }
+    lines.push('', t('statsAllProjects'));
+  } else {
+    row(t('statsRepository'), stats.repository);
+  }
   row(
     t('statsIndexed'),
     stats.index
@@ -398,7 +578,7 @@ export function formatStats(stats: LatticeStats, language: Language) {
     if (stats.tasks.lastTaskAt) row(t('statsLastTask'), date(stats.tasks.lastTaskAt));
   }
 
-  lines.push('', t('statsSessionsTitle'));
+  lines.push('', t(projects ? 'statsSessionsAllTitle' : 'statsSessionsTitle'));
   if (stats.agents.length === 0) {
     lines.push(`  ${t('statsNone')}`);
   } else {
@@ -414,6 +594,28 @@ export function formatStats(stats: LatticeStats, language: Language) {
       );
     }
     lines.push(`  ${t('statsSessionsNoCost')}`);
+  }
+
+  const estimates = stats.estimates;
+  if (estimates.prunedTokens > 0 || estimates.costUsd > 0) {
+    const usd = (value: number) =>
+      new Intl.NumberFormat(language, {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 4,
+      }).format(value);
+    lines.push('', t('statsEstimatesTitle'));
+    lines.push(
+      `  ${t('statsPruned', {
+        tokens: number(estimates.prunedTokens),
+        size: formatBytes(estimates.prunedBytes, language),
+      })}`,
+    );
+    lines.push(`  ${t('statsEstCost', { cost: usd(estimates.costUsd) })}`);
+    if (estimates.savedUsd !== null) {
+      lines.push(`  ${t('statsSavedUsd', { amount: usd(estimates.savedUsd) })}`);
+    }
+    if (estimates.unpricedSessions) lines.push(`  ${t('statsUnpriced')}`);
   }
 
   lines.push('', t('statsIntegrations'));

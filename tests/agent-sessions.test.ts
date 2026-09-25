@@ -99,9 +99,24 @@ describe('agent session usage', () => {
         inputTokens: 900,
         cachedInputTokens: 700,
         outputTokens: 40,
+        estimatedCostUsd: null,
+        pricedInputTokens: 0,
+        pricedInputUsd: 0,
         lastAt: '2026-09-25T11:00:00.000Z',
       },
     ]);
+  });
+
+  test('estimates Claude Code cost from list prices per model', () => {
+    const { repository, env } = fixture();
+    const desktop = collectAgentSessions(repository, env).find(
+      (group) => group.agent === 'claude-code' && group.surface === 'desktop',
+    );
+    // Opus 5.5: 10 in at $4, 100 cache writes at $5, 1,000 cache reads at $0.20
+    // and 50 out at $20 per million tokens, for msg_1 and msg_2.
+    expect(desktop?.estimatedCostUsd).toBeCloseTo(2 * 0.00174, 10);
+    expect(desktop).toMatchObject({ pricedInputTokens: 2_220 });
+    expect(desktop?.pricedInputUsd).toBeCloseTo(2_220 * 4e-6, 10);
   });
 
   test('missing log directories mean no sessions', () => {
