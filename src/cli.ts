@@ -727,25 +727,6 @@ program
     }
   });
 
-async function interactive() {
-  console.error('Lattice interactive CLI. Enter a task, or /exit.');
-  const reader = createInterface({ input: stdin, output: stdout });
-  try {
-    for (;;) {
-      const line = (await reader.question('lattice> ')).trim();
-      if (!line) continue;
-      if (line === '/exit' || line === '/quit') break;
-      if (line === '/session new') {
-        console.log(JSON.stringify(newSession(process.cwd(), 'codex')));
-        continue;
-      }
-      await executeRun(line, { worker: 'codex' });
-    }
-  } finally {
-    reader.close();
-  }
-}
-
 if (isCliEntrypoint(process.argv[1])) {
   try {
     if (process.argv[2] === 'codex') {
@@ -759,9 +740,9 @@ if (isCliEntrypoint(process.argv[1])) {
       if (raw) forwarded.shift();
       await runClaudeCommand(forwarded, { raw });
     } else if (process.argv.length === 2) {
-      // A terminal gets the menu; piped input keeps the line-based task prompt.
+      // A terminal gets the menu; without one, show help instead of reading tasks.
       if (stdin.isTTY && stdout.isTTY) await runMenu({ cliPath });
-      else await interactive();
+      else program.help();
     } else {
       await program.parseAsync();
     }

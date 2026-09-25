@@ -322,8 +322,8 @@ version, and on every start checks GitHub for a newer release and asks whether
 to install it. From the menu you can run a task, view stats, start Claude Code
 or Codex through Lattice, manage integrations, run diagnostics and the
 self-test, and change the language. Use the arrow keys, Enter, number
-shortcuts, Esc to go back and Q to quit. When input is piped, `lattice` keeps
-its line-based task prompt.
+shortcuts, Esc to go back and Q to quit. Without a terminal, `lattice` prints
+its help.
 
 Inside Codex or Claude Code, ask for **Lattice stats**: the agent calls the
 `lattice_stats` MCP tool and shows the same report as `lattice stats`. The

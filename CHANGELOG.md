@@ -15,7 +15,9 @@ intends to use semantic versioning after the first public release.
   version, and a GitHub release check on every start that asks whether to
   install a newer version. The menu runs tasks, shows stats, starts Claude Code
   or Codex through Lattice, manages integrations and sessions, and runs
-  diagnostics and the self-test. Piped input keeps the line-based prompt.
+  diagnostics and the self-test. The old line-based `lattice>` prompt, which
+  ran every typed line as a Codex task, is removed; without a terminal
+  `lattice` prints its help.
 - `lattice stats [--json]` and the `lattice_stats` MCP tool: asking an agent
   for "Lattice stats" shows index size, context served over MCP, tasks,
   tokens, provider cost and integration status in the chosen language. The
