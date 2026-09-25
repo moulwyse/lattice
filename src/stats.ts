@@ -7,10 +7,11 @@ import {
   statSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import { collectAgentSessions, type AgentUsage } from './agent-sessions.js';
 import { metadata } from './core.js';
 import { readClaudeIntegrationState } from './claude-integration.js';
 import { codexIntegrationPaths, readCodexIntegrationState } from './codex-integration.js';
-import { translate, type Language } from './i18n.js';
+import { sessionCount, translate, type Language, type MessageKey } from './i18n.js';
 import { readUserSettings } from './user-settings.js';
 import { LATTICE_VERSION } from './version.js';
 
@@ -47,6 +48,7 @@ export type LatticeStats = {
     contextCharacters: number;
   };
   recentTasks: RecentTask[];
+  agents: AgentUsage[];
   integrations: { claude: boolean; codex: boolean | null };
 };
 
@@ -106,23 +108,31 @@ function contextUsage(base: string) {
 }
 
 /** A short, readable task name such as `fix-reset-token` from its goal text. */
+const FILLER_WORDS = new Set([
+  'a', 'an', 'the', 'to', 'of', 'in', 'on', 'for', 'and', 'or', 'that', 'this', 'it', 'with', 'from', 'by', 'is',
+  'и', 'в', 'на', 'с', 'к', 'по', 'для', 'что', 'чтобы', 'из', 'у', 'о', 'це', 'що', 'та', 'й', 'з', 'до',
+]);
+
 export function taskName(goal: unknown, fallback: string) {
   if (typeof goal !== 'string') return fallback;
-  const slug = goal
+  const words = goal
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, '-')
-    .replace(/^-+|-+$/g, '')
-    .split('-')
-    .slice(0, 4)
-    .join('-');
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((word) => word !== '' && !FILLER_WORDS.has(word));
+  const slug = words.slice(0, 4).join('-');
   return (slug || fallback).slice(0, 28);
 }
 
+/** The first line of the error without the provider's generic wrapper text. */
 function failureReason(task: Record<string, unknown>, telemetry: Record<string, unknown>) {
   const reason = [task.error, telemetry.rejectedEditGrantReason, telemetry.terminalStateReason].find(
     (value): value is string => typeof value === 'string' && value.trim() !== '',
   );
-  return reason ? reason.split(/\r?\n/)[0].slice(0, 60) : null;
+  if (!reason) return null;
+  return reason
+    .split(/\r?\n/)[0]
+    .replace(/^(Claude Code|Codex) returned an error result:\s*/i, '')
+    .slice(0, 60);
 }
 
 function taskTotals(base: string) {
@@ -169,7 +179,11 @@ function taskTotals(base: string) {
     recent.push({
       name: taskName(task.goal ?? nested.goal, String(task.taskId ?? name).slice(0, 8)),
       status,
-      files: numberOrZero(telemetry.changedFileCount),
+      files:
+        numberOrZero(telemetry.changedFileCount) ||
+        (Array.isArray((task.lastRejectedAttempt as { changedFiles?: unknown } | undefined)?.changedFiles)
+          ? ((task.lastRejectedAttempt as { changedFiles: unknown[] }).changedFiles.length)
+          : 0),
       verificationMs:
         typeof telemetry.verificationDurationMs === 'number' ? telemetry.verificationDurationMs : null,
       reason: status === 'passed' ? null : failureReason(task, telemetry),
@@ -215,11 +229,25 @@ export function collectStats(
     context: contextUsage(base),
     tasks: tasks.totals,
     recentTasks: tasks.recent,
+    agents: collectAgentSessions(repositoryRoot, env),
     integrations: {
       claude: readClaudeIntegrationState(repositoryRoot) !== null,
       codex: codexEnabled(env),
     },
   };
+}
+
+const SURFACE_KEYS: Record<AgentUsage['surface'], MessageKey> = {
+  desktop: 'surfaceDesktop',
+  cli: 'surfaceCli',
+  ide: 'surfaceIde',
+  other: 'surfaceOther',
+};
+
+/** For example "Claude Code · desktop" or "Codex · terminal". */
+export function agentLabel(group: Pick<AgentUsage, 'agent' | 'surface'>, language: Language) {
+  const agent = group.agent === 'claude-code' ? 'Claude Code' : 'Codex';
+  return `${agent} · ${translate(language, SURFACE_KEYS[group.surface])}`;
 }
 
 export function formatBytes(bytes: number, language: Language) {
@@ -312,6 +340,24 @@ export function formatStats(stats: LatticeStats, language: Language) {
     );
     row(t('statsCacheHits'), number(stats.tasks.verifiedCacheHits));
     if (stats.tasks.lastTaskAt) row(t('statsLastTask'), date(stats.tasks.lastTaskAt));
+  }
+
+  lines.push('', t('statsSessionsTitle'));
+  if (stats.agents.length === 0) {
+    lines.push(`  ${t('statsNone')}`);
+  } else {
+    for (const group of stats.agents) {
+      row(
+        agentLabel(group, language),
+        t('statsSessionsValue', {
+          sessions: sessionCount(language, group.sessions),
+          input: number(group.inputTokens),
+          cached: number(group.cachedInputTokens),
+          output: number(group.outputTokens),
+        }),
+      );
+    }
+    lines.push(`  ${t('statsSessionsNoCost')}`);
   }
 
   lines.push('', t('statsIntegrations'));

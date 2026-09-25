@@ -318,10 +318,17 @@ interactive Codex integration test on every platform.
 
 Run `lattice` in a terminal to see the start screen: the version, project,
 Git branch and active agent integration, a **Metrics** box (context sent
-against the indexed repository size, tokens, provider-reported cost) and a
-**Worktree pipeline** box with the latest tasks, their changed files and
-whether each patch was verified or rejected. Every number is measured; the
-screen does not estimate savings.
+against the indexed repository size, all tokens, provider-reported cost of
+`lattice run` tasks), an **Agent sessions** box and a **Worktree pipeline** box
+with the latest tasks, their changed files and whether each patch was verified
+or rejected. Every number is measured; the screen does not estimate savings.
+
+Tokens include ordinary Claude Code and Codex sessions in the repository,
+whether they ran in the desktop app, a terminal or an IDE. Lattice reads the
+session logs both agents keep locally (`~/.claude/projects` or
+`CLAUDE_CONFIG_DIR`, `~/.codex/sessions` or `CODEX_HOME`); it only reads token
+counts and never copies them anywhere. Those logs record tokens but not cost,
+so cost covers `lattice run` tasks only.
 
 The first start asks for a language (English, Русский, Українська, Polski,
 Deutsch, Español); change it later with `lattice language <code>`. On every

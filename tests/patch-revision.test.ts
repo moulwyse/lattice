@@ -118,6 +118,15 @@ describe('patch revision turns', () => {
     expect(result.patchRevisions).toBe(1);
     expect(script.calls[1].text).toContain('verification_failed');
     expect(script.calls[1].text).toContain('npm test exited with');
+    // The rejected attempt stays on record even if the revision turn later fails.
+    const saved = JSON.parse(
+      readFileSync(join(repo.path, '.lattice', 'tasks', `${result.taskId}.json`), 'utf8'),
+    );
+    expect(saved.lastRejectedAttempt).toMatchObject({
+      reason: 'verification_failed',
+      changedFiles: ['src/value.js'],
+    });
+    expect(saved.lastRejectedAttempt.detail).toContain('npm test exited with');
     expect(readFileSync(join(repo.path, 'src/value.js'), 'utf8')).toBe(
       'module.exports = { value: 1 };\n',
     );

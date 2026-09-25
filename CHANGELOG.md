@@ -20,6 +20,19 @@ intends to use semantic versioning after the first public release.
   typed line as a Codex task, is removed; without a terminal `lattice` prints
   its help.
 - Task results store their goal text, so the start screen can name tasks.
+- The start screen and Lattice stats count ordinary Claude Code and Codex
+  sessions in the repository (desktop app, terminal and IDE) from the agents'
+  local session logs: sessions, input, cached and output tokens per agent and
+  surface. Claude Code messages are counted once per message id; SDK sessions,
+  including Lattice's own Claude worker, are left to their task records. The
+  logs have no cost, so cost stays limited to `lattice run` tasks.
+
+### Fixed
+
+- A task whose revision turn failed (for example on the budget cap) lost the
+  test output and changed files of the rejected attempt. The last rejected
+  attempt (reason, bounded detail, changed files) is now saved before the
+  revision turn starts.
 - `lattice stats [--json]` and the `lattice_stats` MCP tool: asking an agent
   for "Lattice stats" shows index size, context served over MCP, tasks,
   tokens, provider cost and integration status in the chosen language. The

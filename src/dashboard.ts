@@ -2,9 +2,22 @@ import { basename } from 'node:path';
 import { emitKeypressEvents, type Key } from 'node:readline';
 import { createInterface } from 'node:readline/promises';
 import { execa } from 'execa';
-import { fileCount, LANGUAGES, languageFromLocale, translate, type Language } from './i18n.js';
+import {
+  fileCount,
+  LANGUAGES,
+  languageFromLocale,
+  sessionCount,
+  translate,
+  type Language,
+} from './i18n.js';
 import { discoverRepository } from './repository.js';
-import { collectStats, formatBytes, type LatticeStats, type RecentTask } from './stats.js';
+import {
+  agentLabel,
+  collectStats,
+  formatBytes,
+  type LatticeStats,
+  type RecentTask,
+} from './stats.js';
 import {
   checkForUpdate,
   detectInstallation,
@@ -120,7 +133,7 @@ function contextRow(stats: LatticeStats, language: Language, colors: Palette) {
     style: 'percent',
     maximumFractionDigits: share < 0.1 ? 1 : 0,
   }).format(share);
-  const sizes = pad(`${formatBytes(average, language)} / ${formatBytes(stats.index.bytes, language)}`, 21);
+  const sizes = pad(`${formatBytes(average, language)} / ${formatBytes(stats.index.bytes, language)}`, 23);
   return `${label}${sizes}${bar} ${percent}`;
 }
 
@@ -148,7 +161,12 @@ export function renderDashboard(data: DashboardData, language: Language, color: 
   const colors = palette(color);
   const t = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) =>
     translate(language, key, values);
-  const number = (value: number) => new Intl.NumberFormat(language).format(value);
+  // Session totals reach hundreds of millions; keep the columns readable.
+  const tokens = (value: number) =>
+    new Intl.NumberFormat(language, {
+      notation: value >= 100_000 ? 'compact' : 'standard',
+      maximumFractionDigits: 1,
+    }).format(value);
   const lines = ['', ...renderLogo(color).map((line) => `  ${line}`), ''];
   const status = [
     `v${LATTICE_VERSION}`,
@@ -161,6 +179,20 @@ export function renderDashboard(data: DashboardData, language: Language, color: 
   const stats = data.stats;
   if (stats) {
     const metrics = [contextRow(stats, language, colors)];
+    // Tokens cover everything: `lattice run` tasks and ordinary agent sessions.
+    const sent =
+      stats.tasks.inputTokens + stats.agents.reduce((sum, group) => sum + group.inputTokens, 0);
+    const received =
+      stats.tasks.outputTokens + stats.agents.reduce((sum, group) => sum + group.outputTokens, 0);
+    if (sent + received > 0) {
+      metrics.push(
+        pad(t('dashTokens'), 12) +
+          pad(t('dashSent', { count: tokens(sent) }), 23) +
+          colors.dim(t('dashReceived', { count: tokens(received) })),
+      );
+    } else {
+      metrics.push(pad(t('dashTokens'), 12) + colors.dim(t('dashNoTasks')));
+    }
     if (stats.tasks.total > 0) {
       const money = new Intl.NumberFormat(language, {
         style: 'currency',
@@ -168,15 +200,23 @@ export function renderDashboard(data: DashboardData, language: Language, color: 
         maximumFractionDigits: 3,
       }).format(stats.tasks.costUsd);
       metrics.push(
-        pad(t('dashTokens'), 12) +
-          pad(t('dashSent', { count: number(stats.tasks.inputTokens) }), 21) +
-          colors.dim(t('dashReceived', { count: number(stats.tasks.outputTokens) })),
-        pad(t('dashCost'), 12) + pad(money, 21) + colors.dim(t('dashProviderReported')),
+        pad(t('dashCost'), 12) +
+          pad(money, 23) +
+          colors.dim(fit(t('dashCostTasksOnly'), INNER_WIDTH - 35)),
       );
-    } else {
-      metrics.push(pad(t('dashTokens'), 12) + colors.dim(t('dashNoTasks')));
     }
     lines.push(...box(t('dashMetrics'), metrics, colors).map((line) => `  ${line}`), '');
+
+    const sessions =
+      stats.agents.length > 0
+        ? stats.agents.map(
+            (group) =>
+              pad(agentLabel(group, language), 25) +
+              pad(sessionCount(language, group.sessions), 13) +
+              colors.dim(`${tokens(group.inputTokens)} · ${tokens(group.outputTokens)}`),
+          )
+        : [colors.dim(fit(t('dashNoSessions'), INNER_WIDTH))];
+    lines.push(...box(t('dashSessions'), sessions, colors).map((line) => `  ${line}`), '');
     const pipeline =
       stats.recentTasks.length > 0
         ? stats.recentTasks.map((task) => pipelineRow(task, language, colors))

@@ -29,7 +29,14 @@ afterEach(() => {
 function settingsEnv(language?: string) {
   const path = join(temporaryDirectory(), 'settings.json');
   if (language) writeFileSync(path, JSON.stringify({ schemaVersion: 1, language }));
-  return { ...process.env, LATTICE_SETTINGS_PATH: path, LATTICE_NO_UPDATE_CHECK: '1' };
+  // Empty agent log directories keep the developer's real sessions out of tests.
+  return {
+    ...process.env,
+    LATTICE_SETTINGS_PATH: path,
+    LATTICE_NO_UPDATE_CHECK: '1',
+    CLAUDE_CONFIG_DIR: temporaryDirectory(),
+    CODEX_HOME: temporaryDirectory(),
+  };
 }
 
 /** A repository with an index, two tasks and one MCP usage entry. */
@@ -185,7 +192,7 @@ describe('stats', () => {
   test('an empty repository reports nothing yet', () => {
     const text = formatStats(collectStats(temporaryDirectory(), settingsEnv()), 'en');
     expect(text).toContain('not built yet');
-    expect(text.match(/none yet/g)).toHaveLength(2);
+    expect(text.match(/none yet/g)).toHaveLength(3);
   });
 
   test('names recent tasks from their goal, newest first', () => {

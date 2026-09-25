@@ -342,9 +342,17 @@ export async function runTask(requestedWorkspace: string, goal: string, options:
         metrics.workerTurns < task.budget.maxTurns;
       // A rejected patch or a failed verification goes back to the worker with
       // the concrete error instead of ending the task on the first attempt.
-      const revise = async (feedback: PatchRevisionFeedback) => {
+      const revise = async (feedback: PatchRevisionFeedback, changedFiles: string[] = []) => {
         revisions += 1;
         result.patchRevisions = revisions;
+        // Keep why the attempt was rejected even if the revision turn fails.
+        result.lastRejectedAttempt = {
+          reason: feedback.reason,
+          detail: feedback.detail,
+          changedFiles,
+          at: new Date().toISOString(),
+        };
+        saveTask(workspace, result);
         machine.transition('PATCH_REVISION', feedback.reason);
         events.emit('patch.revision_requested', `Returned ${feedback.reason} to the worker`);
         stage = 'worker';
@@ -421,10 +429,14 @@ export async function runTask(requestedWorkspace: string, goal: string, options:
           ),
         );
         if (verifiedTaskStatus(transaction) === 'passed' || !canRevise()) break;
-        workerResponse = await revise({
-          reason: 'verification_failed',
-          detail: verificationFeedback(transaction),
-        });
+        metrics.changedFileCount = transaction.changedFiles.length;
+        workerResponse = await revise(
+          {
+            reason: 'verification_failed',
+            detail: verificationFeedback(transaction),
+          },
+          transaction.changedFiles,
+        );
       }
     }
     const finalPatch = internalPatch!;
