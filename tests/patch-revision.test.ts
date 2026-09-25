@@ -53,12 +53,12 @@ function handleFor(prompt: string, path: string) {
 }
 
 let lastHandle = '';
-function patch(changes: (handle: string) => unknown[]): Reply {
+function patch(changes: (handle: string) => unknown[], verificationCommands = ['npm test']): Reply {
   return (text) => {
     if (text.includes('DYNAMIC_GRANTED_CONTEXT')) lastHandle = handleFor(text, 'src/value.js');
     return JSON.stringify({
       kind: 'patch',
-      patch: { summary: 'set value', changes: changes(lastHandle), verificationCommands: ['npm test'] },
+      patch: { summary: 'set value', changes: changes(lastHandle), verificationCommands },
     });
   };
 }
@@ -118,9 +118,31 @@ describe('patch revision turns', () => {
     expect(result.patchRevisions).toBe(1);
     expect(script.calls[1].text).toContain('verification_failed');
     expect(script.calls[1].text).toContain('npm test exited with');
+    // The rejected attempt stays on record even if the revision turn later fails.
+    const saved = JSON.parse(
+      readFileSync(join(repo.path, '.lattice', 'tasks', `${result.taskId}.json`), 'utf8'),
+    );
+    expect(saved.lastRejectedAttempt).toMatchObject({
+      reason: 'verification_failed',
+      changedFiles: ['src/value.js'],
+    });
+    expect(saved.lastRejectedAttempt.detail).toContain('npm test exited with');
     expect(readFileSync(join(repo.path, 'src/value.js'), 'utf8')).toBe(
       'module.exports = { value: 1 };\n',
     );
+  }, 60_000);
+
+  it('returns a verification command outside the allowlist to the worker', async () => {
+    repo = await repository(files);
+    const correct = (editHandle: string) => [
+      { editHandle, operation: 'replace_file', replacementContent: 'module.exports = { value: 2 };\n' },
+    ];
+    script.replies.push(patch(correct, ['npx vitest run tests/value.test.js']), patch(correct));
+    const result = await run();
+    expect(result.status).toBe('passed');
+    expect(result.patchRevisions).toBe(1);
+    expect(script.calls[1].text).toContain('verification_command_not_allowed');
+    expect(script.calls[1].text).toContain('npm test');
   }, 60_000);
 
   it('stops after the bounded number of revisions', async () => {

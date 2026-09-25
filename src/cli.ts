@@ -42,6 +42,17 @@ import {
   stopSidecarCommand,
 } from './sidecar-command.js';
 import { LATTICE_VERSION } from './version.js';
+import { isLanguage, LANGUAGES, translate } from './i18n.js';
+import { runStartScreen } from './dashboard.js';
+import { repositoryRoot } from './repository.js';
+import { collectStats, formatStats } from './stats.js';
+import {
+  checkForUpdate,
+  detectInstallation,
+  installRelease,
+  manualUpdateCommand,
+} from './update-check.js';
+import { readUserSettings, updateUserSettings } from './user-settings.js';
 
 const program = new Command()
   .name('lattice')
@@ -587,6 +598,85 @@ claudeIntegration
   });
 
 program
+  .command('stats')
+  .description('Show Lattice stats for a repository (agents: ask for "Lattice stats")')
+  .option('--workspace <path>', 'repository workspace', process.cwd())
+  .option('--json', 'print machine-readable JSON')
+  .action(async (options) => {
+    const stats = collectStats(await repositoryRoot(resolve(options.workspace)));
+    console.log(
+      options.json
+        ? JSON.stringify(stats, null, 2)
+        : formatStats(stats, readUserSettings().language ?? 'en'),
+    );
+  });
+
+program
+  .command('update')
+  .description('Check GitHub for a newer Lattice release and install it')
+  .option('--yes', 'install without asking')
+  .action(async (options) => {
+    const language = readUserSettings().language ?? 'en';
+    const result = await checkForUpdate();
+    if (!result.release) throw new Error(translate(language, 'updateUnknown'));
+    if (!result.newer) {
+      console.log(translate(language, 'updateNone', { current: LATTICE_VERSION }));
+      return;
+    }
+    const release = result.release;
+    if (!options.yes) {
+      const reader = createInterface({ input: stdin, output: stdout });
+      const answer = (
+        await reader.question(
+          translate(language, 'updatePrompt', { latest: release.version, current: LATTICE_VERSION }),
+        )
+      ).trim();
+      reader.close();
+      if (answer !== '' && !/^[yдтtsj]/i.test(answer)) {
+        console.log(translate(language, 'updateSkipped'));
+        return;
+      }
+    }
+    const installation = await detectInstallation(cliPath);
+    if (installation.kind === 'development-checkout') {
+      console.log(
+        translate(language, 'updateManual', { command: manualUpdateCommand(installation, release) }),
+      );
+      return;
+    }
+    console.log(translate(language, 'updateInstalling', { latest: release.version }));
+    await installRelease(installation, release);
+    console.log(translate(language, 'updateDone', { latest: release.version }));
+  });
+
+program
+  .command('language')
+  .description(`Show or set the interface language (${LANGUAGES.map((language) => language.code).join(', ')})`)
+  .argument('[code]')
+  .action((code?: string) => {
+    if (code === undefined) {
+      const current = readUserSettings().language ?? 'en';
+      console.log(
+        translate(current, 'languageSaved', {
+          name: LANGUAGES.find((language) => language.code === current)?.name ?? current,
+        }),
+      );
+      return;
+    }
+    if (!isLanguage(code)) {
+      throw new Error(
+        `Unknown language: ${code}. Use one of: ${LANGUAGES.map((language) => language.code).join(', ')}`,
+      );
+    }
+    updateUserSettings({ language: code });
+    console.log(
+      translate(code, 'languageSaved', {
+        name: LANGUAGES.find((language) => language.code === code)?.name ?? code,
+      }),
+    );
+  });
+
+program
   .command('benchmark')
   .description('Run a benchmark (mock is local and makes no model call)')
   .option('--worker <worker>', 'mock, claude, or codex', 'mock')
@@ -632,25 +722,6 @@ program
     }
   });
 
-async function interactive() {
-  console.error('Lattice interactive CLI. Enter a task, or /exit.');
-  const reader = createInterface({ input: stdin, output: stdout });
-  try {
-    for (;;) {
-      const line = (await reader.question('lattice> ')).trim();
-      if (!line) continue;
-      if (line === '/exit' || line === '/quit') break;
-      if (line === '/session new') {
-        console.log(JSON.stringify(newSession(process.cwd(), 'codex')));
-        continue;
-      }
-      await executeRun(line, { worker: 'codex' });
-    }
-  } finally {
-    reader.close();
-  }
-}
-
 if (isCliEntrypoint(process.argv[1])) {
   try {
     if (process.argv[2] === 'codex') {
@@ -664,7 +735,9 @@ if (isCliEntrypoint(process.argv[1])) {
       if (raw) forwarded.shift();
       await runClaudeCommand(forwarded, { raw });
     } else if (process.argv.length === 2) {
-      await interactive();
+      // A terminal gets the start screen; without one, show help instead of reading tasks.
+      if (stdin.isTTY && stdout.isTTY) await runStartScreen({ cliPath });
+      else program.help();
     } else {
       await program.parseAsync();
     }
