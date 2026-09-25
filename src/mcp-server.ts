@@ -13,7 +13,12 @@ import {
   sidecarStatus,
   type SidecarLease,
 } from './sidecar.js';
-import { collectStats, formatStats, recordContextUsage } from './stats.js';
+import {
+  collectStats,
+  formatStats,
+  recordContextUsage,
+  sourceFileBytes,
+} from './stats.js';
 import { readUserSettings } from './user-settings.js';
 import { SidecarContextPageSchema, type SidecarState } from './sidecar-protocol.js';
 import { LATTICE_VERSION } from './version.js';
@@ -535,13 +540,17 @@ export class LatticeMcpBridge {
     }
   }
 
-  private async recordUsage(tool: string, result: { pages: unknown[]; bytesUsed: number }) {
+  private async recordUsage(tool: string, result: { pages: { path: string }[]; bytesUsed: number }) {
     const repository = await this.repository();
     if (repository.safe) {
       recordContextUsage(repository.root, {
         tool,
         pages: result.pages.length,
         bytes: result.bytesUsed,
+        fileBytes: sourceFileBytes(
+          repository.root,
+          result.pages.map((page) => page.path),
+        ),
       });
     }
   }

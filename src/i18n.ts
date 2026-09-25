@@ -29,6 +29,8 @@ const en = {
   dashMetrics: 'METRICS',
   dashContext: 'Context',
   dashNoContext: 'nothing sent yet',
+  dashSaved: 'Saved',
+  dashSavedDetail: '≈{tokens} tokens fewer',
   dashTokens: 'Tokens',
   dashSent: '{count} sent',
   dashReceived: '{count} received',
@@ -61,6 +63,7 @@ const en = {
   statsContextTitle: 'Context sent to agents (MCP)',
   statsContextValue: '{calls} requests, {pages} pages, {size}',
   statsContextShare: 'An average response carried {share} of the indexed repository.',
+  statsSavings: 'Saved against reading the whole files: {saved} of {files} ({share}), ≈{tokens} tokens.',
   statsTasksTitle: 'Tasks run through Lattice',
   statsTasksValue: '{total} total: {passed} passed, {failed} failed, {other} other',
   statsTokens: 'Tokens',
@@ -75,7 +78,7 @@ const en = {
   enabled: 'enabled',
   disabled: 'not enabled',
   unknown: 'unknown',
-  statsNote: 'Savings against a plain agent are measured only by paired benchmarks: see docs/evidence in the Lattice repository.',
+  statsNote: 'Savings compare each Lattice response with the whole files its pages came from (≈4 bytes per token). Savings against a plain agent are measured only by paired benchmarks: see docs/evidence in the Lattice repository.',
 };
 
 export type MessageKey = keyof typeof en;
@@ -96,6 +99,8 @@ const ru: Messages = {
   dashMetrics: 'МЕТРИКИ',
   dashContext: 'Контекст',
   dashNoContext: 'пока ничего не отправлено',
+  dashSaved: 'Экономия',
+  dashSavedDetail: '≈{tokens} токенов меньше',
   dashTokens: 'Токены',
   dashSent: '{count} отправлено',
   dashReceived: '{count} получено',
@@ -128,6 +133,7 @@ const ru: Messages = {
   statsContextTitle: 'Контекст, отданный агентам (MCP)',
   statsContextValue: '{calls} запросов, {pages} страниц, {size}',
   statsContextShare: 'В среднем один ответ содержал {share} проиндексированного репозитория.',
+  statsSavings: 'Экономия против чтения целых файлов: {saved} из {files} ({share}), ≈{tokens} токенов.',
   statsTasksTitle: 'Задачи через Lattice',
   statsTasksValue: 'всего {total}: {passed} успешно, {failed} с ошибкой, {other} прочих',
   statsTokens: 'Токены',
@@ -142,7 +148,7 @@ const ru: Messages = {
   enabled: 'включена',
   disabled: 'не включена',
   unknown: 'неизвестно',
-  statsNote: 'Экономия по сравнению с обычным агентом измеряется только парными бенчмарками: см. docs/evidence в репозитории Lattice.',
+  statsNote: 'Экономия сравнивает каждый ответ Lattice с целыми файлами, из которых взяты его страницы (≈4 байта на токен). Экономия по сравнению с обычным агентом измеряется только парными бенчмарками: см. docs/evidence в репозитории Lattice.',
 };
 
 const uk: Messages = {
@@ -160,6 +166,8 @@ const uk: Messages = {
   dashMetrics: 'МЕТРИКИ',
   dashContext: 'Контекст',
   dashNoContext: 'поки нічого не надіслано',
+  dashSaved: 'Економія',
+  dashSavedDetail: '≈{tokens} токенів менше',
   dashTokens: 'Токени',
   dashSent: '{count} надіслано',
   dashReceived: '{count} отримано',
@@ -192,6 +200,7 @@ const uk: Messages = {
   statsContextTitle: 'Контекст, відданий агентам (MCP)',
   statsContextValue: '{calls} запитів, {pages} сторінок, {size}',
   statsContextShare: 'У середньому одна відповідь містила {share} проіндексованого репозиторію.',
+  statsSavings: 'Економія проти читання цілих файлів: {saved} з {files} ({share}), ≈{tokens} токенів.',
   statsTasksTitle: 'Задачі через Lattice',
   statsTasksValue: 'усього {total}: {passed} успішно, {failed} з помилкою, {other} інших',
   statsTokens: 'Токени',
@@ -206,7 +215,7 @@ const uk: Messages = {
   enabled: 'увімкнено',
   disabled: 'не увімкнено',
   unknown: 'невідомо',
-  statsNote: 'Економію порівняно зі звичайним агентом вимірюють лише парні бенчмарки: див. docs/evidence у репозиторії Lattice.',
+  statsNote: 'Економія порівнює кожну відповідь Lattice з цілими файлами, з яких узято її сторінки (≈4 байти на токен). Економію порівняно зі звичайним агентом вимірюють лише парні бенчмарки: див. docs/evidence у репозиторії Lattice.',
 };
 
 const pl: Messages = {
@@ -224,6 +233,8 @@ const pl: Messages = {
   dashMetrics: 'METRYKI',
   dashContext: 'Kontekst',
   dashNoContext: 'jeszcze nic nie wysłano',
+  dashSaved: 'Oszczędność',
+  dashSavedDetail: '≈{tokens} tokenów mniej',
   dashTokens: 'Tokeny',
   dashSent: '{count} wysłano',
   dashReceived: '{count} odebrano',
@@ -256,6 +267,7 @@ const pl: Messages = {
   statsContextTitle: 'Kontekst przekazany agentom (MCP)',
   statsContextValue: '{calls} zapytań, {pages} stron, {size}',
   statsContextShare: 'Przeciętna odpowiedź zawierała {share} zindeksowanego repozytorium.',
+  statsSavings: 'Oszczędność wobec czytania całych plików: {saved} z {files} ({share}), ≈{tokens} tokenów.',
   statsTasksTitle: 'Zadania przez Lattice',
   statsTasksValue: 'razem {total}: {passed} udanych, {failed} nieudanych, {other} innych',
   statsTokens: 'Tokeny',
@@ -270,7 +282,7 @@ const pl: Messages = {
   enabled: 'włączona',
   disabled: 'niewłączona',
   unknown: 'nieznane',
-  statsNote: 'Oszczędności względem zwykłego agenta mierzą tylko sparowane benchmarki: zobacz docs/evidence w repozytorium Lattice.',
+  statsNote: 'Oszczędność porównuje każdą odpowiedź Lattice z całymi plikami, z których pochodzą jej strony (≈4 bajty na token). Oszczędności względem zwykłego agenta mierzą tylko sparowane benchmarki: zobacz docs/evidence w repozytorium Lattice.',
 };
 
 const de: Messages = {
@@ -288,6 +300,8 @@ const de: Messages = {
   dashMetrics: 'METRIKEN',
   dashContext: 'Kontext',
   dashNoContext: 'noch nichts gesendet',
+  dashSaved: 'Ersparnis',
+  dashSavedDetail: '≈{tokens} Tokens weniger',
   dashTokens: 'Tokens',
   dashSent: '{count} gesendet',
   dashReceived: '{count} empfangen',
@@ -320,6 +334,7 @@ const de: Messages = {
   statsContextTitle: 'An Agenten gesendeter Kontext (MCP)',
   statsContextValue: '{calls} Anfragen, {pages} Seiten, {size}',
   statsContextShare: 'Eine Antwort enthielt im Schnitt {share} des indexierten Repositorys.',
+  statsSavings: 'Ersparnis gegenüber dem Lesen ganzer Dateien: {saved} von {files} ({share}), ≈{tokens} Tokens.',
   statsTasksTitle: 'Aufgaben über Lattice',
   statsTasksValue: '{total} insgesamt: {passed} bestanden, {failed} fehlgeschlagen, {other} sonstige',
   statsTokens: 'Tokens',
@@ -334,7 +349,7 @@ const de: Messages = {
   enabled: 'aktiviert',
   disabled: 'nicht aktiviert',
   unknown: 'unbekannt',
-  statsNote: 'Einsparungen gegenüber einem normalen Agenten messen nur gepaarte Benchmarks: siehe docs/evidence im Lattice-Repository.',
+  statsNote: 'Die Ersparnis vergleicht jede Lattice-Antwort mit den ganzen Dateien, aus denen ihre Seiten stammen (≈4 Bytes pro Token). Einsparungen gegenüber einem normalen Agenten messen nur gepaarte Benchmarks: siehe docs/evidence im Lattice-Repository.',
 };
 
 const es: Messages = {
@@ -352,6 +367,8 @@ const es: Messages = {
   dashMetrics: 'MÉTRICAS',
   dashContext: 'Contexto',
   dashNoContext: 'aún no se ha enviado nada',
+  dashSaved: 'Ahorro',
+  dashSavedDetail: '≈{tokens} tokens menos',
   dashTokens: 'Tokens',
   dashSent: '{count} enviados',
   dashReceived: '{count} recibidos',
@@ -384,6 +401,7 @@ const es: Messages = {
   statsContextTitle: 'Contexto enviado a los agentes (MCP)',
   statsContextValue: '{calls} solicitudes, {pages} páginas, {size}',
   statsContextShare: 'Una respuesta media contenía el {share} del repositorio indexado.',
+  statsSavings: 'Ahorro frente a leer los archivos completos: {saved} de {files} ({share}), ≈{tokens} tokens.',
   statsTasksTitle: 'Tareas ejecutadas con Lattice',
   statsTasksValue: '{total} en total: {passed} superadas, {failed} fallidas, {other} otras',
   statsTokens: 'Tokens',
@@ -398,7 +416,7 @@ const es: Messages = {
   enabled: 'activada',
   disabled: 'no activada',
   unknown: 'desconocido',
-  statsNote: 'El ahorro frente a un agente normal solo lo miden benchmarks emparejados: consulta docs/evidence en el repositorio de Lattice.',
+  statsNote: 'El ahorro compara cada respuesta de Lattice con los archivos completos de los que salen sus páginas (≈4 bytes por token). El ahorro frente a un agente normal solo lo miden benchmarks emparejados: consulta docs/evidence en el repositorio de Lattice.',
 };
 
 export const MESSAGES: Record<Language, Messages> = { en, ru, uk, pl, de, es };

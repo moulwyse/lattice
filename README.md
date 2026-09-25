@@ -321,7 +321,13 @@ Git branch and active agent integration, a **Metrics** box (context sent
 against the indexed repository size, all tokens, provider-reported cost of
 `lattice run` tasks), an **Agent sessions** box and a **Worktree pipeline** box
 with the latest tasks, their changed files and whether each patch was verified
-or rejected. Every number is measured; the screen does not estimate savings.
+or rejected. Every number is measured.
+
+**Saved** counts what Lattice kept out of chats: every `lattice_search_context`
+or `lattice_read_context` call records the bytes it sent and the current size
+of the whole files its pages came from, and the difference is the saving
+(tokens are shown as bytes / 4). It is a per-response comparison with reading
+those files whole, not a comparison with a plain agent run.
 
 Tokens include ordinary Claude Code and Codex sessions in the repository,
 whether they ran in the desktop app, a terminal or an IDE. Lattice reads the
@@ -339,8 +345,9 @@ Inside Codex or Claude Code, ask for **Lattice stats**: the agent calls the
 `lattice_stats` MCP tool and shows the same report as `lattice stats`. The
 report covers the index size, context sent to agents over MCP, tasks run
 through Lattice with their tokens and provider cost, and integration status.
-Only counts are recorded, never file content. It does not claim savings;
-those come only from paired benchmarks.
+Only counts are recorded, never paths or file content. The report includes
+the chat saving described above; savings against a plain agent come only from
+paired benchmarks.
 
 Set `LATTICE_NO_UPDATE_CHECK=1` to skip the update check. Language and the last
 update check are stored in `%LOCALAPPDATA%\Lattice\settings.json` or

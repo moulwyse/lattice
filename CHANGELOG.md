@@ -20,6 +20,12 @@ intends to use semantic versioning after the first public release.
   typed line as a Codex task, is removed; without a terminal `lattice` prints
   its help.
 - Task results store their goal text, so the start screen can name tasks.
+- Chat savings: Lattice stats and the start screen show how much context the
+  `lattice_search_context` and `lattice_read_context` MCP calls saved against
+  the whole files their pages came from, in bytes, percent and approximate
+  tokens (bytes / 4). Each call now also records the size of those files
+  (never their paths). Calls logged before this change have no baseline and
+  are left out of the saving.
 - The start screen and Lattice stats count ordinary Claude Code and Codex
   sessions in the repository (desktop app, terminal and IDE) from the agents'
   local session logs: sessions, input, cached and output tokens per agent and

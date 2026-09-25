@@ -3,10 +3,11 @@ import {
   existsSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   statSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { collectAgentSessions, type AgentUsage } from './agent-sessions.js';
 import { metadata } from './core.js';
 import { readClaudeIntegrationState } from './claude-integration.js';
@@ -33,7 +34,15 @@ export type LatticeStats = {
   latestVersion: string | null;
   repository: string;
   index: { files: number; bytes: number } | null;
-  context: { calls: number; pages: number; bytes: number };
+  context: {
+    calls: number;
+    pages: number;
+    bytes: number;
+    /** Whole size of the files the served pages came from, for calls that recorded it. */
+    fileBytes: number;
+    /** `fileBytes` minus what those calls actually sent. */
+    savedBytes: number;
+  };
   tasks: {
     total: number;
     passed: number;
@@ -52,13 +61,42 @@ export type LatticeStats = {
   integrations: { claude: boolean; codex: boolean | null };
 };
 
+/** Rough size of a token for `lattice stats`; provider tokenizers differ. */
+export const BYTES_PER_TOKEN = 4;
+
+/**
+ * Current size of the distinct repository files behind the served pages: what
+ * an agent reading those files whole would have received. Paths outside the
+ * repository and unreadable files count as zero.
+ */
+export function sourceFileBytes(repositoryRoot: string, paths: readonly string[]) {
+  let root: string;
+  try {
+    root = realpathSync.native(repositoryRoot);
+  } catch {
+    return 0;
+  }
+  let total = 0;
+  for (const path of new Set(paths)) {
+    try {
+      const file = realpathSync.native(resolve(root, path));
+      if (!file.startsWith(`${root}${sep}`)) continue;
+      const stat = statSync(file);
+      if (stat.isFile()) total += stat.size;
+    } catch {
+      // A file deleted since indexing simply has nothing to compare against.
+    }
+  }
+  return total;
+}
+
 /**
  * Append one context-serving event for `lattice stats`. Only counts are kept,
  * never paths or content. Best effort: statistics must never fail a tool call.
  */
 export function recordContextUsage(
   repositoryRoot: string,
-  entry: { tool: string; pages: number; bytes: number },
+  entry: { tool: string; pages: number; bytes: number; fileBytes?: number },
 ) {
   try {
     const path = join(metadata(repositoryRoot), 'logs', USAGE_LOG);
@@ -88,7 +126,7 @@ function numberOrZero(value: unknown) {
 }
 
 function contextUsage(base: string) {
-  const totals = { calls: 0, pages: 0, bytes: 0 };
+  const totals = { calls: 0, pages: 0, bytes: 0, fileBytes: 0, savedBytes: 0 };
   for (const name of [`${USAGE_LOG}.1`, USAGE_LOG]) {
     const path = join(base, 'logs', name);
     if (!existsSync(path)) continue;
@@ -99,6 +137,11 @@ function contextUsage(base: string) {
         totals.calls += 1;
         totals.pages += numberOrZero(entry.pages);
         totals.bytes += numberOrZero(entry.bytes);
+        // Entries written before file sizes were recorded have no baseline.
+        if (typeof entry.fileBytes === 'number' && Number.isFinite(entry.fileBytes)) {
+          totals.fileBytes += entry.fileBytes;
+          totals.savedBytes += Math.max(0, entry.fileBytes - numberOrZero(entry.bytes));
+        }
       } catch {
         // Skip a torn line from an interrupted write.
       }
@@ -305,6 +348,19 @@ export function formatStats(stats: LatticeStats, language: Language) {
             style: 'percent',
             maximumFractionDigits: share < 0.01 ? 2 : 1,
           }).format(share),
+        })}`,
+      );
+    }
+    if (stats.context.fileBytes > 0) {
+      lines.push(
+        `  ${t('statsSavings', {
+          saved: formatBytes(stats.context.savedBytes, language),
+          files: formatBytes(stats.context.fileBytes, language),
+          share: new Intl.NumberFormat(language, {
+            style: 'percent',
+            maximumFractionDigits: 1,
+          }).format(stats.context.savedBytes / stats.context.fileBytes),
+          tokens: number(Math.round(stats.context.savedBytes / BYTES_PER_TOKEN)),
         })}`,
       );
     }

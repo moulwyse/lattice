@@ -12,7 +12,14 @@ import {
   type McpBridgeDependencies,
 } from '../src/mcp-server.js';
 import { renderDashboard, renderLogo, runStartScreen, type DashboardData } from '../src/dashboard.js';
-import { collectStats, formatBytes, formatStats, recordContextUsage, taskName } from '../src/stats.js';
+import {
+  collectStats,
+  formatBytes,
+  formatStats,
+  recordContextUsage,
+  sourceFileBytes,
+  taskName,
+} from '../src/stats.js';
 import { compareVersions, fetchLatestRelease } from '../src/update-check.js';
 import { readUserSettings, updateUserSettings } from '../src/user-settings.js';
 
@@ -164,7 +171,7 @@ describe('stats', () => {
     const root = repositoryWithState();
     const stats = collectStats(root, settingsEnv());
     expect(stats.index).toEqual({ files: 2, bytes: 10_000 });
-    expect(stats.context).toEqual({ calls: 1, pages: 2, bytes: 1_000 });
+    expect(stats.context).toEqual({ calls: 1, pages: 2, bytes: 1_000, fileBytes: 0, savedBytes: 0 });
     expect(stats.tasks).toMatchObject({
       total: 2,
       passed: 1,
@@ -204,11 +211,120 @@ describe('stats', () => {
     expect(taskName('Исправь сброс токена!', 'x')).toBe('исправь-сброс-токена');
   });
 
+  test('counts chat savings against the whole source files', () => {
+    const root = repositoryWithState();
+    const log = join(root, '.lattice', 'logs', 'mcp-usage.jsonl');
+    writeFileSync(
+      log,
+      [
+        // Written before file sizes were recorded: no baseline, no savings.
+        { tool: 'lattice_search_context', pages: 2, bytes: 1_000 },
+        { tool: 'lattice_search_context', pages: 3, bytes: 2_000, fileBytes: 10_000 },
+        { tool: 'lattice_read_context', pages: 1, bytes: 800, fileBytes: 600 },
+      ]
+        .map((entry) => JSON.stringify(entry))
+        .join('\n'),
+    );
+    const stats = collectStats(root, settingsEnv());
+    expect(stats.context).toEqual({
+      calls: 3,
+      pages: 6,
+      bytes: 3_800,
+      fileBytes: 10_600,
+      savedBytes: 8_000,
+    });
+    const text = formatStats(stats, 'en');
+    expect(text).toContain('Saved against reading the whole files: 7.8 KB of 10.4 KB (75.5%), ≈2,000 tokens.');
+    expect(formatStats(stats, 'ru')).toContain('Экономия против чтения целых файлов');
+    const screen = renderDashboard(
+      { stats, project: 'p', branch: null, engine: null },
+      'en',
+      false,
+    );
+    expect(screen).toMatch(/│ Saved\s+7\.8 KB \(75%\)\s+≈2,000 tokens fewer\s+│/);
+    for (const { code } of LANGUAGES) {
+      // The detail column has 29 cells; a compact token count is at most six.
+      const detail = translate(code, 'dashSavedDetail', { tokens: '999.9K' });
+      expect([...detail].length, code).toBeLessThanOrEqual(29);
+    }
+    const boxLines = screen.split('\n').filter((line) => /^\s*[┌│└]/.test(line));
+    expect(new Set(boxLines.map((line) => [...line].length)).size).toBe(1);
+  });
+
+  test('without recorded file sizes the report shows no savings line', () => {
+    const stats = collectStats(repositoryWithState(), settingsEnv());
+    expect(formatStats(stats, 'en')).not.toContain('Saved against');
+    expect(renderDashboard({ stats, project: 'p', branch: null, engine: null }, 'en', false)).not.toContain(
+      '│ Saved',
+    );
+  });
+
+  test('measures distinct source files inside the repository only', () => {
+    const root = temporaryDirectory();
+    mkdirSync(join(root, 'src'));
+    writeFileSync(join(root, 'src', 'a.js'), 'x'.repeat(300));
+    writeFileSync(join(root, 'b.js'), 'y'.repeat(50));
+    const outside = join(temporaryDirectory(), 'secret.txt');
+    writeFileSync(outside, 'z'.repeat(1_000));
+    expect(
+      sourceFileBytes(root, ['src/a.js', 'src/a.js', 'b.js', 'missing.js', '../x', outside, 'src']),
+    ).toBe(350);
+    expect(sourceFileBytes(join(root, 'nope'), ['b.js'])).toBe(0);
+  });
+
   test('records usage counts only', () => {
     const root = temporaryDirectory();
     recordContextUsage(root, { tool: 'lattice_read_context', pages: 1, bytes: 42 });
     const log = readFileSync(join(root, '.lattice', 'logs', 'mcp-usage.jsonl'), 'utf8');
     expect(JSON.parse(log)).toMatchObject({ tool: 'lattice_read_context', pages: 1, bytes: 42 });
+  });
+});
+
+describe('chat context savings', () => {
+  test('the MCP bridge records the whole size of the files behind served pages', async () => {
+    const root = temporaryDirectory();
+    mkdirSync(join(root, 'src'));
+    writeFileSync(join(root, 'src', 'service.js'), 's'.repeat(5_000));
+    writeFileSync(join(root, 'src', 'login.js'), 'l'.repeat(3_000));
+    const page = (path: string, content: string) => ({ path, fingerprint: 'git:1', content, reason: 'match' });
+    const dependencies: McpBridgeDependencies = {
+      discover: async () => ({ safe: true, root, source: 'git' }),
+      ensure: async () => ({
+        state: {} as never,
+        leaseId: 'lease',
+        stopHeartbeat: () => undefined,
+        detach: async () => undefined,
+      }) as never,
+      status: async () => ({ running: true }),
+      context: async () => ({
+        pages: [page('src/service.js', 'a'.repeat(400)), page('src/service.js', 'b'.repeat(300)), page('src/login.js', 'c'.repeat(300))],
+        bytesUsed: 1_000,
+      }),
+    };
+    const bridge = new LatticeMcpBridge({ dependencies });
+    await bridge.handle({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: { protocolVersion: MCP_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: 't', version: '1' } },
+    });
+    const response = (await bridge.handle({
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call',
+      params: { name: MCP_TOOL_NAMES.searchContext, arguments: { query: 'service' } },
+    })) as { result: { isError?: boolean } };
+    expect(response.result.isError).toBeUndefined();
+    await bridge.close();
+    const log = readFileSync(join(root, '.lattice', 'logs', 'mcp-usage.jsonl'), 'utf8');
+    expect(JSON.parse(log)).toMatchObject({
+      tool: MCP_TOOL_NAMES.searchContext,
+      pages: 3,
+      bytes: 1_000,
+      fileBytes: 8_000,
+    });
+    expect(log).not.toContain('service.js');
+    expect(collectStats(root, settingsEnv()).context).toMatchObject({ fileBytes: 8_000, savedBytes: 7_000 });
   });
 });
 

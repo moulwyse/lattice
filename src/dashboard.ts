@@ -13,6 +13,7 @@ import {
 import { discoverRepository } from './repository.js';
 import {
   agentLabel,
+  BYTES_PER_TOKEN,
   collectStats,
   formatBytes,
   type LatticeStats,
@@ -179,6 +180,25 @@ export function renderDashboard(data: DashboardData, language: Language, color: 
   const stats = data.stats;
   if (stats) {
     const metrics = [contextRow(stats, language, colors)];
+    // Chat savings: MCP responses against the whole files their pages came from.
+    if (stats.context.fileBytes > 0) {
+      const share = new Intl.NumberFormat(language, {
+        style: 'percent',
+        maximumFractionDigits: 0,
+      }).format(stats.context.savedBytes / stats.context.fileBytes);
+      metrics.push(
+        pad(t('dashSaved'), 12) +
+          pad(`${formatBytes(stats.context.savedBytes, language)} (${share})`, 23) +
+          colors.dim(
+            fit(
+              t('dashSavedDetail', {
+                tokens: tokens(Math.round(stats.context.savedBytes / BYTES_PER_TOKEN)),
+              }),
+              INNER_WIDTH - 35,
+            ),
+          ),
+      );
+    }
     // Tokens cover everything: `lattice run` tasks and ordinary agent sessions.
     const sent =
       stats.tasks.inputTokens + stats.agents.reduce((sum, group) => sum + group.inputTokens, 0);
