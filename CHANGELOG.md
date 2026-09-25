@@ -33,6 +33,9 @@ intends to use semantic versioning after the first public release.
   test output and changed files of the rejected attempt. The last rejected
   attempt (reason, bounded detail, changed files) is now saved before the
   revision turn starts.
+- A patch whose verification command is not on the allowlist is returned to
+  the worker with the allowed commands instead of ending the task. The
+  command is still never run.
 - `lattice stats [--json]` and the `lattice_stats` MCP tool: asking an agent
   for "Lattice stats" shows index size, context served over MCP, tasks,
   tokens, provider cost and integration status in the chosen language. The

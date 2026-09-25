@@ -412,6 +412,20 @@ export async function runTask(requestedWorkspace: string, goal: string, options:
           workerResponse = await revise({ reason: error.reason, detail: error.message });
           continue;
         }
+        // A verification command outside the allowlist is never run. Tell the
+        // worker which commands are allowed instead of ending the task.
+        const disallowed = internalPatch!.verificationCommands.filter(
+          (command) => !task.allowedVerificationCommands.includes(command),
+        );
+        if (disallowed.length > 0 && canRevise()) {
+          workerResponse = await revise({
+            reason: 'verification_command_not_allowed',
+            detail:
+              `Not allowed: ${disallowed.join('; ')}. ` +
+              `Use only these exact verification commands: ${task.allowedVerificationCommands.join('; ')}`,
+          });
+          continue;
+        }
         machine.transition('PATCH_LOWERED');
 
         stage = 'transaction';
