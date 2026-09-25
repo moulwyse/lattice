@@ -19,15 +19,20 @@ type Terminal = { input: NodeJS.ReadStream; output: NodeJS.WriteStream };
 
 const INNER_WIDTH = 64;
 
-/** 7-row pixel glyphs for the logo; `#` is a lit pixel. */
-const GLYPHS: Record<string, string[]> = {
-  l: ['##.', '.#.', '.#.', '.#.', '.#.', '.#.', '###'],
-  a: ['.....', '.....', '.###.', '....#', '.####', '#...#', '.####'],
-  t: ['.#..', '.#..', '####', '.#..', '.#..', '.#..', '..##'],
-  i: ['.#.', '...', '##.', '.#.', '.#.', '.#.', '###'],
-  c: ['.....', '.....', '.####', '#....', '#....', '#....', '.####'],
-  e: ['.....', '.....', '.###.', '#...#', '#####', '#....', '.####'],
-};
+/**
+ * The Lattice logo, one terminal cell per character: `#` is a letter cell and
+ * `+` its shadow. Traced cell by cell from the reference artwork.
+ */
+const LOGO = [
+  '..####.............#####.....#####.....###......................',
+  '.++###............++###.....++###.....+++.......................',
+  '..+###...######...#######...#######...####...#######...######...',
+  '..+###..+++++###.+++###+...+++###+...++###..###+++###.###++###..',
+  '..+###...#######...+###......+###.....+###.+###.++++.+#######...',
+  '..+###..###++###...+###.###..+###.###.+###.+###...###+###+++....',
+  '..#####++########..++#####...++#####..#####++#######.++######...',
+  '.+++++..++++++++....+++++.....+++++..+++++..+++++++...++++++....',
+];
 
 type Palette = {
   text: (value: string) => string;
@@ -55,33 +60,19 @@ function palette(color: boolean): Palette {
   };
 }
 
-/** Each pixel is two columns wide so it looks square; the shadow sits one pixel down-left. */
-export function renderLogo(color: boolean, word = 'lattice') {
-  const rows = 7;
-  const columns: boolean[][] = Array.from({ length: rows }, () => []);
-  for (const [index, letter] of [...word].entries()) {
-    const glyph = GLYPHS[letter];
-    if (!glyph) continue;
-    if (index > 0) for (const row of columns) row.push(false);
-    for (let y = 0; y < rows; y += 1) {
-      for (const pixel of glyph[y]) columns[y].push(pixel === '#');
-    }
-  }
-  const width = columns[0].length + 1;
-  const lit = (x: number, y: number) => y >= 0 && y < rows && x >= 0 && Boolean(columns[y][x]);
+/** One `█` per logo cell; without color only the letters are drawn. */
+export function renderLogo(color: boolean) {
   const colors = palette(color);
-  const lines: string[] = [];
-  for (let y = 0; y <= rows; y += 1) {
-    let line = '';
-    for (let x = 0; x < width; x += 1) {
-      const pixel = x - 1;
-      if (lit(pixel, y)) line += colors.text('██');
-      else if (color && lit(pixel + 1, y - 1)) line += colors.shadow('██');
-      else line += '  ';
-    }
-    lines.push(line.replace(/\s+$/, ''));
-  }
-  return lines;
+  return LOGO.map((row) =>
+    (row.replace(/\.+$/, '').match(/#+|\++|\.+/g) ?? [])
+      .map((run) => {
+        const cells = run.length;
+        if (run[0] === '#') return colors.text('█'.repeat(cells));
+        if (run[0] === '+' && color) return colors.shadow('█'.repeat(cells));
+        return ' '.repeat(cells);
+      })
+      .join(''),
+  );
 }
 
 const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
