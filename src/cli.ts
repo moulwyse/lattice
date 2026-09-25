@@ -43,10 +43,9 @@ import {
 } from './sidecar-command.js';
 import { LATTICE_VERSION } from './version.js';
 import { isLanguage, LANGUAGES, translate } from './i18n.js';
-import { runStartScreen } from './dashboard.js';
-import { discoverRepository } from './repository.js';
+import { dashboardData, renderDashboard, runStartScreen } from './dashboard.js';
 import { rememberRepository } from './repositories.js';
-import { collectAllProjects, collectStats, combineStats, formatStats } from './stats.js';
+import { formatStats } from './stats.js';
 import {
   checkForUpdate,
   detectInstallation,
@@ -603,25 +602,20 @@ program
   .description('Show Lattice stats for a repository, or for every project outside one (agents: ask for "Lattice stats")')
   .option('--workspace <path>', 'repository workspace', process.cwd())
   .option('--all', 'every project Lattice knows, with a list per project')
+  .option('--details', 'the full text report instead of the boxed screen')
   .option('--json', 'print machine-readable JSON')
   .action(async (options) => {
     const language = readUserSettings().language ?? 'en';
-    const repository = options.all
-      ? null
-      : await discoverRepository(resolve(options.workspace)).catch(() => null);
-    if (!repository?.safe) {
-      const projects = collectAllProjects();
-      const total = combineStats(projects);
-      console.log(
-        options.json
-          ? JSON.stringify({ ...total, projects }, null, 2)
-          : formatStats(total, language, projects),
-      );
-      return;
+    const data = await dashboardData(resolve(options.workspace), process.env, Boolean(options.all));
+    if (!data.projects && data.stats) rememberRepository(data.stats.repository);
+    if (options.json) {
+      console.log(JSON.stringify(data.projects ? { ...data.stats, projects: data.projects } : data.stats, null, 2));
+    } else if (options.details) {
+      console.log(formatStats(data.stats!, language, data.projects));
+    } else {
+      const color = Boolean(stdout.isTTY) && !process.env.NO_COLOR;
+      console.log(renderDashboard(data, language, color, { footer: false }));
     }
-    rememberRepository(repository.root);
-    const stats = collectStats(repository.root);
-    console.log(options.json ? JSON.stringify(stats, null, 2) : formatStats(stats, language));
   });
 
 program

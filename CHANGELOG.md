@@ -32,6 +32,10 @@ intends to use semantic versioning after the first public release.
   estimated from first-party list prices per model; `lattice run` tasks now
   record the size of the whole files behind their pages, so their pruned
   context counts too. The pipeline lists the latest ten tasks.
+- `lattice stats` and the `lattice_stats` MCP tool show the boxed start-screen
+  layout (in chat inside a code block) instead of a plain list; the list is
+  kept as `lattice stats --details`. The screen warns when no Claude Code or
+  Codex integration is enabled, since chats then never call Lattice.
 - Chat savings: Lattice stats and the start screen show how much context the
   `lattice_search_context` and `lattice_read_context` MCP calls saved against
   the whole files their pages came from, in bytes, percent and approximate

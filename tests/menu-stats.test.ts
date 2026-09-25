@@ -360,8 +360,18 @@ describe('lattice_stats MCP tool', () => {
       params: { name: MCP_TOOL_NAMES.stats, arguments: {} },
     })) as { result: { content: { text: string }[]; isError?: boolean } };
     expect(response.result.isError).toBeUndefined();
-    expect(response.result.content[0].text).toContain('Статистика Lattice');
-    expect(response.result.content[0].text).toContain('Задачі через Lattice');
+    const text = response.result.content[0].text;
+    // The same boxed screen as in the terminal, inside a code block for chat.
+    expect(text.startsWith('```text\n')).toBe(true);
+    expect(text.endsWith('\n```')).toBe(true);
+    expect(text).toContain('┌─ МЕТРИКИ');
+    expect(text).toMatch(/│ Задачі\s+усього 2\s+✓ 1 {2}✗ 1\s+│/);
+    expect(text).toContain('┌─ WORKTREE-КОНВЕЄР');
+    // Chats save nothing until an integration is enabled; the screen says how.
+    expect(text).toContain('Lattice не підключено до чатів');
+    expect(text).toContain('lattice integration claude enable');
+    expect(text).not.toContain('lattice doctor');
+    expect(text).not.toMatch(/\x1b\[/);
     expect(MCP_SERVER_INSTRUCTIONS).toContain('lattice_stats');
     await bridge.close();
   });

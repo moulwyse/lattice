@@ -358,8 +358,13 @@ Deutsch, Español); change it later with `lattice language <code>`. On every
 start Lattice checks GitHub and, only when a newer release exists, asks whether
 to install it. Without a terminal, `lattice` prints its help.
 
+`lattice stats` prints the same boxed screen without the command hints
+(`--details` gives the full text report, `--json` the raw numbers). When
+neither the Claude Code nor the Codex integration is enabled, the screen says
+so: chats then never call Lattice and save nothing.
+
 Inside Codex or Claude Code, ask for **Lattice stats**: the agent calls the
-`lattice_stats` MCP tool and shows the same report as `lattice stats`. The
+`lattice_stats` MCP tool and shows the same screen in a code block. The
 report covers the index size, context sent to agents over MCP, tasks run
 through Lattice with their tokens and provider cost, and integration status.
 Only counts are recorded, never paths or file content. The report includes
@@ -374,7 +379,7 @@ update check are stored in `%LOCALAPPDATA%\Lattice\settings.json` or
 
 ```text
 lattice
-lattice stats [--all] [--json]
+lattice stats [--all] [--details] [--json]
 lattice update [--yes]
 lattice language [en|ru|uk|pl|de|es]
 lattice run "<task>" --worker mock

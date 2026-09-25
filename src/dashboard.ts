@@ -170,7 +170,19 @@ const sentTokens = (stats: LatticeStats) =>
 
 const MAX_PROJECT_ROWS = 10;
 
-export function renderDashboard(data: DashboardData, language: Language, color: boolean) {
+export type DashboardOptions = {
+  /** The pixel logo; left out where space is short. */
+  logo?: boolean;
+  /** The ready line with command hints; left out inside an agent chat. */
+  footer?: boolean;
+};
+
+export function renderDashboard(
+  data: DashboardData,
+  language: Language,
+  color: boolean,
+  options: DashboardOptions = {},
+) {
   const colors = palette(color);
   const t = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) =>
     translate(language, key, values);
@@ -186,7 +198,7 @@ export function renderDashboard(data: DashboardData, language: Language, color: 
       currency: 'USD',
       maximumFractionDigits: value >= 100 ? 0 : 3,
     }).format(value);
-  const lines = ['', ...renderLogo(color).map((line) => `  ${line}`), ''];
+  const lines = options.logo === false ? [''] : ['', ...renderLogo(color).map((line) => `  ${line}`), ''];
   const projects = data.projects;
   const status = [
     `v${LATTICE_VERSION}`,
@@ -195,6 +207,11 @@ export function renderDashboard(data: DashboardData, language: Language, color: 
     `engine:${data.engine ?? t('dashNone')}`,
   ].join(' · ');
   lines.push(`  ${colors.dim(status)}`, '');
+  // Without an integration, chats never call Lattice, so nothing is saved there.
+  if (data.stats && !projects && !data.stats.integrations.claude && !data.stats.integrations.codex) {
+    lines.push(`  ${colors.yellow(`● ${t('dashNotConnected')}`)}`);
+    lines.push(`    ${colors.dim('lattice integration claude enable · lattice integration codex enable')}`, '');
+  }
   const section = (title: string, rows: string[]) =>
     lines.push(...box(title, rows, colors).map((line) => `  ${line}`), '');
 
@@ -287,7 +304,9 @@ export function renderDashboard(data: DashboardData, language: Language, color: 
     stats && !empty
       ? `${colors.green('●')} ${colors.green(t('dashReady'))}`
       : `${colors.yellow('●')} ${colors.yellow(t('dashNoRepository'))}`;
-  lines.push(`  ${state}    ${colors.dim('lattice run "…"    lattice doctor    --help')}`, '');
+  if (options.footer !== false) {
+    lines.push(`  ${state}    ${colors.dim('lattice run "…"    lattice doctor    --help')}`, '');
+  }
   return lines.join('\n');
 }
 
@@ -376,8 +395,16 @@ async function offerUpdate(terminal: Terminal, cliPath: string, language: Langua
   }
 }
 
-async function dashboardData(cwd: string, env: NodeJS.ProcessEnv): Promise<DashboardData> {
-  const repository = await discoverRepository(cwd).catch(() => null);
+/**
+ * The numbers behind the start screen and `lattice stats`: the repository at
+ * `cwd`, or every known project outside one (or with `all`).
+ */
+export async function dashboardData(
+  cwd: string,
+  env: NodeJS.ProcessEnv = process.env,
+  all = false,
+): Promise<DashboardData> {
+  const repository = all ? null : await discoverRepository(cwd).catch(() => null);
   if (!repository?.safe) {
     // Outside a repository: every project Lattice knows, summed.
     const projects = collectAllProjects(env);
