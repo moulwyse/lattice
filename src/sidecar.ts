@@ -1367,12 +1367,13 @@ export async function stopSidecar(workspace: string, timeoutMs = 3_000) {
 export async function sidecarContext(
   state: SidecarState,
   request: Omit<z.input<typeof SidecarContextRequestSchema>, 'protocolVersion' | 'repositoryId'>,
+  signal?: AbortSignal,
 ) {
   return clientRequest(state, '/v1/context', {
     protocolVersion: SIDECAR_PROTOCOL_VERSION,
     repositoryId: state.repositoryId,
     ...request,
-  });
+  }, 10_000, signal);
 }
 
 export function repositoryRelativePath(workspace: string, path: string) {

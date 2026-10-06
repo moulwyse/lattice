@@ -30,7 +30,7 @@ export const MCP_TOOL_NAMES = {
 
 const STATUS_RESOURCE_URI = 'lattice://status';
 const DEFAULT_MAX_MESSAGE_BYTES = 1024 * 1024;
-const DEFAULT_CONTEXT_READY_TIMEOUT_MS = 4_000;
+const DEFAULT_CONTEXT_READY_TIMEOUT_MS = 15_000;
 const SUPPORTED_MCP_PROTOCOL_VERSIONS = new Set([
   '2024-11-05',
   '2025-03-26',
@@ -176,6 +176,7 @@ export type McpBridgeDependencies = {
       maxPages?: number;
       maxBytes?: number;
     },
+    signal?: AbortSignal,
   ): Promise<unknown>;
 };
 
@@ -494,17 +495,28 @@ export class LatticeMcpBridge {
   }) {
     let lease = await this.sidecarLease();
     let reattached = false;
+    let retriedTimeout = false;
     const deadline = Date.now() + this.contextReadyTimeoutMs;
+    const signal = AbortSignal.timeout(Math.max(1, this.contextReadyTimeoutMs));
     for (;;) {
       try {
         return ContextResultSchema.parse(
           await this.dependencies.context(lease.state, {
             ...request,
             leaseId: lease.leaseId,
-          }),
+          }, signal),
         );
       } catch (error) {
         const message = boundedMessage(error);
+        const timedOut = error instanceof Error && error.name === 'TimeoutError';
+        if (timedOut) {
+          if (!retriedTimeout && !signal.aborted && Date.now() < deadline) {
+            // Keep the existing lease: a busy sidecar is not a dead sidecar.
+            retriedTimeout = true;
+            continue;
+          }
+          throw new Error('Lattice context search timed out while reading repository files. Retry the search or use ordinary repository tools for this turn.');
+        }
         if (!reattached && sidecarUnavailable(message)) {
           // The sidecar crashed or expired this lease: attach once more.
           reattached = true;

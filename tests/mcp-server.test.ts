@@ -190,6 +190,32 @@ describe('Lattice MCP bridge resilience', () => {
     );
     expect(missing).toHaveProperty('error.code', -32602);
   });
+
+  test('retries a transient context timeout without replacing its lease', async () => {
+    const fake = dependencies();
+    fake.context.mockRejectedValueOnce(new DOMException('The operation was aborted due to timeout', 'TimeoutError'));
+    const bridge = new LatticeMcpBridge({ dependencies: fake.dependencies });
+    await initialize(bridge);
+    const response = textToolValue(await bridge.handle(search(2)));
+    expect(response.result.isError).toBeUndefined();
+    expect(fake.context).toHaveBeenCalledTimes(2);
+    expect(fake.ensure).toHaveBeenCalledTimes(1);
+    expect(fake.context.mock.calls[0][2]).toBeInstanceOf(AbortSignal);
+    await bridge.close();
+  });
+
+  test('bounds repeated context timeouts and gives actionable fallback guidance', async () => {
+    const fake = dependencies();
+    fake.context.mockRejectedValue(new DOMException('The operation was aborted due to timeout', 'TimeoutError'));
+    const bridge = new LatticeMcpBridge({ dependencies: fake.dependencies });
+    await initialize(bridge);
+    const response = textToolValue(await bridge.handle(search(2)));
+    expect(response.result.isError).toBe(true);
+    expect(response.value.error).toContain('use ordinary repository tools');
+    expect(fake.context).toHaveBeenCalledTimes(2);
+    expect(fake.ensure).toHaveBeenCalledTimes(1);
+    await bridge.close();
+  });
 });
 
 describe('Lattice MCP server', () => {
