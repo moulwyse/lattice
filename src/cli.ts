@@ -534,20 +534,23 @@ codexIntegration
 
 const claudeIntegration = integration
   .command('claude')
-  .description('Manage the project-scoped Claude Code MCP and hooks');
+  .description('Manage project or user Claude Code MCP and hooks');
 claudeIntegration
   .command('enable')
-  .description('Enable the Lattice MCP and Lattice-first hooks for this Claude project')
+  .description('Enable the Lattice MCP and Lattice-first hooks for a project or user')
   .option('--workspace <path>', 'Claude project', process.cwd())
+  .option('--scope <scope>', 'Integration scope: project or user', 'project')
   .action(async (options) => {
+    if (!['project', 'user'].includes(options.scope)) throw new Error('scope must be project or user');
     const result = await enableClaudeIntegration({
       workspace: resolve(options.workspace),
       cliPath,
+      scope: options.scope,
     });
     console.log(
       result.changed
-        ? 'Claude Code integration enabled for this project.'
-        : 'Claude Code integration is already enabled for this project.',
+        ? `Claude Code integration enabled (${options.scope}).`
+        : `Claude Code integration is already enabled (${options.scope}).`,
     );
     console.log(`MCP: ${result.state.mcpPath}`);
     console.log(`Hooks: ${result.state.settingsPath}`);
@@ -559,23 +562,27 @@ claudeIntegration
   });
 claudeIntegration
   .command('disable')
-  .description('Remove only the project entries owned by the Claude Code integration')
+  .description('Remove only project or user entries owned by the Claude Code integration')
   .option('--workspace <path>', 'Claude project', process.cwd())
+  .option('--scope <scope>', 'Integration scope: project or user', 'project')
   .action(async (options) => {
-    const result = await disableClaudeIntegration(resolve(options.workspace));
+    if (!['project', 'user'].includes(options.scope)) throw new Error('scope must be project or user');
+    const result = await disableClaudeIntegration(resolve(options.workspace), { scope: options.scope });
     console.log(
       result.changed
-        ? 'Claude Code integration disabled for this project.'
-        : 'Claude Code integration is not configured for this project.',
+        ? `Claude Code integration disabled (${options.scope}).`
+        : `Claude Code integration is not configured (${options.scope}).`,
     );
     for (const warning of result.warnings) console.log(`Cleanup warning: ${warning}`);
   });
 claudeIntegration
   .command('status')
   .option('--workspace <path>', 'Claude project', process.cwd())
+  .option('--scope <scope>', 'Integration scope: project or user', 'project')
   .option('--json')
   .action(async (options) => {
-    const status = await claudeIntegrationStatus(resolve(options.workspace));
+    if (!['project', 'user'].includes(options.scope)) throw new Error('scope must be project or user');
+    const status = await claudeIntegrationStatus(resolve(options.workspace), { scope: options.scope });
     if (options.json) console.log(JSON.stringify(status));
     else {
       console.log(

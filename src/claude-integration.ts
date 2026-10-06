@@ -7,6 +7,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { randomUUID } from 'node:crypto';
+import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { execa } from 'execa';
 import { addGitExcludePattern, metadata, removeGitExcludePattern } from './core.js';
@@ -17,9 +18,12 @@ import {
 import { discoverRepository } from './repository.js';
 
 type JsonRecord = Record<string, unknown>;
+export type ClaudeIntegrationScope = 'project' | 'user';
+export type ClaudeIntegrationLocation = { scope?: ClaudeIntegrationScope; home?: string };
 
 export type ClaudeIntegrationState = {
   schemaVersion: 1;
+  scope?: ClaudeIntegrationScope;
   workspace: string;
   mcpPath: string;
   settingsPath: string;
@@ -54,9 +58,10 @@ function readObject(path: string): JsonRecord {
   return value as JsonRecord;
 }
 
-function writeObject(path: string, value: JsonRecord) {
+function writeObject(path: string, value: JsonRecord, temporaryDirectory = dirname(path)) {
   mkdirSync(dirname(path), { recursive: true });
-  const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`;
+  mkdirSync(temporaryDirectory, { recursive: true });
+  const temporary = join(temporaryDirectory, `.lattice-${process.pid}.${randomUUID()}.tmp`);
   try {
     writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, {
       encoding: 'utf8',
@@ -149,7 +154,16 @@ function removeHook(hooks: JsonRecord, event: string, command: string) {
   else delete hooks[event];
 }
 
-export function claudeIntegrationPaths(workspace: string) {
+export function claudeIntegrationPaths(workspace: string, location: ClaudeIntegrationLocation = {}) {
+  if (location.scope === 'user') {
+    const home = resolve(location.home ?? homedir());
+    return {
+      workspace: home,
+      mcpPath: join(home, '.claude.json'),
+      settingsPath: join(home, '.claude', 'settings.json'),
+      statePath: join(home, '.claude', 'lattice-integration.json'),
+    };
+  }
   const root = resolve(workspace);
   return {
     workspace: root,
@@ -161,8 +175,9 @@ export function claudeIntegrationPaths(workspace: string) {
 
 export function readClaudeIntegrationState(
   workspace: string,
+  location: ClaudeIntegrationLocation = {},
 ): ClaudeIntegrationState | null {
-  const { statePath } = claudeIntegrationPaths(workspace);
+  const { statePath } = claudeIntegrationPaths(workspace, location);
   if (!existsSync(statePath)) return null;
   try {
     const value = JSON.parse(readFileSync(statePath, 'utf8')) as ClaudeIntegrationState;
@@ -175,14 +190,17 @@ export function readClaudeIntegrationState(
 export async function enableClaudeIntegration(options: {
   workspace: string;
   cliPath: string;
-}) {
-  const repository = await discoverRepository(options.workspace);
+} & ClaudeIntegrationLocation) {
+  const scope = options.scope ?? 'project';
+  const repository = scope === 'user'
+    ? { safe: true as const, root: resolve(options.home ?? homedir()) }
+    : await discoverRepository(options.workspace);
   if (!repository.safe) {
     throw new Error(`Claude integration requires a safe repository: ${repository.reason}`);
   }
-  const existing = readClaudeIntegrationState(repository.root);
+  const existing = readClaudeIntegrationState(repository.root, options);
   if (existing) {
-    const status = await claudeIntegrationStatus(repository.root);
+    const status = await claudeIntegrationStatus(repository.root, options);
     if (status.enabled) {
       return { changed: false as const, state: existing, warnings: [] as string[] };
     }
@@ -190,8 +208,8 @@ export async function enableClaudeIntegration(options: {
       'Claude integration has a partial or changed ownership receipt; run integration claude disable before enabling again.',
     );
   }
-  metadata(repository.root);
-  const paths = claudeIntegrationPaths(repository.root);
+  if (scope === 'project') metadata(repository.root);
+  const paths = claudeIntegrationPaths(repository.root, options);
   const command = hookCommand(options.cliPath);
   // Claude starts project MCP servers in the project directory and the bridge
   // discovers the repository from there (or from client roots), so no
@@ -213,7 +231,7 @@ export async function enableClaudeIntegration(options: {
       : {};
   if (servers.lattice && !sameJson(servers.lattice, mcpDefinition)) {
     throw new Error(
-      'A different project MCP server named "lattice" already exists; it was preserved.',
+      'A different MCP server named "lattice" already exists; it was preserved.',
     );
   }
   const settings = readObject(paths.settingsPath);
@@ -232,7 +250,7 @@ export async function enableClaudeIntegration(options: {
   const enabledServers = Array.isArray(settings.enabledMcpjsonServers)
     ? settings.enabledMcpjsonServers.filter((value) => typeof value === 'string')
     : [];
-  const enabledMcpjsonServerAdded = !enabledServers.includes('lattice');
+  const enabledMcpjsonServerAdded = scope === 'project' && !enabledServers.includes('lattice');
   const enabledMcpjsonServersExisted = Object.prototype.hasOwnProperty.call(
     settings,
     'enabledMcpjsonServers',
@@ -240,6 +258,7 @@ export async function enableClaudeIntegration(options: {
 
   const state: ClaudeIntegrationState = {
     schemaVersion: 1,
+    scope,
     ...paths,
     mcpDefinition,
     hookCommand: command,
@@ -253,23 +272,25 @@ export async function enableClaudeIntegration(options: {
   try {
     servers.lattice = mcpDefinition;
     mcp.mcpServers = servers;
-    writeObject(paths.mcpPath, mcp);
-    settings.enabledMcpjsonServers = [...new Set([...enabledServers, 'lattice'])];
+    writeObject(paths.mcpPath, mcp, scope === 'user' ? dirname(paths.settingsPath) : undefined);
+    if (scope === 'project') {
+      settings.enabledMcpjsonServers = [...new Set([...enabledServers, 'lattice'])];
+    }
     writeObject(paths.settingsPath, settings);
     // The entry holds this machine's Node and CLI paths. A file Lattice
     // created is kept out of commits locally; a shared file gets a warning.
     const warnings: string[] = [];
-    if (mcpFileCreated) {
+    if (scope === 'project' && mcpFileCreated) {
       state.mcpExcluded = addGitExcludePattern(repository.root, '/.mcp.json', MCP_EXCLUDE_COMMENT);
       writeObject(paths.statePath, state as unknown as JsonRecord);
-    } else if (await trackedByGit(repository.root, '.mcp.json')) {
+    } else if (scope === 'project' && await trackedByGit(repository.root, '.mcp.json')) {
       warnings.push(
         '.mcp.json is tracked by Git and now contains machine-specific paths for the lattice server; do not commit that entry.',
       );
     }
     return { changed: true as const, state, warnings };
   } catch (error) {
-    const rollback = await disableClaudeIntegration(repository.root).catch(
+    const rollback = await disableClaudeIntegration(repository.root, options).catch(
       (rollbackError: unknown) => ({
         changed: false as const,
         warnings: [
@@ -287,8 +308,8 @@ export async function enableClaudeIntegration(options: {
   }
 }
 
-export async function disableClaudeIntegration(workspace: string) {
-  const state = readClaudeIntegrationState(workspace);
+export async function disableClaudeIntegration(workspace: string, location: ClaudeIntegrationLocation = {}) {
+  const state = readClaudeIntegrationState(workspace, location);
   if (!state) return { changed: false as const, warnings: [] as string[] };
   const warnings: string[] = [];
 
@@ -309,7 +330,7 @@ export async function disableClaudeIntegration(workspace: string) {
         removeGitExcludePattern(state.workspace, '/.mcp.json', MCP_EXCLUDE_COMMENT);
       }
     } else {
-      writeObject(state.mcpPath, mcp);
+      writeObject(state.mcpPath, mcp, state.scope === 'user' ? dirname(state.settingsPath) : undefined);
     }
   } else if (servers.lattice) {
     warnings.push('The lattice MCP definition changed and was preserved.');
@@ -334,7 +355,7 @@ export async function disableClaudeIntegration(workspace: string) {
   if (Object.keys(hooks).length > 0) settings.hooks = hooks;
   else delete settings.hooks;
   if (
-    state.enabledMcpjsonServerAdded !== false &&
+    state.scope !== 'user' && state.enabledMcpjsonServerAdded !== false &&
     Array.isArray(settings.enabledMcpjsonServers)
   ) {
     const remaining = settings.enabledMcpjsonServers.filter(
@@ -355,9 +376,9 @@ export async function disableClaudeIntegration(workspace: string) {
   return { changed: true as const, warnings };
 }
 
-export async function claudeIntegrationStatus(workspace: string) {
-  const paths = claudeIntegrationPaths(workspace);
-  const state = readClaudeIntegrationState(workspace);
+export async function claudeIntegrationStatus(workspace: string, location: ClaudeIntegrationLocation = {}) {
+  const paths = claudeIntegrationPaths(workspace, location);
+  const state = readClaudeIntegrationState(workspace, location);
   if (!state) {
     return {
       configured: false as const,

@@ -57,6 +57,19 @@ lattice --version
 
 ## Enable for one repository
 
+To enable Lattice automatically in every Claude Code project for this user:
+
+```sh
+lattice integration claude enable --scope user
+lattice integration claude status --scope user
+```
+
+This registers the server in `~/.claude.json` and hooks in
+`~/.claude/settings.json`, preserving other configuration. Restart Claude Code.
+Hooks discover the current repository; the home directory is never indexed.
+Use `lattice integration claude disable --scope user` to remove only owned entries.
+Project MCP entries take precedence over a user server with the same name.
+
 Run these commands inside, or point `--workspace` at, the repository where
 Claude Code should use Lattice:
 

@@ -75,6 +75,9 @@ if (-not $gitCmd) {
   Write-Fail "Git is not found. Please install Git from https://git-scm.com"
 }
 Write-Ok "Git"
+$npmCmd = Get-Command npm.cmd -ErrorAction SilentlyContinue
+if (-not $npmCmd) { Write-Fail "npm.cmd is not found. Reinstall Node.js with npm included." }
+$nodeExecutable = $nodeCmd.Source
 
 $targetDir = $null
 $isLocalRepo = $false
@@ -108,11 +111,11 @@ if (-not $isLocalRepo) {
       Write-Fail "$targetDir is a Git checkout of another project; choose a different -InstallDir."
     }
     Write-Step "Updating existing installation in $targetDir to $Ref..."
-    Invoke-Native "git fetch" { git -C $targetDir fetch --tags --force origin }
+    Invoke-Native "git fetch" { git -c http.sslBackend=openssl -C $targetDir fetch --tags --force origin }
     & git -C $targetDir show-ref --verify --quiet "refs/remotes/origin/$Ref"
     if ($LASTEXITCODE -eq 0) {
       Invoke-Native "git checkout" { git -C $targetDir checkout $Ref }
-      Invoke-Native "git pull" { git -C $targetDir pull --ff-only origin $Ref }
+      Invoke-Native "git pull" { git -c http.sslBackend=openssl -C $targetDir pull --ff-only origin $Ref }
     } else {
       Invoke-Native "git checkout" { git -C $targetDir checkout --detach $Ref }
     }
@@ -123,7 +126,7 @@ if (-not $isLocalRepo) {
       Write-Fail "$targetDir already exists and is not a Lattice checkout. Remove it yourself or choose a different -InstallDir."
     }
     Write-Step "Cloning Lattice $Ref into $targetDir..."
-    Invoke-Native "git clone" { git clone --branch $Ref --depth 1 $RepositoryUrl $targetDir }
+    Invoke-Native "git clone" { git -c http.sslBackend=openssl clone --branch $Ref --depth 1 $RepositoryUrl $targetDir }
   }
 } else {
   Write-Step "Using current repository checkout: $targetDir"
@@ -132,12 +135,12 @@ if (-not $isLocalRepo) {
 Write-Step "Installing dependencies and compiling TypeScript..."
 Push-Location $targetDir
 try {
-  & npm ci
+  & $npmCmd.Source ci
   if ($LASTEXITCODE -ne 0) {
     Write-Step "npm ci failed; retrying with npm install..."
-    Invoke-Native "npm install" { npm install }
+    Invoke-Native "npm install" { & $npmCmd.Source install }
   }
-  Invoke-Native "npm run build" { npm run build }
+  Invoke-Native "npm run build" { & $npmCmd.Source run build }
 } finally {
   Pop-Location
 }
@@ -148,7 +151,7 @@ if (-not (Test-Path $cliPath)) {
 }
 Write-Ok "Built CLI: $cliPath"
 
-$prefix = (& npm config get prefix 2>$null)
+$prefix = (& $npmCmd.Source config get prefix 2>$null)
 if ($prefix) {
   $prefix = $prefix.Trim()
 }
@@ -164,14 +167,13 @@ foreach ($cmdName in $commands) {
   $cmdFile = Join-Path $prefix "$cmdName.cmd"
   $ps1File = Join-Path $prefix "$cmdName.ps1"
 
-  $cmdContent = "@ECHO off`r`nnode `"$cliPath`" %*`r`n"
+  $cmdContent = "@ECHO off`r`n`"$nodeExecutable`" `"$cliPath`" %*`r`n"
   $ps1Content = @"
 #!/usr/bin/env pwsh
-`$exe = if (`$PSVersionTable.PSVersion -lt "6.0" -or `$IsWindows) { ".exe" } else { "" }
 if (`$MyInvocation.ExpectingInput) {
-  `$input | & "node`$exe" "$cliPath" `$args
+  `$input | & "$nodeExecutable" "$cliPath" `$args
 } else {
-  & "node`$exe" "$cliPath" `$args
+  & "$nodeExecutable" "$cliPath" `$args
 }
 exit `$LASTEXITCODE
 "@
