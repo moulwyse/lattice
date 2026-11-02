@@ -314,10 +314,45 @@ tests the public repository on Ubuntu, Windows, and macOS with Node.js 20 and
 Hosted CI is valuable compatibility evidence, but it is not the same as a full
 interactive Codex integration test on every platform.
 
+## Start screen and stats
+
+Run `lattice` in a terminal to see the start screen: the version, project,
+Git branch and active agent integration, a **Metrics** box (context sent
+against the indexed repository size, all tokens, provider-reported cost of
+`lattice run` tasks), an **Agent sessions** box and a **Worktree pipeline** box
+with the latest tasks, their changed files and whether each patch was verified
+or rejected. Every number is measured; the screen does not estimate savings.
+
+Tokens include ordinary Claude Code and Codex sessions in the repository,
+whether they ran in the desktop app, a terminal or an IDE. Lattice reads the
+session logs both agents keep locally (`~/.claude/projects` or
+`CLAUDE_CONFIG_DIR`, `~/.codex/sessions` or `CODEX_HOME`); it only reads token
+counts and never copies them anywhere. Those logs record tokens but not cost,
+so cost covers `lattice run` tasks only.
+
+The first start asks for a language (English, Русский, Українська, Polski,
+Deutsch, Español); change it later with `lattice language <code>`. On every
+start Lattice checks GitHub and, only when a newer release exists, asks whether
+to install it. Without a terminal, `lattice` prints its help.
+
+Inside Codex or Claude Code, ask for **Lattice stats**: the agent calls the
+`lattice_stats` MCP tool and shows the same report as `lattice stats`. The
+report covers the index size, context sent to agents over MCP, tasks run
+through Lattice with their tokens and provider cost, and integration status.
+Only counts are recorded, never file content. It does not claim savings;
+those come only from paired benchmarks.
+
+Set `LATTICE_NO_UPDATE_CHECK=1` to skip the update check. Language and the last
+update check are stored in `%LOCALAPPDATA%\Lattice\settings.json` or
+`~/.local/share/Lattice/settings.json`.
+
 ## Core commands
 
 ```text
 lattice
+lattice stats [--json]
+lattice update [--yes]
+lattice language [en|ru|uk|pl|de|es]
 lattice run "<task>" --worker mock
 lattice run "<task>" --worker manual
 lattice run "<task>" --worker codex

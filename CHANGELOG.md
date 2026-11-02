@@ -8,6 +8,45 @@ intends to use semantic versioning after the first public release.
 
 ## [Unreleased]
 
+### Added
+
+- `lattice` in a terminal prints a start screen: a pixel logo, version,
+  project, Git branch and active integration, a Metrics box (context sent
+  against the indexed repository size, tokens, provider-reported cost) and a
+  Worktree pipeline box with the latest tasks. Only measured numbers are shown.
+  The first start asks for a language (English, Russian, Ukrainian, Polish,
+  German, Spanish), and a start with a newer GitHub release available asks
+  whether to install it. The old line-based `lattice>` prompt, which ran every
+  typed line as a Codex task, is removed; without a terminal `lattice` prints
+  its help.
+- Task results store their goal text, so the start screen can name tasks.
+- The start screen and Lattice stats count ordinary Claude Code and Codex
+  sessions in the repository (desktop app, terminal and IDE) from the agents'
+  local session logs: sessions, input, cached and output tokens per agent and
+  surface. Claude Code messages are counted once per message id; SDK sessions,
+  including Lattice's own Claude worker, are left to their task records. The
+  logs have no cost, so cost stays limited to `lattice run` tasks.
+
+### Fixed
+
+- A task whose revision turn failed (for example on the budget cap) lost the
+  test output and changed files of the rejected attempt. The last rejected
+  attempt (reason, bounded detail, changed files) is now saved before the
+  revision turn starts.
+- A patch whose verification command is not on the allowlist is returned to
+  the worker with the allowed commands instead of ending the task. The
+  command is still never run.
+- `lattice stats [--json]` and the `lattice_stats` MCP tool: asking an agent
+  for "Lattice stats" shows index size, context served over MCP, tasks,
+  tokens, provider cost and integration status in the chosen language. The
+  MCP bridge now records per-call counts (pages and bytes, never content) in
+  `.lattice/logs/mcp-usage.jsonl`.
+- `lattice update [--yes]` installs the latest release: a global npm package
+  from the release asset, an installer checkout by moving to the new tag.
+  Development checkouts are never changed; the command prints the Git steps.
+- `lattice language [code]` shows or sets the interface language.
+  `LATTICE_NO_UPDATE_CHECK=1` disables the start-up check.
+
 ## [2.1.0] - 2026-09-24
 
 ### Changed

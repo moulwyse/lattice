@@ -196,6 +196,7 @@ export async function runTask(requestedWorkspace: string, goal: string, options:
     taskId: task.id,
     sessionId: session.id,
     status: 'running',
+    goal: task.goal,
     telemetry: metrics,
     worker: options.worker,
     model: modelSettings?.model ?? null,
@@ -341,9 +342,17 @@ export async function runTask(requestedWorkspace: string, goal: string, options:
         metrics.workerTurns < task.budget.maxTurns;
       // A rejected patch or a failed verification goes back to the worker with
       // the concrete error instead of ending the task on the first attempt.
-      const revise = async (feedback: PatchRevisionFeedback) => {
+      const revise = async (feedback: PatchRevisionFeedback, changedFiles: string[] = []) => {
         revisions += 1;
         result.patchRevisions = revisions;
+        // Keep why the attempt was rejected even if the revision turn fails.
+        result.lastRejectedAttempt = {
+          reason: feedback.reason,
+          detail: feedback.detail,
+          changedFiles,
+          at: new Date().toISOString(),
+        };
+        saveTask(workspace, result);
         machine.transition('PATCH_REVISION', feedback.reason);
         events.emit('patch.revision_requested', `Returned ${feedback.reason} to the worker`);
         stage = 'worker';
@@ -403,6 +412,20 @@ export async function runTask(requestedWorkspace: string, goal: string, options:
           workerResponse = await revise({ reason: error.reason, detail: error.message });
           continue;
         }
+        // A verification command outside the allowlist is never run. Tell the
+        // worker which commands are allowed instead of ending the task.
+        const disallowed = internalPatch!.verificationCommands.filter(
+          (command) => !task.allowedVerificationCommands.includes(command),
+        );
+        if (disallowed.length > 0 && canRevise()) {
+          workerResponse = await revise({
+            reason: 'verification_command_not_allowed',
+            detail:
+              `Not allowed: ${disallowed.join('; ')}. ` +
+              `Use only these exact verification commands: ${task.allowedVerificationCommands.join('; ')}`,
+          });
+          continue;
+        }
         machine.transition('PATCH_LOWERED');
 
         stage = 'transaction';
@@ -420,10 +443,14 @@ export async function runTask(requestedWorkspace: string, goal: string, options:
           ),
         );
         if (verifiedTaskStatus(transaction) === 'passed' || !canRevise()) break;
-        workerResponse = await revise({
-          reason: 'verification_failed',
-          detail: verificationFeedback(transaction),
-        });
+        metrics.changedFileCount = transaction.changedFiles.length;
+        workerResponse = await revise(
+          {
+            reason: 'verification_failed',
+            detail: verificationFeedback(transaction),
+          },
+          transaction.changedFiles,
+        );
       }
     }
     const finalPatch = internalPatch!;
