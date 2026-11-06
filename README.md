@@ -1,453 +1,488 @@
 <p align="center">
-  <img src="docs/assets/lattice-mark.png" alt="Lattice mark: a bounded repository slice ending in a verified result" width="96">
+  <img src="docs/assets/lattice-mark.png" alt="Lattice mark" width="88">
 </p>
 
-<h1 align="center">Lattice: Bounded Repository Context and<br>Verified Patches for Coding Agents</h1>
+<h1 align="center">Lattice: Capability-Scoped Context and<br>Fingerprint-Verified Patching for Coding Agents</h1>
 
 <p align="center">
   <strong>Moulwyse</strong><br>
   <a href="https://github.com/moulwyse">github.com/moulwyse</a> · <a href="mailto:ptech1500@gmail.com">ptech1500@gmail.com</a>
 </p>
 
-<p align="center">
-  <em>Technical report · Software release v2.1.0 · September 2026</em>
-</p>
+<p align="center"><em>Technical report · Lattice v2.1.0 · November 2026</em></p>
 
 <p align="center">
   <a href="https://github.com/moulwyse/lattice/actions/workflows/ci.yml"><img src="https://github.com/moulwyse/lattice/actions/workflows/ci.yml/badge.svg" alt="Build and test"></a>
   <a href="https://github.com/moulwyse/lattice/actions/workflows/quality.yml"><img src="https://github.com/moulwyse/lattice/actions/workflows/quality.yml/badge.svg" alt="Quality"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License"></a>
-  <a href="package.json"><img src="https://img.shields.io/badge/Node.js-20%20%7C%2022-339933.svg" alt="Node.js"></a>
   <a href="https://github.com/moulwyse/lattice/releases"><img src="https://img.shields.io/github/v/release/moulwyse/lattice?display_name=tag" alt="Release"></a>
 </p>
 
 ---
 
-### Abstract
+<table><tr><td>
 
-Coding agents that operate on whole repositories spend a large share of their
-model budget on work that is deterministic: discovering files, reading
-context, checking whether an edit still applies, and running tests. We present
-**Lattice**, an execution system that moves this work out of the model loop.
-Lattice indexes a local repository, compiles a task into acceptance criteria
-and context needs, serves the agent *bounded context pages* instead of an
-unrestricted repository dump, accepts edits only under explicit *edit grants*,
-validates every patch against *source fingerprints*, and verifies it in an
-isolated Git worktree before applying it to the workspace. One package ships
-adapters for both **Codex** and **Claude Code**, each opt-in. In a single
-owner-run paired trial on a small public fixture, Claude Opus 5.5 with Lattice
-used 87.3% fewer fresh input and output tokens, cost 86.8% less, and finished
-70.4% faster than the same agent without Lattice, with 4/4 acceptance tests
-passing in both arms. We state the narrow scope of this evidence explicitly
-(§5.3) and publish a protocol for stronger evaluation.
+**Abstract.** An autonomous coding agent typically holds three powers at once:
+it chooses what to read, it writes to the repository, and it judges whether its
+own change is correct. We argue that only the first of these needs a language
+model, and only partly. *Lattice* is an execution layer that takes the other
+two away from the model and returns them to deterministic code. The model sees
+a budgeted set of *context pages* chosen by a local relevance index; it may
+change the repository only through opaque *edit handles*, each a capability
+bound to a task, session, repository identity, base commit, path and content
+fingerprint; and its proposal is accepted only after a transaction replays it
+in an isolated Git worktree and an allowlisted test command exits with zero.
+Every step is a transition in an explicit 16-state machine, so failures,
+context requests and revisions are recorded rather than absorbed. On a public
+five-file fixture, five paired runs across three Claude and GPT model
+generations reduced fresh input-plus-output tokens by 57.8–87.3% and
+end-to-end time by 51.7–77.9% relative to the same agent run without Lattice,
+with all acceptance tests passing in both arms where measured. These are
+single-fixture smoke tests, and we state precisely what they do not show.
 
-**Keywords:** coding agents · context selection · program repair ·
-verification · LLM tooling · reproducible benchmarks
+</td></tr></table>
 
----
-
-## Contents
-
-1. [Introduction](#1-introduction)
-2. [System overview](#2-system-overview)
-3. [Design](#3-design)
-4. [Implementation](#4-implementation)
-5. [Evaluation](#5-evaluation)
-6. [Security and privacy](#6-security-and-privacy)
-7. [Limitations](#7-limitations)
-8. [Conclusion](#8-conclusion)
-- [References](#references)
-- [Citation](#citation)
-- [Appendix A. Installation](#appendix-a-installation)
-- [Appendix B. Command reference](#appendix-b-command-reference)
-- [Appendix C. Configuration](#appendix-c-configuration)
-- [Appendix D. Reproducing checks](#appendix-d-reproducing-checks)
+**Keywords:** coding agents · capability security · context selection ·
+program repair · transactional verification · LLM evaluation
 
 ---
 
 ## 1. Introduction
 
-Strong coding models are increasingly deployed as agents that read, edit and
-test real repositories [1, 2]. In a plain agent loop the model itself decides
-which files to open, re-reads context across turns, and discovers through
-trial and error whether an edit applies cleanly or breaks a test. Each of these
-steps costs tokens and wall-clock time, yet most of them do not require model
-judgement.
+A coding agent built on a frontier model spends much of its budget on work
+that has a correct answer computable without the model: locating the file
+that defines a symbol, re-reading it after every edit, checking whether a
+patch still applies, running the test suite and reading the result. In an
+unconstrained agent loop each of these is a model turn, and each turn re-sends
+a growing transcript.
 
-Lattice is built on a simple premise: **don't send the repository, send what
-matters.** Deterministic repository operations run locally and visibly; the
-model is asked only for the part of the task that needs it.
+The same loop also concentrates authority. The process that proposes a change
+is the process that writes it to disk and the process that decides it is done.
+When the model is wrong, the error reaches the working tree before any check
+has run.
+
+Lattice separates these roles:
+
+| Role | Plain agent | Lattice |
+| --- | --- | --- |
+| Choose context | model, by exploration | local index proposes; model may request more within a budget |
+| Write files | model, via native tools | runtime, via edit-grant lowering |
+| Decide correctness | model | allowlisted tests in an isolated worktree |
 
 **Contributions.**
 
-- A *bounded-context* interface that gives the agent explicit task-relevant
-  pages instead of an unrestricted repository view (§3.1).
-- An *edit-grant and fingerprint* mechanism that rejects stale or out-of-scope
-  patches before they touch the workspace (§3.2).
-- An *isolated verification* step that reproduces uncommitted work and
-  installed dependencies in a Git worktree and returns failures to the worker
-  for bounded correction (§3.3).
-- A single package with opt-in **Codex** and **Claude Code** adapters and
-  explicit stability labels (§4).
-- Published paired records, a credential-free functional benchmark, a
-  240-case safety-frontier check, and an evaluation protocol (§5).
+1. A *capability model for edits* in which a model never names a file it may
+   modify; it cites a handle whose scope, permitted operations and expected
+   content are fixed by the runtime (§3.3).
+2. A *budgeted context kernel* that serves exact line-ranged pages with
+   provenance and fingerprints, and treats additional reads as explicit,
+   bounded *context faults* (§3.2).
+3. A *transactional verifier* that reproduces the user's uncommitted state and
+   dependencies in a throwaway worktree, re-checks fingerprints before
+   application, and returns concrete failures to the model for at most two
+   revisions (§3.4).
+4. An open implementation with adapters for Codex and Claude Code, a
+   credential-free functional benchmark, a 240-case safety suite, published
+   paired measurements and a pre-registration protocol for stronger
+   evaluation (§4–§5).
 
-## 2. System overview
+## 2. Threat and trust model
 
-<p align="center">
-  <img src="docs/assets/lattice-flow.svg" alt="How Lattice bounds context and verifies a patch" width="760">
-</p>
-<p align="center"><em><strong>Figure 1.</strong> Lattice pipeline: index, compile, bound context, grant edits, verify, apply.</em></p>
+Lattice trusts the operator to choose a repository and a provider. It treats
+**all model output as untrusted structured input**: a response is a claim to
+be parsed, validated against a schema, bound to capabilities and tested, never
+an instruction to execute. It relies on Git and the operating system for
+filesystem and process isolation, and on the repository's own tests for
+semantic correctness.
 
-A Lattice run proceeds in seven stages:
-
-1. **Discovery and indexing.** Lattice finds a safe repository root and builds a
-   local structural index that respects repository boundaries and ignore rules.
-2. **Task compilation.** The goal is converted into acceptance criteria and
-   context needs.
-3. **Bounded context.** The context kernel returns bounded pages rather than an
-   unrestricted repository dump.
-4. **Proposal.** An agent or a manual operator proposes edits against explicit
-   edit grants.
-5. **Verification.** Lattice checks fingerprints, applies the transaction in an
-   isolated Git worktree that reproduces uncommitted work and installed
-   dependencies, and runs allowlisted verification commands. A rejected patch
-   or failed verification is returned to the worker for up to two corrections.
-6. **Application.** A verified patch is applied to the workspace with
-   `git apply` after every source fingerprint is re-checked (`--no-apply`
-   only verifies).
-7. **State.** State and diagnostics are written beneath the repository-local
-   `.lattice/` directory, which Lattice adds to `.git/info/exclude`.
+Lattice is *not* a sandbox. When it is attached to an agent whose native tools
+remain enabled, those tools can still read outside the Lattice context path.
+The guarantees below concern what reaches the user's working tree through
+Lattice, not what a surrounding agent can observe.
 
 ## 3. Design
 
-### 3.1 Bounded context
+<p align="center">
+  <img src="docs/assets/lattice-flow.svg" alt="Lattice pipeline" width="760">
+</p>
+<p align="center"><sub><strong>Figure 1.</strong> A Lattice run: compile the goal, index the repository, grant context and edit handles, obtain a proposal, lower it to an internal patch, replay it in an isolated worktree, verify, apply.</sub></p>
 
-The agent never receives an implicit "whole repository". It receives pages
-selected for the compiled task, so the context it sees is explicit and
-inspectable. A smaller context is not automatically a correct one (§7); the
-selection is therefore recorded alongside the result.
+### 3.1 Task compilation
 
-### 3.2 Edit grants and fingerprints
+A free-form goal is compiled into a versioned task IR containing:
 
-Every editable region is covered by an explicit grant, and every source the
-agent relied on carries a fingerprint. A patch that touches an ungranted path,
-or that was produced against content that has since changed, is rejected
-rather than merged on a best-effort basis.
+- **acceptance criteria**, split syntactically from the goal (sentences,
+  clauses, list items) so that no task-specific vocabulary is built into the
+  compiler;
+- **invariants**, extracted from "do not …" and "preserve …" phrases;
+- a **risk class** (`low`, `medium`, `high`); goals touching authentication,
+  security, permissions, migrations, concurrency, cryptography or payments are
+  high risk, and risk is never silently downgraded;
+- a **budget**: by default 12,000 context tokens, 20 pages, 3 context faults
+  and 4 model turns;
+- an **allowlist** of verification commands: common `npm`/`npx` test, lint and
+  build commands, extended with the repository's own `test*`, `check`,
+  `lint`, `typecheck` and `build` scripts. Script names come from the index of
+  `package.json`, never from the model; watch, dev-server and UI modes are
+  excluded because they do not terminate.
 
-### 3.3 Isolated verification
+### 3.2 Context kernel
 
-Verification runs in a separate Git worktree, not in the user's checkout. The
-worktree reproduces uncommitted changes and installed dependencies so that
-tests observe the same state the user would. Only allowlisted commands run.
-Verification is therefore exactly as strong as the repository's tests and the
-configured allowlist.
+The indexer records, for each file, its path, fingerprint, imports, exports,
+symbols and whether it is a test or configuration file. Discovery refuses
+dangerously broad roots such as a filesystem root or home directory, honours
+ignore rules and never follows a symlink or junction out of the repository.
 
-### 3.4 Visible state
+Files are ranked for a task by a transparent lexical score: each distinct goal
+term contributes 8 if it occurs in the path, 5 if it occurs in an exported
+symbol and 2 if it occurs in a reference, with a small prior for tests. The
+initial context combines the most relevant tests with the sources they import,
+resolving TypeScript ESM specifiers back to their source files.
 
-Local artifacts record what was selected, what changed and what was verified,
-so the execution path is not hidden from the operator.
+A **context page** is an exact line range with its content, reason,
+provenance, token estimate and the fingerprint of the file it came from. Files
+up to 12,000 characters (32,000 for high-risk tasks) are served whole;
+larger files are served as a slice of about 6,000 characters centred on the
+lines that best match the task. Before a page is served, the file is re-hashed;
+if it changed since indexing, the page is refused.
+
+The model also receives a **repository map** of ungranted files with up to
+eight symbols each. The map is ranked and capped at 12,000 characters, so the
+prompt does not grow with repository size. To read more, the model returns a
+`context_request` naming a path hint and optional symbol. These are hints, not
+authority: the kernel decides whether a page is granted within the remaining
+budget.
+
+### 3.3 Edit grants
+
+Every editable page yields an **edit grant**, identified to the model only by
+an opaque handle (`E1`, `E2`, …). A grant binds:
+
+```
+handle → (task, session, repository id, base commit, context epoch,
+          path, content fingerprint, line range, permitted operations)
+```
+
+The grant registry is stored with a SHA-256 digest of its canonical form, so a
+modified registry is detectable. Permissions follow from how the file was
+granted:
+
+| Operation | Addressed by | Permitted when |
+| --- | --- | --- |
+| `replace_text` | handle | any editable grant; `oldContent` must occur exactly once inside the granted range |
+| `replace_file`, `delete_file` | handle | the whole file was granted |
+| `create_file` | path | the path is new, repository-relative, not Git-ignored and has no hidden segment |
+
+`create_file` is the only operation that carries a path, and it can never
+overwrite an existing file. Hidden paths (`.github/`, `.husky/`, `.vscode/`,
+`.envrc`, `.git/`, `.lattice/`, …) are refused because configuration there can
+execute code. Test pages are granted read-only: a model cannot make a failing
+test pass by editing it, although it may add new tests.
+
+**Fingerprints.** For a tracked file the fingerprint is the Git object id that
+Git's own clean filters assign to the working bytes; Lattice probes the three
+`core.autocrlf` policies so that a checkout produced on another platform still
+matches its index entry. Untracked files and symlinks fall back to a raw
+SHA-256 and byte length. Only pages with a Git fingerprint receive write
+permissions.
+
+**Lowering.** A provider response is validated against a versioned schema and
+*lowered* into an internal patch IR that carries exact paths and expected
+fingerprints. The provider protocol and the internal IR are deliberately
+distinct types, so convenience features in an adapter cannot widen mutation
+authority. Unknown schema versions fail closed.
+
+### 3.4 Transactional verification
+
+The lowered patch is applied in a fresh Git worktree beneath `.lattice/`. The
+worktree first reproduces the user's uncommitted changes and links installed
+`node_modules`, so verification observes the same sources and dependencies
+the user would. Each change is checked against its expected fingerprint inside
+the worktree. Verification commands from the allowlist then run with bounded
+process control; a command that exceeds its deadline is a failure (exit code
+124). A task **passes** iff at least one allowlisted command ran and every one
+exited with zero.
+
+On rejection or failure, the model receives a `PATCH_REVISION` turn carrying
+the concrete reason: the lowering error, or the failing command with the tail
+of its output. At most two revisions are allowed, within the turn budget.
+
+A passed patch reaches the user's working tree only through `git apply`, and
+only after every source fingerprint has been re-checked against the
+workspace; `--no-apply` stops after verification and prints the diff.
+Worktrees left behind by a crashed process are identified by owner records and
+removed.
+
+### 3.5 Explicit runtime state
+
+A run is a path through a fixed state machine:
+
+```
+CREATED → COMPILED → INDEXED → CONTEXT_GRANTED → WORKER_RUNNING
+  → RESPONSE_NORMALIZED → RESPONSE_VALIDATED
+      ├─ CONTEXT_FAULT  → CONTEXT_GRANTED
+      ├─ PATCH_REVISION → WORKER_RUNNING
+      └─ PATCH_LOWERED  → TRANSACTION_RUNNING → VERIFYING
+                                                 ├─ PASSED
+                                                 └─ PATCH_REVISION
+  WORKER_RUNNING → PROTOCOL_REPAIR → WORKER_RUNNING
+  (any non-terminal state) → FAILED | CANCELLED
+```
+
+Illegal transitions raise errors. Every transition is time-stamped with its
+reason, so a protocol repair, a context fault or a failed verification is
+visible in telemetry instead of being folded into a successful answer.
+
+### 3.6 Optional mechanisms
+
+- **Verified-patch cache** (experimental, opt-in). A verified internal patch is
+  stored under a key derived from repository identity, base commit, the
+  compiled task and the fingerprints of every indexed file. Any change to
+  these produces a different key.
+- **Adaptive model policy** (experimental, opt-in). Model and reasoning effort
+  may be chosen from task risk. Explicit CLI flags, configuration and an
+  observed agent session all take precedence; when a session is present,
+  inheritance is preferred over substitution.
+- **Live-evaluation budget guard.** Paid benchmark drivers read the
+  provider's rate-limit windows before starting and refuse to run if an
+  evaluation would exceed a 10% share of a window. The guard fails closed.
 
 ## 4. Implementation
 
-Lattice is a TypeScript CLI (`lattice`) for Node.js `^20.19.0` or `>=22.12.0`.
-Configuration is repository-local (`lattice.config.json`). Architecture,
-protocol and persistence schemas are documented in
-[architecture](docs/architecture.md), [protocol](docs/protocol.md) and
-[persistence schemas](docs/persistence-schemas.md).
+Lattice is a TypeScript command-line tool (`lattice`) of roughly 14,500 lines
+for Node.js `^20.19.0` or `>=22.12.0`, released under Apache-2.0. State lives
+in a repository-local `.lattice/` directory that Lattice adds to the clone's
+`.git/info/exclude`. Metadata writes go to a fresh temporary file that is
+renamed into place, so a planted symlink or hard link at the destination
+cannot redirect them, and the metadata directory itself may not be a link
+that leaves the repository.
 
-<p align="center"><em><strong>Table 1.</strong> Capabilities in v2.1.0. "Available" means implemented and locally tested, not a production support guarantee.</em></p>
+**Workers.** The runtime is provider-agnostic. A worker only proposes; it
+never writes.
 
-| Capability | Status | Notes |
+| Worker | Status | Isolation |
 | --- | --- | --- |
-| Local repository discovery and index | Available | Respects repository boundaries and ignore rules. |
-| Bounded context pages and edit grants | Available | Local deterministic controls; covered by tests. |
-| Fingerprint-checked patch application | Available | Rejects stale or out-of-scope edits; `--no-apply` only verifies. |
-| Mock worker and deterministic fixture benchmark | Available | Runs without a model account or API credential. |
-| Manual handoff workflow | Available | The operator transfers a bounded request and response. |
-| Claude Code | [Available](docs/claude-code.md) | Same package; locally tested; exercised by published Opus 5.5 and Opus 5 pairs. |
-| Direct Codex SDK worker | Beta | Requires an authenticated Codex environment. |
-| Transparent Codex launcher, hooks, sidecar, MCP bridge | Experimental | Alters user-level integration state when explicitly enabled. |
-| Adaptive model selection and verified-patch cache | Experimental | Opt-in; behaviour and limits documented. |
-| Gemini, Cursor, Grok, other providers | Not implemented | No adapter included. |
+| Mock (deterministic, fixture-specific) | available | no model call |
+| Manual handoff | available | operator carries request and response |
+| Claude Agent SDK | available | native tools disabled, empty MCP configuration |
+| Codex SDK | beta | empty scratch directory, no user MCP servers, hooks or plugins |
 
-**Codex.** Codex is the default worker. On Windows and Linux, enabling the
-integration registers the Lattice MCP server and installs Lattice-owned
-launcher and synchronization hooks; hook activation still depends on the Codex
-client. Lattice never asks for a Codex API key.
+**Agent integrations.** Both are opt-in and reversible, and removal touches
+only state Lattice recognises as its own.
 
-**Claude Code.** Claude Code is an opt-in, per-repository integration inside
-the same package. `lattice claude --raw` launches the bundled Claude Code while
-bypassing Lattice for that process. The integration has passed local build and
-contract tests with Claude Agent SDK `0.3.281` and its bundled Claude Code
-`2.1.281`. See the [Claude Code guide](docs/claude-code.md) and the
-[OSS project brief](docs/claude-for-oss.md).
+- *Claude Code*: per-repository, launched as `lattice claude`;
+  `lattice claude --raw` starts the same bundled Claude Code with Lattice
+  bypassed. Contract-tested with Claude Agent SDK `0.3.281` and Claude Code
+  `2.1.281`.
+- *Codex* (experimental transparent mode): ownership-checked launcher shims,
+  Codex hooks, an MCP server registration, a repository-scoped sidecar and
+  session-setting synchronisation. It is an adapter over the same context and
+  grant primitives, not a second authority path.
 
-**Platforms.** GitHub Actions builds and tests on Ubuntu, Windows and macOS
-with Node.js 20 and 22; dependency resolution was checked for Linux x64 and
-Darwin ARM64. The final local release audit ran on Windows. Hosted CI is not a
-substitute for a full interactive integration test on every platform; live
-Omarchy sessions and macOS automatic integration remain unverified.
+**Quality.** The repository contains 32 test files run with Vitest, linting,
+format checks, a packaging check and a public-export scanner that reports,
+but never deletes, suspicious artifacts. CI builds and tests on Ubuntu,
+Windows and macOS with Node.js 20 and 22.
 
 ## 5. Evaluation
 
-### 5.1 Setup
+### 5.1 Fixture and procedure
 
-Each live record is one **paired** run on the same reset-token task: one arm
-with the plain agent (RAW) and one arm through Lattice. The fixture is small
-and maintainer-authored (five source files). Token counts are provider-reported
-fresh input plus output.
+All live measurements use `fixtures/reset-token`, a public five-file Node.js
+project whose baseline fails two of four tests. The task asks the agent to
+consume a valid password-reset token once, reject reuse and expired tokens,
+record an audit event and leave login behaviour unchanged.
+
+Each measurement is one **pair**: a plain arm (the agent as shipped, in a fresh
+temporary repository) followed by a Lattice arm (native tools off, empty MCP
+configuration, patch cache off, isolated worktree) on the same baseline
+commit. Candidate sources from each arm are then tested in an independent
+pristine directory with the original tests. Token counts are provider-reported;
+cached input is reported separately and excluded from "fresh".
 
 ### 5.2 Results
 
-<p align="center"><em><strong>Table 2.</strong> Owner-run paired results, plain agent → Lattice. Separate single-task runs, not a model ranking.</em></p>
+<p align="center"><sub><strong>Table 1.</strong> Paired results on the reset-token fixture. Reduction = 1 − Lattice/plain. Each row is a single pair.</sub></p>
 
-| Model / effort, version | Fresh input + output | Cost | End-to-end time | Acceptance |
-| --- | ---: | ---: | ---: | --- |
-| **Claude Opus 5.5** / high, v2.0.1 | 37,279 → 4,747 (**−87.3%**) | $0.362 → $0.048 (**−86.8%**) | 35.0 s → 10.3 s (**−70.4%**) | 4/4 both arms |
-| **GPT-6 Astra** / medium, v1.0.0 | 16,872 → 4,005 (**−76.3%**) | not measured | 70.2 s → 27.0 s (**−61.6%**) | 4/4 both arms |
+| Model / effort | Lattice | Operator | Fresh in+out, plain → Lattice | Reduction | End-to-end time | Reduction |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| Claude Opus 5.5 / high | v2.0.1 | owner | 37,279 → 4,747 | **87.3%** | 35.0 s → 10.3 s | **70.4%** |
+| GPT-5.6 Luna | v1.0.0 | owner | 73,394 → 10,541 | 85.6% | 100.8 s → 22.3 s | 77.9% |
+| Claude Opus 5 | v1.0.0 | community | 21,020 → 3,901 | 81.4% | 46.6 s → 13.6 s | 70.8% |
+| GPT-6 Astra / medium | v1.0.0 | owner | 16,872 → 4,005 | 76.3% | 70.2 s → 27.0 s | 61.6%* |
+| GPT-5.6 Sol | v1.0.0 | owner | 24,985 → 10,555 | 57.8% | 63.4 s → 30.7 s | 51.7% |
 
-For Opus 5.5 both arms received the same task text and produced functionally
-equivalent patches; most of the difference comes from Lattice finishing in one
-model turn where Claude Code used eight
-([record](docs/evidence/owner-run-claude-opus-5-5.md)). The Astra pair was
-measured with v1.0.0, whose Lattice arm also received five hand-written
-acceptance criteria the plain arm did not, so it is not like-for-like; arm time
-excludes setup, checkpoint and cleanup
-([record](docs/evidence/owner-run-gpt-6-astra.md)).
+<sub>* Arm time, excluding setup, checkpoint and cleanup.</sub>
 
-Historical v1.0.0 records remain published for
-[GPT-5.6 Sol](docs/evidence/owner-run-gpt-5.6-sol.md),
-[GPT-5.6 Luna](docs/evidence/owner-run-gpt-5.6-luna.md) and a
-[community-run Claude Opus 5 reproduction](docs/evidence/community-run-claude-opus-5.md).
+For the two Claude pairs the provider also reported cost:
+$0.362 → $0.048 (−86.8%) for Opus 5.5 and $0.280 → $0.048 (−82.8%) for Opus 5.
 
-### 5.3 Evidence boundary
+### 5.3 Where the savings come from
 
-Each row in Table 2 is **one** owner-run pair on **one** small fixture. It is
-not independent task selection, not population-level evidence, and not a
-general savings claim. Ratios will differ on larger repositories and harder
-tasks. Raw provider sessions, private configuration, local paths and
-unreviewed transcripts are excluded from all records.
+The Opus 5.5 pair is the cleanest comparison: both arms received identical task
+text, the Lattice arm added no fixture-specific criteria, both passed 4/4
+pristine acceptance tests, and both edited the same two files with
+functionally equivalent patches. The plain agent used **eight model turns** to
+explore, edit and test; Lattice used **one**, with zero context faults and
+zero protocol repairs. On a repository this small, the reduction comes mostly
+from removing turns, not from sending less of the repository. The plain arm
+also consumed 194,670 cached input tokens, which Lattice did not need at all.
 
-### 5.4 Deterministic checks
+### 5.4 What these results do not show
 
-- A credential-free, reproducible
-  [functional smoke test](docs/evidence/mock-benchmark-v0.1.0.json)
-  (`lattice benchmark --worker mock`). It makes no model call and is not
-  evidence of quality or savings.
-- A CI-checked [240-case safety-frontier result](docs/evidence/economy-frontier.json)
-  covering risk classification, fail-closed protocol handling, path
-  confinement, exact patch lowering and the live-evaluation budget guard
-  (`npm run evidence:frontier`).
+- **One fixture.** Five files, one task, maintainer-authored. No confidence
+  interval can be computed from one pair per model.
+- **Not like-for-like across versions.** The four v1.0.0 pairs gave the Lattice
+  arm extra, fixture-specific acceptance criteria that the plain arm did
+  not receive. They should be re-measured before being cited.
+- **Not independent.** Four of five pairs were run by the author.
+- **Not a ranking.** Rows use different models, efforts and dates and are not
+  comparable to each other.
+- **Not a quality claim.** A smaller context is not automatically a correct
+  context; verification is only as strong as the repository's tests.
 
-### 5.5 Proposed protocol
+### 5.5 Deterministic evidence
 
-Stronger claims require paired, isolated runs with provider-reported usage,
-evaluator-owned tasks, disclosed failures and a predeclared acceptance rule.
-The protocol is specified in [docs/evaluation.md](docs/evaluation.md); the
-spend-gated public drivers are in [benchmarks/](benchmarks/README.md).
+Two results require no model and are reproducible by anyone:
 
-## 6. Security and privacy
+- `lattice benchmark --worker mock` runs the full pipeline with a
+  deterministic worker and ends with `Status: passed`. It is a functional
+  check, not a measure of savings.
+- `npm run evidence:frontier` runs 240 contract cases in five groups of 48:
+  task risk is never silently downgraded; the provider protocol fails closed;
+  paths stay confined to the repository; patch lowering is exact; and the
+  live-evaluation budget guard fails closed. The published result is 240/240
+  ([JSON](docs/evidence/economy-frontier.json)).
 
-Lattice reads source code in the repository it is pointed at. Context sent to
-a remote model is subject to that provider's terms, settings and retention
-policy. Local metadata under `.lattice/` can contain source excerpts, diffs,
-goals and diagnostics; it is excluded from commits but should be removed
-before sharing a repository copy.
+### 5.6 Protocol for stronger claims
 
-The transparent Codex integration can create launch shims, an MCP registration
-and hooks in user-level configuration. It is never enabled by installation;
-`lattice integration codex doctor` reports the paths it would touch, and the
-disable command removes only state Lattice recognizes as its own.
+[docs/evaluation.md](docs/evaluation.md) specifies a pre-registered design:
+evaluator-selected tasks (pilot ≥ 20, technical ≈ 100), frozen Lattice
+configuration before tasks are revealed, byte-identical starting snapshots,
+randomised run order, provider-reported usage summed over every model call,
+a non-inferiority margin on task success, a 2×2 paired outcome table, and
+paired medians with bootstrap intervals for tokens and time. Spend-gated
+drivers are in [benchmarks/](benchmarks/README.md).
 
-The public-export scanner (`npm run scan:public`) reports suspicious artifacts
-and exits non-zero; it never deletes files and is defence in depth, not proof
-of safety. See [SECURITY.md](SECURITY.md) and [docs/security.md](docs/security.md).
+## 6. Limitations
 
-## 7. Limitations
+Lattice is an early release, not a hosted service and not a security boundary.
+Relevance ranking is lexical and can miss context that a model would find by
+exploration; the context-fault mechanism mitigates this only within budget.
+Verification is limited to the allowlist and to what the repository's tests
+cover. The transparent Codex integration modifies user-level configuration
+when enabled and remains experimental; live Omarchy sessions and automatic
+macOS integration are unverified. `.lattice/` may contain source excerpts,
+diffs and diagnostics and should be treated as sensitive. Context sent to a
+provider is governed by that provider's terms. The full list is in
+[docs/limitations.md](docs/limitations.md) and [SECURITY.md](SECURITY.md).
 
-- Lattice is an early public release, not a hosted service or a security
-  boundary.
-- A smaller context is not automatically a correct context.
-- Verification is only as strong as the repository's tests and the command
-  allowlist.
-- Token and latency savings vary by task, repository, model, cache state and
-  provider accounting.
-- Local integration tests do not substitute for live provider evaluation.
-- The Opus 5.5 result is one owner-run pair on one maintainer-authored fixture.
-- The Astra, Luna, Sol and Opus 5 pairs used v1.0.0 with extra fixture-specific
-  acceptance criteria in the Lattice arm; re-measure before citing them.
-- `@moulwyse/lattice` is not yet published to the public npm registry.
+## 7. Conclusion
 
-The complete list is in [docs/limitations.md](docs/limitations.md).
-
-## 8. Conclusion
-
-Lattice separates what a coding agent must decide from what a tool can do
-deterministically: context selection, edit authority and verification become
-explicit, local and auditable. Early paired evidence on a small fixture shows
-large reductions in tokens, cost and time without loss of acceptance; broader
-evaluation under the published protocol is the next step.
+Most of what a coding agent does between reading a task and delivering a
+patch is deterministic. Lattice moves that work into code that is local,
+budgeted and auditable, and narrows the model's role to proposing changes
+through capabilities it cannot widen. Early paired measurements suggest that
+the resulting reduction in model turns translates into large savings in
+tokens and time without loss of acceptance on a small task. Whether that holds
+on large repositories and hard tasks is the question the published protocol
+is designed to answer.
 
 ---
 
 ## References
 
-[1] OpenAI. *Codex.* <https://openai.com/codex>
-
-[2] Anthropic. *Claude Code.* <https://claude.com/claude-code>
-
-[3] Anthropic. *Claude Agent SDK.* <https://docs.claude.com/en/api/agent-sdk/overview>
-
-[4] Model Context Protocol. <https://modelcontextprotocol.io>
-
-[5] Git. *git-worktree documentation.* <https://git-scm.com/docs/git-worktree>
+1. OpenAI. *Codex.* <https://openai.com/codex>
+2. Anthropic. *Claude Code.* <https://claude.com/claude-code>
+3. Anthropic. *Claude Agent SDK.* <https://docs.claude.com/en/api/agent-sdk/overview>
+4. *Model Context Protocol.* <https://modelcontextprotocol.io>
+5. Git project. *git-worktree* and *git-hash-object.* <https://git-scm.com/docs>
+6. J. B. Dennis and E. C. Van Horn. Programming semantics for multiprogrammed computations. *Communications of the ACM*, 9(3):143–155, 1966.
 
 ## Citation
-
-If you use Lattice in research or evaluation work, please cite the software
-([CITATION.cff](CITATION.cff)):
 
 ```bibtex
 @software{moulwyse2026lattice,
   author  = {Moulwyse},
-  title   = {Lattice: Bounded Repository Context and Verified Patches for Coding Agents},
+  title   = {Lattice: Capability-Scoped Context and Fingerprint-Verified Patching for Coding Agents},
   version = {2.1.0},
   year    = {2026},
-  month   = sep,
   url     = {https://github.com/moulwyse/lattice},
   license = {Apache-2.0}
 }
 ```
 
+Machine-readable metadata: [CITATION.cff](CITATION.cff).
+
 ---
 
-## Appendix A. Installation
+## Appendix A. Getting started
 
-Requirements: [Git](https://git-scm.com/downloads) and Node.js `20.19+` or
-`22.12+`. No API key is needed to install Lattice or run its local
-self-test.
-
-**Installer.**
-
-```powershell
-# Windows (PowerShell)
-irm https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/install.ps1 | iex
-```
-
-```sh
-# Linux / macOS (Bash)
-curl -fsSL https://raw.githubusercontent.com/moulwyse/lattice/main/scripts/install.sh | bash
-```
-
-**Prebuilt release package.**
+Requires [Git](https://git-scm.com/downloads) and Node.js `20.19+` or
+`22.12+`. No API key is needed to install or self-test.
 
 ```sh
 npm install --global https://github.com/moulwyse/lattice/releases/download/v2.1.0/lattice-v2-2.1.0.tgz
-lattice --version
-lattice benchmark --worker mock
-```
-
-**From source.**
-
-```sh
-git clone https://github.com/moulwyse/lattice.git
-cd lattice
-npm ci
-npm run build
-npm link
 lattice doctor --workspace .
-lattice benchmark --worker mock
+lattice benchmark --worker mock        # expect: Status: passed
 ```
 
-A healthy self-test ends with `Status: passed`. If `npm link` is unavailable,
-run `node dist/cli.js <command>` from the clone. Installing straight from Git
-(`github:moulwyse/lattice#v2.1.0`) fails on npm 11+, because npm prepares a
-global Git dependency without dev dependencies and the build cannot find `tsc`.
-
-**Enable Codex.**
+Installer scripts: `scripts/install.ps1` (Windows) and `scripts/install.sh`
+(Linux, macOS). From source: `git clone`, `npm ci`, `npm run build`,
+`npm link`. Installing directly from a Git URL fails on npm 11+ because dev
+dependencies are not installed for global Git packages.
 
 ```sh
-codex login status
-lattice integration codex doctor --workspace .
-lattice integration codex enable
-# open a new terminal and restart Codex
-lattice integration codex status --workspace .
-```
-
-**Enable Claude Code** (per repository).
-
-```sh
-lattice integration claude enable --workspace .
-lattice integration claude status --workspace .
+lattice integration claude enable --workspace .   # Claude Code, this repository only
 lattice claude
+
+lattice integration codex doctor --workspace .    # Codex (experimental transparent mode)
+lattice integration codex enable
 ```
 
-**Undo.**
+Remove with `lattice integration … disable` and
+`npm uninstall --global lattice-v2`. Details:
+[installation](docs/installation.md), [Claude Code](docs/claude-code.md),
+[Codex quick start](docs/quick-start.md), [configuration](docs/configuration.md),
+[troubleshooting](docs/troubleshooting.md).
 
-```sh
-lattice integration codex disable
-lattice integration claude disable --workspace .
-npm uninstall --global lattice-v2   # after npm link: npm unlink --global lattice-v2
-```
-
-Full instructions: [installation guide](docs/installation.md),
-[Codex quick start](docs/quick-start.md), [Claude Code setup](docs/claude-code.md),
-[release and upgrade guide](docs/release-v2.0.0.md).
-
-## Appendix B. Command reference
+## Appendix B. Command summary
 
 ```text
-lattice
 lattice run "<task>" --worker mock|manual|codex|claude [--no-apply]
 lattice continue <task-id>
 lattice handoff validate <task-id>
 lattice session new|show|reset
-lattice doctor
-lattice benchmark --worker mock
+lattice doctor | benchmark --worker mock
 lattice integration codex status|doctor|enable|disable
 lattice integration claude status|enable|disable
 lattice claude [--raw]
 lattice sidecar status|stop
-lattice --version
-lattice --about
 ```
 
-Use `lattice <command> --help` for options. A direct Codex run can inherit the
-active Codex model settings or take `--model`, `--reasoning-effort` and
-`--model-policy`.
+## Appendix C. Worker protocol
 
-## Appendix C. Configuration
-
-Configuration lives in `lattice.config.json`; start from
-[`examples/lattice.config.example.json`](examples/lattice.config.example.json):
+A worker returns one of two versioned messages.
 
 ```json
-{
-  "model": "inherit",
-  "reasoningEffort": "inherit",
-  "modelPolicy": "inherit"
-}
+{ "schemaVersion": 1, "kind": "context_request",
+  "requests": [{ "reason": "need the failing function", "pathHint": "src/example.ts", "symbol": "example" }] }
 ```
 
-Do not commit credentials or provider session state. Precedence rules and
-adaptive behaviour are described in [docs/configuration.md](docs/configuration.md).
-
-## Appendix D. Reproducing checks
-
-```sh
-npm test               # builds, then runs the Vitest suite
-npm run lint
-npm run format:check
-npm run scan:public
-npm run package:check
-npm run evidence:frontier
+```json
+{ "schemaVersion": 1, "kind": "patch",
+  "patch": { "schemaVersion": 1, "summary": "…",
+    "changes": [{ "editHandle": "E1", "operation": "replace_text",
+                  "replacements": [{ "oldContent": "…", "newContent": "…" }] }],
+    "verificationCommands": ["npm test"] } }
 ```
+
+Full specification: [protocol](docs/protocol.md),
+[architecture](docs/architecture.md),
+[persistence schemas](docs/persistence-schemas.md).
 
 ---
 
 <sub>
-<strong>Contributing.</strong> See <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> and the <a href="CODE_OF_CONDUCT.md">Code of Conduct</a>. Reports and pull requests must not contain secrets, personal paths, private source, model transcripts or provider session data.
-<strong>Support.</strong> See <a href="SUPPORT.md">SUPPORT.md</a>; report vulnerabilities privately as described in <a href="SECURITY.md">SECURITY.md</a>. Sponsorship and testing infrastructure: <a href="mailto:ptech1500@gmail.com?subject=Lattice%20support">ptech1500@gmail.com</a> or <a href="https://www.patreon.com/c/moulwyse">Patreon</a>. Please do not send credentials or private code by email.
-<strong>License.</strong> Apache License 2.0 (<a href="LICENSE">LICENSE</a>). Provenance: <a href="NOTICE">NOTICE</a>, <a href="AUTHORS.md">AUTHORS.md</a>, <a href="CITATION.cff">CITATION.cff</a>; fork naming: <a href="TRADEMARKS.md">TRADEMARKS.md</a>. Lattice was originally created and developed by Moulwyse; this repository is its canonical home.
+Contributions: <a href="CONTRIBUTING.md">CONTRIBUTING.md</a>, <a href="CODE_OF_CONDUCT.md">Code of Conduct</a>. Support: <a href="SUPPORT.md">SUPPORT.md</a>; report vulnerabilities privately per <a href="SECURITY.md">SECURITY.md</a>. Sponsorship and testing infrastructure: <a href="mailto:ptech1500@gmail.com?subject=Lattice%20support">ptech1500@gmail.com</a>, <a href="https://www.patreon.com/c/moulwyse">Patreon</a>. Licensed under <a href="LICENSE">Apache-2.0</a>; provenance in <a href="NOTICE">NOTICE</a> and <a href="AUTHORS.md">AUTHORS.md</a>; fork naming in <a href="TRADEMARKS.md">TRADEMARKS.md</a>. Lattice was created by Moulwyse; this repository is its canonical home.
 </sub>
